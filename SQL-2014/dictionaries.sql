@@ -118,3 +118,4 @@ select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as
 		and ind.object_id = isnull(@table_object_id,ind.object_id)
 		and cols.name = isnull(@columnName,cols.name)
 	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number;
+
