@@ -190,6 +190,10 @@ begin
 			inner join sys.allocation_units as a 
 				ON p.partition_id = a.container_id
 		where p.data_compression in (0,1,2) -- None, Row, Page
+			 and (select count(*)
+				from sys.indexes ind
+				where t.object_id = ind.object_id
+					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableNamePattern is null or object_name (t.object_id) like '%' + @tableNamePattern + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
 			 and (( @showReadyTablesOnly = 1 
