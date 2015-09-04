@@ -22,6 +22,7 @@
 Changes in 1.0.1:
 	+ Added information about Id of the column in the dictionary, for better debugging
 	+ Added ordering by the columnId
+	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
 */
 	
 -- Params --
@@ -30,6 +31,7 @@ declare
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries independently from their warning status
+	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL;					-- Allows to filter out data base on 1 particular column name
 -- end of --
@@ -123,4 +125,5 @@ select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as
 		) OR @showAllTextDictionaries = 0 )
 		and ind.object_id = isnull(@table_object_id,ind.object_id)
 		and cols.name = isnull(@columnName,cols.name)
+		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
