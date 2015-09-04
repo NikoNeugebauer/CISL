@@ -23,6 +23,7 @@ Changes in 1.0.1:
 	+ Added information about Id of the column in the dictionary, for better debugging
 	+ Added ordering by the columnId
 	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
+	+ Added quotes for displaying the name of any tables correctly
 */
 	
 -- Params --
@@ -65,7 +66,7 @@ end
 --------------------------------------------------------------------------------------------------------------------
 set nocount on;
 
-SELECT object_schema_name(i.object_id) + '.' + object_name(i.object_id) as 'TableName', 
+SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 		p.partition_id as 'Partition',
 		(select count(distinct rg.segment_id) from sys.column_store_segments rg
 			where rg.partition_id = p.partition_id and rg.hobt_id = p.hobt_id ) as 'RowGroups',
@@ -84,7 +85,7 @@ SELECT object_schema_name(i.object_id) + '.' + object_name(i.object_id) as 'Tabl
 
 
 
-select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as 'TableName',
+select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
 			ind.name as 'IndexName', 
 			part.partition_number as 'Partition',
 			cols.name as ColumnName, 
@@ -127,3 +128,4 @@ select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
+
