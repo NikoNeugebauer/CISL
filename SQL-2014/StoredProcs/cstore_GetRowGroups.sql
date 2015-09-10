@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: Release 1, September 2015
+	Version: 1.0.1, September 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -16,6 +16,10 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+*/
+
+/*
+	Known Issues & Limitations: 
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -63,7 +67,7 @@ begin
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
 		count(*) as 'Total',
 		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(total_rows-deleted_rows,0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
 		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
@@ -86,7 +90,6 @@ begin
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
 		order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
-				part.partition_number;end
-
-
+				part.partition_number;
+end
 
