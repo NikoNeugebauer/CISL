@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: Release 1, September 2015
+	Version: 1.0.1, September 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -33,8 +33,8 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
-		@showTSQLCommandsBeta bit = 1,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
-		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered';		-- Allows to define the type of Columnstore Index to be created eith possible values of 'Clustered' and 'Nonclustered'
+		@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
+		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered';		-- Allows to define the type of Columnstore Index to be created with possible values of 'Clustered' and 'Nonclustered'
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -187,9 +187,9 @@ select t.object_id as [ObjectId]
 			ON p.partition_id = a.container_id
 	where p.data_compression in (0,1,2) -- None, Row, Page
 		 and (select count(*)
-			from sys.indexes ind
-			where t.object_id = ind.object_id
-				and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
+				from sys.indexes ind
+				where t.object_id = ind.object_id
+					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableNamePattern is null or object_name (t.object_id) like '%' + @tableNamePattern + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
 		 and (( @showReadyTablesOnly = 1 
