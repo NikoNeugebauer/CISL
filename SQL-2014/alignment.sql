@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: Release 1, September 2015
+	Version: 1.0.1, October 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
