@@ -35,7 +35,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server 2014
+-- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
 	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
