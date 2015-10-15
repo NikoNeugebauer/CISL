@@ -1,7 +1,7 @@
 # CSIL
 Welcome to CISL - Columnstore Indexes Scripts Library
 
-The library is launched with the very first release on 1st of September 2015. The first release is targeting SQL Server 2014 only, but in the following months I am expecting to launch SQL Server 2012 & SQL Server 2016 compatible version.  
+The library is launched with the very first release on 1st of September 2015. The current release (1.0.1) is targeting SQL Server 2012 & 2014, but in the following months I am expecting to launch SQL Server 2016 & Azure SQLDatabase compatible versions.  
 
 At the moment, the CISL consists from 7 scripts, but soon (in 2015) I expect to expand this library with more complex stuff such as maintenance solution.  
 Every CISL script comes in 2 variants: a simple executable script & stored procedure.  
@@ -12,6 +12,6 @@ CISL consists from the following scripts:
 2. Suggested Tables (suggested_tables.sql) - Lists tables which potentially can be interesting for implementing Columnstore Indexes.  
 3. Row Groups (row_groups.sql) - Shows detailed information on the Columnstore Row Groups.  
 4. Segment Alignment (alignment.sql) - Shows the alignment (ordering) between the different Columnstore Segments.  
-5. Fragmentation (fragmentation.sql) - Shows the different types of Columnstore Indexes Fragmentation.  
+5. Fragmentation (fragmentation.sql) - Shows the different types of Columnstore Indexes Fragmentation.  (Note: SQL Server 2012 version does not exist, since Nonclustered Columnstore Indexes in SQL Server 2012 are non-updatable and hence have no fragmentation)
 6. Dictionaries (dictionaries.sql) - Shows detailed information about the Columnstore Dictionaries.  
 7. Memory (memory.sql) - Shows the content of the Columnstore Object Pool.  
