@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.1 beta, September 2015
+	Version: 1.0.1, October 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -30,6 +30,7 @@ Changes in 1.0.1
 	+ Added new parameter for Enables showing the SQL Server versions that are posterior the current version
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early versions
+	+ Added information about CU8 for SQL Server 2012 SP 2
 */
 
 -- Params --
@@ -126,7 +127,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
 	( 'SP2', 5569, 'CU 4 for SQL Server 2012 SP2' ),
 	( 'SP2', 5582, 'CU 5 for SQL Server 2012 SP2' ),
 	( 'SP2', 5592, 'CU 6 for SQL Server 2012 SP2' ),
-	( 'SP2', 5623, 'CU 7 for SQL Server 2012 SP2' );
+	( 'SP2', 5623, 'CU 7 for SQL Server 2012 SP2' ),
+	( 'SP2', 5634, 'CU 8 for SQL Server 2012 SP2' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
