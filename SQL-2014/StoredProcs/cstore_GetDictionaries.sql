@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.0.1, October 2015
+	Version: Release 1, August 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -48,6 +48,7 @@ create procedure dbo.cstore_GetDictionaries(
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries indepentantly from their warning status
+	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL					-- Allows to filter out data base on 1 particular column name
 -- end of --
@@ -62,7 +63,7 @@ begin
 	else 
 		set @table_object_id = NULL;
 
-	SELECT object_schema_name(i.object_id) + '.' + object_name(i.object_id) as 'TableName', 
+	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 			p.partition_number as 'Partition',
 			(select count(rg.row_group_id) from sys.column_store_row_groups rg
 				where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -82,17 +83,18 @@ begin
 
 
 
-	select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as 'TableName',
-				ind.name as 'IndexName', 
-				part.partition_number as 'Partition',
-				cols.name as ColumnName, 
-				dict.dictionary_id as 'SegmentId',
-				tp.name as ColumnType,
-				dict.column_id as 'ColumnId', 
-				case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
-				part.rows as 'Rows Serving', 
-				entry_count as 'Entry Count', 
-				cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
+	SELECT QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
+			ind.name as 'IndexName', 
+			part.partition_number as 'Partition',
+			cols.name as ColumnName, 
+			dict.column_id as ColumnId,
+			dict.dictionary_id as 'SegmentId',
+			tp.name as ColumnType,
+			dict.column_id as 'ColumnId', 
+			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
+			part.rows as 'Rows Serving', 
+			entry_count as 'Entry Count', 
+			cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 		from sys.column_store_dictionaries dict
 			inner join sys.partitions part
 				ON dict.hobt_id = part.hobt_id and dict.partition_id = part.partition_id
@@ -122,7 +124,8 @@ begin
 			) OR @showAllTextDictionaries = 0 )
 			and ind.object_id = isnull(@table_object_id,ind.object_id)
 			and cols.name = isnull(@columnName,cols.name)
-		order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number;
+			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+		order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
 
 
 end
