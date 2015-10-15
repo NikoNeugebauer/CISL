@@ -18,14 +18,24 @@
     limitations under the License.
 */
 
+/*
+Changes in 1.0.1:
+	+ Added information about Id of the column in the dictionary, for better debugging
+	+ Added ordering by the columnId
+	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
+	+ Added quotes for displaying the name of any tables correctly
+*/
+
 -- Params --
 declare 
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries independently from their warning status
+	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL;					-- Allows to filter out data base on 1 particular column name
+
 -- end of --
 
 declare @table_object_id int = NULL;
@@ -57,7 +67,7 @@ end
 --------------------------------------------------------------------------------------------------------------------
 set nocount on;
 
-SELECT object_schema_name(i.object_id) + '.' + object_name(i.object_id) as 'TableName', 
+SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 		p.partition_number as 'Partition',
 		(select count(rg.row_group_id) from sys.column_store_row_groups rg
 			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -77,17 +87,18 @@ SELECT object_schema_name(i.object_id) + '.' + object_name(i.object_id) as 'Tabl
 
 
 
-select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as 'TableName',
-			ind.name as 'IndexName', 
-			part.partition_number as 'Partition',
-			cols.name as ColumnName, 
-			dict.dictionary_id as 'SegmentId',
-			tp.name as ColumnType,
-			dict.column_id as 'ColumnId', 
-			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
-			part.rows as 'Rows Serving', 
-			entry_count as 'Entry Count', 
-			cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
+select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
+		ind.name as 'IndexName', 
+		part.partition_number as 'Partition',
+		cols.name as ColumnName, 
+		dict.column_id as ColumnId,
+		dict.dictionary_id as 'SegmentId',
+		tp.name as ColumnType,
+		dict.column_id as 'ColumnId', 
+		case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
+		part.rows as 'Rows Serving', 
+		entry_count as 'Entry Count', 
+		cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 	from sys.column_store_dictionaries dict
 		inner join sys.partitions part
 			ON dict.hobt_id = part.hobt_id and dict.partition_id = part.partition_id
@@ -117,5 +128,6 @@ select object_schema_name(part.object_id) + '.' + object_name(part.object_id) as
 		) OR @showAllTextDictionaries = 0 )
 		and ind.object_id = isnull(@table_object_id,ind.object_id)
 		and cols.name = isnull(@columnName,cols.name)
-	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number;
+		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
 
