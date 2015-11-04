@@ -122,12 +122,13 @@ begin
 					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
 					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
+
+		select * 
+			from #TempVersionResults;
+
+		drop table #TempVersionResults;
 	end 
 
-	select * 
-		from #TempVersionResults;
-
-	drop table #TempVersionResults;
 end
 
 select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
