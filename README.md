@@ -1,7 +1,7 @@
 # CSIL
 Welcome to CISL - Columnstore Indexes Scripts Library
 
-The library is launched with the very first release on 1st of September 2015. The current release (1.0.1) is targeting SQL Server 2012 & 2014, but in the following months I am expecting to launch SQL Server 2016 & Azure SQLDatabase compatible versions.  
+The library is launched with the very first release on 1st of September 2015. The current release (1.0.2) is targeting SQL Server 2012, 2014, 2016 & Azure SQL Database.  
 
 At the moment, the CISL consists from 7 scripts, but soon (in 2015) I expect to expand this library with more complex stuff such as maintenance solution.  
 Every CISL script comes in 2 variants: a simple executable script & stored procedure.  
