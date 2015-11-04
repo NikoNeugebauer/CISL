@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.1, October 2015
+	Version: 1.0.2, November 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -31,6 +31,10 @@ Changes in 1.0.1
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early versions
 	+ Added information about CU8 for SQL Server 2012 SP 2
+
+Changes in 1.0.2
+	+ Added column with the CU Version for the Bugfixes output
+	* Updated temporary tables in order to avoid error messages
 */
 
 -- Params --
@@ -74,16 +78,16 @@ create table #SQLColumnstoreImprovements(
 	BuildVersion smallint not null,
 	SQLBranch char(3) not null,
 	Description nvarchar(500) not null,
-	URL nvarchar(1000) 
+	URL nvarchar(1000)
 );
 
 create table #SQLBranches(
-	SQLBranch char(3) not null,
+	SQLBranch char(3) not null Primary Key,
 	MinVersion smallint not null );
 
 create table #SQLVersions(
 	SQLBranch char(3) not null,
-	SQLVersion smallint not null,
+	SQLVersion smallint not null Primary Key,
 	SQLVersionDescription nvarchar(100) );
 
 insert into #SQLBranches (SQLBranch, MinVersion)
@@ -158,14 +162,12 @@ begin
 	if( exists (select 1
 					from #SQLVersions
 					where SQLVersion = cast(@SQLServerBuild as int) ) )
-		insert into #TempVersionResults
-			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion
-				from #SQLVersions
-				where SQLVersion = cast(@SQLServerBuild as int);
+		select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion
+			from #SQLVersions
+			where SQLVersion = cast(@SQLServerBuild as int);
 	else
-		insert into #TempVersionResults
-			select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, 'unknown' as SQLVersionDescription, 
-					cast(ServerProperty('ProductLevel') as Char(3)) as SQLBranch, @SQLServerBuild as BuildVersion
+		select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, '-' as SQLVersionDescription, 
+			ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion;
 			
 	
 	-- Select information about all newer SQL Server versions that are known
@@ -179,22 +181,26 @@ begin
 					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
 					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
+
+		select * 
+			from #TempVersionResults;
+
+		drop table #TempVersionResults;
 	end 
 
-	select * 
-		from #TempVersionResults;
-
-	drop table #TempVersionResults;
+	
 end
 
 -- Select all known bugfixes that are applied to the newer versions of SQL Server
-select BuildVersion, imps.SQLBranch, SQLVersionDescription as UpdateName, Description, URL
+select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
 	from #SQLColumnstoreImprovements imps
 		inner join #SQLBranches branch
 			on imps.SQLBranch = branch.SQLBranch
 		inner join #SQLVersions vers
 			on imps.BuildVersion = vers.SQLVersion
-	where BuildVersion > @SQLServerBuild and branch.MinVersion < BuildVersion
+	where BuildVersion > @SQLServerBuild 
+		and branch.SQLBranch = ServerProperty('ProductLevel')
+		and branch.MinVersion < BuildVersion;
 
 -- Drop used temporary tables
 drop table #SQLColumnstoreImprovements;
