@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.1, October 2015
+	Version: 1.0.2, November 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -31,6 +31,12 @@ Changes in 1.0.1
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early versions
 	- Fixed erroneous build version for the SQL Server 2014 SP2 CU2
+
+Changes in 1.0.2
+	+ Added information about CU 3 for SQL Server 2014 SP1 and CU 10 for SQL Server 2014 RTM
+	+ Added column with the CU Version for the Bugfixes output
+	- Fixed bug with the wrong CU9 Version 
+	* Updated temporary tables in order to avoid error messages
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -67,8 +73,8 @@ begin
 	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 
-	declare	@SQLServerBuild smallint = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
-	
+	declare @SQLServerBuild smallint  = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
+
 	if OBJECT_ID('tempdb..#SQLColumnstoreImprovements', 'U') IS NOT NULL
 		drop table #SQLColumnstoreImprovements;
 	if OBJECT_ID('tempdb..#SQLBranches', 'U') IS NOT NULL
@@ -81,16 +87,16 @@ begin
 		BuildVersion smallint not null,
 		SQLBranch char(3) not null,
 		Description nvarchar(500) not null,
-		URL nvarchar(1000) 
+		URL nvarchar(1000)
 	);
 
 	create table #SQLBranches(
-		SQLBranch char(3) not null,
+		SQLBranch char(3) not null Primary Key,
 		MinVersion smallint not null );
 
 	create table #SQLVersions(
 		SQLBranch char(3) not null,
-		SQLVersion smallint not null,
+		SQLVersion smallint not null Primary Key,
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
@@ -107,10 +113,12 @@ begin
 		( 'RTM', 2480, 'CU 6 for SQL Server 2014 RTM' ),
 		( 'RTM', 2495, 'CU 7 for SQL Server 2014 RTM' ),
 		( 'RTM', 2546, 'CU 8 for SQL Server 2014 RTM' ),
-		( 'RTM', 2342, 'CU 9 for SQL Server 2014 RTM' ),
+		( 'RTM', 2553, 'CU 9 for SQL Server 2014 RTM' ),
+		( 'RTM', 2556, 'CU 10 for SQL Server 2014 RTM' ),
 		( 'SP1', 4100, 'SQL Server 2014 SP1' ),
 		( 'SP1', 4416, 'CU 1 for SQL Server 2014 SP1' ),
-		( 'SP1', 4422, 'CU 2 for SQL Server 2014 SP1' );
+		( 'SP1', 4422, 'CU 2 for SQL Server 2014 SP1' ),
+		( 'SP1', 4427, 'CU 3 for SQL Server 2014 SP1' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -132,11 +140,12 @@ begin
 		( 2480, 'RTM', 'FIX: Error 8646 when you run DML statements on a table with clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3035165' ),
 		( 2480, 'RTM', 'FIX: Improved memory management for columnstore indexes to deliver better query performance in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3053664' ),
 		( 2495, 'RTM', 'FIX: Partial results in a query of a clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067257' ),
-		( 2546, 'RTM', 'FIX: Access violation when you query against a table that contains column store indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3064784' ),
 		( 2546, 'RTM', 'FIX: Error 33294 occurs when you alter column types on a table that has clustered columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3070139' ),
 		( 2546, 'RTM', '"Non-yielding Scheduler" error when a database has columnstore indexes on a SQL Server 2014 instance', 'https://support.microsoft.com/en-us/kb/3069488' ),
 		( 2546, 'RTM', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067968' ),
 		( 2553, 'RTM', 'FIX: Rare index corruption when you build a columnstore index with parallelism on a partitioned table in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3080155' ), 
+		( 2556, 'RTM', 'FIX: Access violation when you query against a table that contains column store indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3097601' ),
+		( 2556, 'RTM', 'FIX: FIX: Assert occurs when you change the type of column in a table that has clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3098529' ),
 		( 4100, 'SP1', 'LOB reads are shown as zero when "SET STATISTICS IO" is on during executing a query with clustered columnstore index.', 'https://support.microsoft.com/en-us/kb/3058865' ),
 		( 4100, 'SP1', 'FIX: OS error 665 when you execute DBCC CHECKDB command for database that contains columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3029977' ),
 		( 4100, 'SP1', 'FIX: Error 8646 when you run DML statements on a table with clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3035165' ),
@@ -147,7 +156,8 @@ begin
 		( 4416, 'SP1', 'FIX: Severe error in SQL Server 2014 during compilation of a query on a table with clustered columnstore index', 'https://support.microsoft.com/en-us/kb/3068297' ),
 		( 4416, 'SP1', 'FIX: Error 8646 when you run DML statements on a table with clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3035165' ),
 		( 4416, 'SP1', 'FIX: Partial results in a query of a clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067257' ),
-		( 4416, 'SP1', 'FIX: Error 33294 occurs when you alter column types on a table that has clustered columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3070139' );
+		( 4416, 'SP1', 'FIX: Error 33294 occurs when you alter column types on a table that has clustered columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3070139' ),
+		( 4427, 'SP1', 'FIX: Rare index corruption when you build a columnstore index with parallelism on a partitioned table in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3080155' );
 
 
 	if @identifyCurrentVersion = 1
@@ -190,11 +200,15 @@ begin
 		drop table #TempVersionResults;
 	end
 
-	select imps.*
+	select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
 				on imps.SQLBranch = branch.SQLBranch
-		where BuildVersion > @SQLServerBuild and branch.MinVersion < BuildVersion;
+			inner join #SQLVersions vers
+				on imps.BuildVersion = vers.SQLVersion
+		where BuildVersion > @SQLServerBuild 
+			and branch.SQLBranch = ServerProperty('ProductLevel')
+			and branch.MinVersion < BuildVersion;
 
 	drop table #SQLColumnstoreImprovements;
 	drop table #SQLBranches;
