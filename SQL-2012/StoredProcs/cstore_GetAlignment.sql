@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.0.1, October 2015
+	Version: 1.0.2, November 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -19,7 +19,12 @@
 */
 
 /*
-	Known Issues & Limitations: 
+Known Issues & Limitations: 
+	- no support for Multi-Dimensional Segment Clustering in this version
+
+
+Changes in 1.0.2
+	+ Added schema information and quotes for the table name
 */
 
 -- Params --
@@ -114,7 +119,7 @@ begin
 			where part.object_id = isnull(object_id(@tableName),part.object_id)
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 	)
-	select object_name(object_id) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+	select quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
 		cte.ColumnType,
 		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
 							when 'datetimeoffset' then 'Segment Elimination is not supported' 
@@ -135,7 +140,8 @@ begin
 			  OR @showUnsupportedSegments = 1)
 			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
-		group by object_name(object_id), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
-		order by object_name(object_id), partition_number, cte.column_id;
+		group by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
+		order by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id;
+
 
 end
