@@ -19,7 +19,12 @@
 */
 
 /*
-	Known Issues & Limitations: 
+Known Issues & Limitations: 
+	- no support for Multi-Dimensional Segment Clustering in this version
+
+
+Changes in 1.0.2
+	+ Added schema information and quotes for the table name
 */
 
 -- Params --
@@ -95,26 +100,26 @@ with cteSegmentAlignment as (
 		where part.object_id = isnull(object_id(@tableName),part.object_id)
 		group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 )
-select object_name(object_id) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
-	cte.ColumnType,
-	case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
-						when 'datetimeoffset' then 'Segment Elimination is not supported' 
-						when 'char' then 'Segment Elimination is not supported' 
-						when 'nchar' then 'Segment Elimination is not supported' 
-						when 'varchar' then 'Segment Elimination is not supported' 
-						when 'nvarchar' then 'Segment Elimination is not supported' 
-						when 'sysname' then 'Segment Elimination is not supported' 
-						when 'binary' then 'Segment Elimination is not supported' 
-						when 'varbinary' then 'Segment Elimination is not supported' 
-						when 'uniqueidentifier' then 'Segment Elimination is not supported' 
-		else 'OK' end as 'Segment Elimination',
-	sum(CONVERT(INT, hasOverlappingSegment)) as [Dealigned Segments],
-	count(*) as [Total Segments],
-	100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
-	from cteSegmentAlignment cte
-	where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
-		  OR @showUnsupportedSegments = 1)
-		  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
-		  and cte.column_id = isnull(@columnId,cte.column_id)
-	group by object_name(object_id), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
-	order by object_name(object_id), partition_number, cte.column_id;
+select quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+		cte.ColumnType,
+		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
+							when 'datetimeoffset' then 'Segment Elimination is not supported' 
+							when 'char' then 'Segment Elimination is not supported' 
+							when 'nchar' then 'Segment Elimination is not supported' 
+							when 'varchar' then 'Segment Elimination is not supported' 
+							when 'nvarchar' then 'Segment Elimination is not supported' 
+							when 'sysname' then 'Segment Elimination is not supported' 
+							when 'binary' then 'Segment Elimination is not supported' 
+							when 'varbinary' then 'Segment Elimination is not supported' 
+							when 'uniqueidentifier' then 'Segment Elimination is not supported' 
+			else 'OK' end as 'Segment Elimination',
+		sum(CONVERT(INT, hasOverlappingSegment)) as [Dealigned Segments],
+		count(*) as [Total Segments],
+		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
+		from cteSegmentAlignment cte
+		where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
+			  OR @showUnsupportedSegments = 1)
+			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
+			  and cte.column_id = isnull(@columnId,cte.column_id)
+		group by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
+		order by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id;
