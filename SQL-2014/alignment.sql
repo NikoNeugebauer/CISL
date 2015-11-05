@@ -19,10 +19,10 @@
 */
 
 /*
-	Known Issues & Limitations: 
-*/
+Known Issues & Limitations: 
+	- no support for Multi-Dimensional Segment Clustering in this version
 
-/*
+
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
 */
