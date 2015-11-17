@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.0.2, November 2015
+	Version: 1.0.3, November 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -19,9 +19,15 @@
 */
 
 /*
-	Known Issues & Limitations: 
-		- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.
+Known Issues & Limitations: 
+	- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.
+
+Changes in 1.0.3
+	- Solved error with wrong partitioning information
+	+ Added information on the total number of rows
+	* Changed the format of the table returned in Result Set, now being returned with brackets []	
 */
+
 -- Params --
 declare
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
@@ -51,7 +57,7 @@ end
 --------------------------------------------------------------------------------------------------------------------
 set nocount on;
 
-SELECT  object_schema_name(p.object_id) + '.' +	object_name(p.object_id) as 'TableName',
+SELECT  quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name(p.object_id)) as 'TableName',
 		ind.name as 'IndexName',
 		replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 		case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', --p.partition_number as 'Partition',
@@ -61,12 +67,13 @@ SELECT  object_schema_name(p.object_id) + '.' +	object_name(p.object_id) as 'Tab
 		sum( case rg.total_rows when 1048576 then 0 else 1 end ) as 'Trimmed RGs',
 		cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
 		avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
+		sum(rg.total_rows) as [Total Rows],
 		count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
 		cast((count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 		count(*) as 'Row Groups'
 	FROM sys.partitions AS p 
 		INNER JOIN sys.column_store_row_groups rg
-			ON p.object_id = rg.object_id
+			ON p.object_id = rg.object_id and p.partition_number = rg.partition_number
 		INNER JOIN sys.indexes ind
 			on rg.object_id = ind.object_id and rg.index_id = ind.index_id
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
@@ -75,4 +82,4 @@ SELECT  object_schema_name(p.object_id) + '.' +	object_name(p.object_id) as 'Tab
 		and rg.object_id = isnull(object_id(@tableName),rg.object_id)
 		and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 	group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
-	order by object_schema_name(p.object_id) + '.' + object_name(p.object_id);
+	order by quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name(p.object_id));

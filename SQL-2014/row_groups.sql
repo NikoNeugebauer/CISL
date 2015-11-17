@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.0.2, November 2015
+	Version: 1.0.3, November 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -19,7 +19,10 @@
 */
 
 /*
-	Known Issues & Limitations: 
+Known Issues & Limitations: 
+
+Changes in 1.0.3
+	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
 */
 
 -- Params --
@@ -28,7 +31,8 @@ declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes 
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
 		@tableNamePattern nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified table name pattern
-		@schemaName nvarchar(256) = NULL;				-- Allows to show data filtered down to the specified schema
+		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+		@showPartitionDetails bit = 1;					-- Allows to show details of each of the available partitions
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -50,37 +54,37 @@ end
 
 set nocount on;
 
-select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
-	case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-	part.partition_number as 'Partition',
-	part.data_compression_desc as 'Compression Type',
-	sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
-	sum(case state when 1 then 1 else 0 end) as 'Open DS',
-	sum(case state when 2 then 1 else 0 end) as 'Closed DS',
-	sum(case state when 3 then 1 else 0 end) as 'Compressed',
-	count(*) as 'Total',
-	cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-	cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-	cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
-	cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
-	isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
-	isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
-	max(stat.last_user_scan) as 'LastScan'
-	from sys.indexes ind
-		left join sys.column_store_row_groups rg
-			on ind.object_id = rg.object_id
-		left join sys.partitions part with(READUNCOMMITTED)
-			on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
-		left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
-			on rg.object_id = stat.object_id and ind.index_id = stat.index_id
-	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-		  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
-		  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
-		  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-		  and (@tableNamePattern is null or object_name (rg.object_id) like '%' + @tableNamePattern + '%')
-		  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-	group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
-	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
-			and sum(isnull(total_rows,0)) >= @minTotalRows
-	order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
-			part.partition_number;
+	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
+		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
+		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
+		sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
+		sum(case state when 1 then 1 else 0 end) as 'Open DS',
+		sum(case state when 2 then 1 else 0 end) as 'Closed DS',
+		sum(case state when 3 then 1 else 0 end) as 'Compressed',
+		count(*) as 'Total',
+		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
+		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
+		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
+		max(stat.last_user_scan) as 'LastScan'
+		from sys.indexes ind
+			left join sys.column_store_row_groups rg
+				on ind.object_id = rg.object_id
+			left join sys.partitions part with(READUNCOMMITTED)
+				on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
+			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
+				on rg.object_id = stat.object_id and ind.index_id = stat.index_id
+		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
+			  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+			  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
+			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
+			  and (@tableNamePattern is null or object_name (rg.object_id) like '%' + @tableNamePattern + '%')
+			  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
+		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
+				and sum(isnull(total_rows,0)) >= @minTotalRows
+		order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
+				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
