@@ -24,6 +24,9 @@ Changes in 1.0.1:
 	+ Added ordering by the columnId
 	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
 	+ Added quotes for displaying the name of any tables correctly
+	
+Changes in 1.0.3:
+	+ Added information about maximum sizes for the Global & Local dictionaries	
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -72,13 +75,16 @@ begin
 		set @table_object_id = NULL;
 
 	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
-			p.partition_id as 'Partition',
-			(select count(distinct rg.segment_id) from sys.column_store_segments rg
-				where rg.partition_id = p.partition_id and rg.hobt_id = p.hobt_id ) as 'RowGroups',
+			p.partition_number as 'Partition',
+			(select count(rg.row_group_id) from sys.column_store_row_groups rg
+				where rg.object_id = i.object_id and rg.partition_number = p.partition_number
+					  and rg.state = 3) as 'RowGroups',
 			count(csd.column_id) as 'Dictionaries', 
 			sum(csd.entry_count) as 'EntriesCount',
 			min(p.rows) as 'Rows Serving',
-			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Size in MB'
+			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
+			cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
+			cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
 		FROM sys.indexes AS i
 			inner join sys.partitions AS p
 				on i.object_id = p.object_id 
@@ -86,7 +92,7 @@ begin
 				on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
 		where i.type in (5,6)
 			and i.object_id = isnull(@table_object_id,i.object_id)
-		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_id;
+		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number;
 
 
 

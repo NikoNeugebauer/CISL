@@ -18,6 +18,18 @@
     limitations under the License.
 */
 
+/*
+Changes in 1.0.1:
+	+ Added information about Id of the column in the dictionary, for better debugging
+	+ Added ordering by the columnId
+	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
+	+ Added quotes for displaying the name of any tables correctly
+	
+Changes in 1.0.3:
+	+ Added information about maximum sizes for the Global & Local dictionaries	
+	+ Added new parameter for enabling the details of all available dictionaries	
+*/
+
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
@@ -44,6 +56,7 @@ GO
 
 create procedure dbo.cstore_GetDictionaries(
 -- Params --
+	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
@@ -71,7 +84,9 @@ begin
 			count(csd.column_id) as 'Dictionaries', 
 			sum(csd.entry_count) as 'EntriesCount',
 			min(p.rows) as 'Rows Serving',
-			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Size in MB'
+			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
+			cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
+			cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
 		FROM sys.indexes AS i
 			inner join sys.partitions AS p
 				on i.object_id = p.object_id 
@@ -82,7 +97,7 @@ begin
 		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number;
 
 
-
+	if @showDetails = 1
 	SELECT QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
 			ind.name as 'IndexName', 
 			part.partition_number as 'Partition',

@@ -35,6 +35,10 @@ Changes in 1.0.1
 Changes in 1.0.2
 	+ Added column with the CU Version for the Bugfixes output
 	* Updated temporary tables in order to avoid error messages
+
+Changes in 1.0.3
+	+ Added information about CU9 for SQL Server 2012 SP 2
+	+ Added information about SQL Server 2012 SP 3
 */
 
 -- Params --
@@ -91,7 +95,7 @@ create table #SQLVersions(
 	SQLVersionDescription nvarchar(100) );
 
 insert into #SQLBranches (SQLBranch, MinVersion)
-	values ('RTM', 2100 ), ('SP1', 3000), ('SP2', 5058);
+	values ('RTM', 2100 ), ('SP1', 3000), ('SP2', 5058), ('SP3', 6020);
 
 insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
 	values 
@@ -132,7 +136,9 @@ insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
 	( 'SP2', 5582, 'CU 5 for SQL Server 2012 SP2' ),
 	( 'SP2', 5592, 'CU 6 for SQL Server 2012 SP2' ),
 	( 'SP2', 5623, 'CU 7 for SQL Server 2012 SP2' ),
-	( 'SP2', 5634, 'CU 8 for SQL Server 2012 SP2' );
+	( 'SP2', 5634, 'CU 8 for SQL Server 2012 SP2' ),
+	( 'SP2', 5641, 'CU 9 for SQL Server 2012 SP2' ),
+	( 'SP3', 6020, 'SQL Server 2012 SP3' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 

@@ -18,6 +18,17 @@
     limitations under the License.
 */
 
+/*
+Changes in 1.0.1:
+	+ Added information about Id of the column in the dictionary, for better debugging
+	+ Added ordering by the columnId
+	+ Added new parameter to filter Dictionaries by the type: @showDictionaryType
+	+ Added quotes for displaying the name of any tables correctly
+	
+Changes in 1.0.3:
+	+ Added information about maximum sizes for the Global & Local dictionaries	
+*/
+
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
@@ -47,7 +58,7 @@ create procedure dbo.cstore_GetDictionaries(
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
-	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries indepentantly from their warning status
+	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries independently from their warning status
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL					-- Allows to filter out data base on 1 particular column name
@@ -71,7 +82,9 @@ begin
 			count(csd.column_id) as 'Dictionaries', 
 			sum(csd.entry_count) as 'EntriesCount',
 			min(p.rows) as 'Rows Serving',
-			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Size in MB'
+			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
+			cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
+			cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
 		FROM sys.indexes AS i
 			inner join sys.partitions AS p
 				on i.object_id = p.object_id 
