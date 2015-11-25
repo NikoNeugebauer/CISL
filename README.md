@@ -15,3 +15,4 @@ CISL consists from the following scripts:
 5. Fragmentation (fragmentation.sql) - Shows the different types of Columnstore Indexes Fragmentation.  (Note: SQL Server 2012 version does not exist, since Nonclustered Columnstore Indexes in SQL Server 2012 are non-updatable and hence have no fragmentation)
 6. Dictionaries (dictionaries.sql) - Shows detailed information about the Columnstore Dictionaries.  
 7. Memory (memory.sql) - Shows the content of the Columnstore Object Pool.  
+8. Row Groups Details (row_groups_details.sql) - Shows detailed information on the Columnstore Row Groups, listing all individual row groups and filtering them based on different criterias. 
