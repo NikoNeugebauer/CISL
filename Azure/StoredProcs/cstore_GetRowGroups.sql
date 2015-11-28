@@ -23,6 +23,7 @@ Known Issues & Limitations:
 
 Changes in 1.0.3
 	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -47,7 +48,7 @@ create procedure dbo.cstore_GetRowGroups(
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
-		@tableNamePattern nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 		@showPartitionDetails bit = 1					-- Allows to show details of each of the available partitions
 -- end of --
@@ -62,6 +63,7 @@ begin
 		sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
 		sum(case state when 1 then 1 else 0 end) as 'Open DS',
 		sum(case state when 2 then 1 else 0 end) as 'Closed DS',
+		sum(case state when 4 then 1 else 0 end) as 'Tombstones',
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
 		count(*) as 'Total',
 		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
@@ -82,7 +84,7 @@ begin
 			  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableNamePattern is null or object_name (rg.object_id) like '%' + @tableNamePattern + '%')
+			  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB

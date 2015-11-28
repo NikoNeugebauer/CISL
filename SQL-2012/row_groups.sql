@@ -19,7 +19,11 @@
 */
 
 /*
-	Known Issues & Limitations: 
+Known Issues & Limitations: 
+
+Changes in 1.0.3
+	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
 */
 
 -- Params --
@@ -27,8 +31,9 @@ declare @indexType char(2) = NULL,						-- Ignored for this version
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
-		@tableNamePattern nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified table name pattern
-		@schemaName nvarchar(256) = NULL;				-- Allows to show data filtered down to the specified schema
+		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
+		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+		@showPartitionDetails bit = 1;					-- Allows to show details of each of the available partitions
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -52,7 +57,7 @@ set nocount on;
 
 select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 	case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-	part.partition_number as 'Partition',
+	(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 	part.data_compression_desc as 'Compression Type',
 	0 as 'Bulk Load RG',
 	0 as 'Open DS',
@@ -76,10 +81,10 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 		  and part.data_compression_desc in ('COLUMNSTORE') 
 		  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-		  and (@tableNamePattern is null or object_name (part.object_id) like '%' + @tableNamePattern + '%')
+		  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 		  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 	group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 	having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 			and sum(isnull(row_count,0)) >= @minTotalRows
 	order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
-			part.partition_number;
+			(case @showPartitionDetails when 1 then part.partition_number else 1 end);
