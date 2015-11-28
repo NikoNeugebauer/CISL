@@ -24,13 +24,16 @@
 		- CLR support is not included or tested
 		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 		- InMemory OLTP compatibility is not tested
+
+	Changes in 1.0.3
+		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
 */
 
 -- Params --
 declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
-		@tableNamePattern nvarchar(256) = NULL,						-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 1,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables

@@ -24,13 +24,16 @@
 		- CLR support is not included or tested
 		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 		- Data Precision is not being taken into account
+
+	Changes in 1.0.3
+		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
 */
 
 -- Params --
 declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
-		@tableNamePattern nvarchar(256) = NULL,						-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
@@ -180,7 +183,7 @@ select t.object_id as [ObjectId]
 				from sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0
-		 and (@tableNamePattern is null or object_name (t.object_id) like '%' + @tableNamePattern + '%')
+		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
 		 and (( @showReadyTablesOnly = 1 
 				and  

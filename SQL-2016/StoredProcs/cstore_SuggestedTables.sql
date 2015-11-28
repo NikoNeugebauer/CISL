@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.0.3, November 2015
 
@@ -23,25 +23,26 @@
 		- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 		- CLR support is not included or tested
 		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
-
+		- InMemory OLTP compatibility is not tested
+	
 	Changes in 1.0.3
-		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions		
+		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server 2014
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'12'
+-- Ensure that we are running SQL Server 2016
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'13'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2014. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2016. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
 if SERVERPROPERTY('EngineEdition') <> 3 
 begin
-	set @errorMessage = (N'Your SQL Server 2014 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -67,8 +68,8 @@ begin
 	set nocount on;
 
 	declare 
-		@readCommitedSnapshot bit = 0,
-		@snapshotIsolation bit = 0;
+		@readCommitedSnapshot tinyint = 0,
+		@snapshotIsolation tinyint = 0;
 
 	-- Verify Snapshot Isolation Level or Read Commited Snapshot 
 	select @readCommitedSnapshot = is_read_committed_snapshot_on, 
@@ -93,22 +94,22 @@ begin
 		[Unsupported] smallint NOT NULL,
 		[LOBs] smallint NOT NULL,
 		[Computed] smallint NOT NULL,
-		[Clustered Index] bit NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
 		[Nonclustered Indexes] smallint NOT NULL,
 		[XML Indexes] smallint NOT NULL,
 		[Spatial Indexes] smallint NOT NULL,
-		[Primary Key] bit NOT NULL,
+		[Primary Key] tinyint NOT NULL,
 		[Foreign Keys] smallint NOT NULL,
 		[Unique Constraints] smallint NOT NULL,
 		[Triggers] smallint NOT NULL,
-		[RCSI] bit NOT NULL,
-		[Snapshot] bit NOT NULL,
-		[CDC] bit NOT NULL,
-		[CT] bit NOT NULL,
-		[InMemoryOLTP] bit NOT NULL,
-		[Replication] bit NOT NULL,
-		[FileStream] bit NOT NULL,
-		[FileTable] bit NOT NULL
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
 	);
 
 	insert into #TablesToColumnstore
@@ -194,9 +195,9 @@ begin
 				ON p.partition_id = a.container_id
 		where p.data_compression in (0,1,2) -- None, Row, Page
 			 and (select count(*)
-				from sys.indexes ind
-				where t.object_id = ind.object_id
-					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
+					from sys.indexes ind
+					where t.object_id = ind.object_id
+						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
 			 and (( @showReadyTablesOnly = 1 
@@ -208,19 +209,14 @@ begin
 						where t.object_id = col.object_id and 
 								(UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY'))
 						) = 0 
-					and (select count(*)
-							from sys.objects so
-							where UPPER(so.type) in ('PK','F','UQ','TA','TR') and parent_object_id = t.object_id ) = 0
-					and (select count(*)
-							from sys.indexes ind
-							where t.object_id = ind.object_id
-								and ind.type in (3,4) ) = 0
-					and (select count(*) 
-							from sys.change_tracking_tables ctt with(READUNCOMMITTED)
-							where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
-									and DB_ID() in (select database_id from sys.change_tracking_databases ctdb)) = 0
-					and t.is_tracked_by_cdc = 0
-					and t.is_memory_optimized = 0
+					--and (select count(*)
+					--		from sys.objects so
+					--		where UPPER(so.type) in ('PK','F','UQ','TA','TR') and parent_object_id = t.object_id ) = 0
+					--and (select count(*)
+					--		from sys.indexes ind
+					--		where t.object_id = ind.object_id
+					--			and ind.type in (3,4) ) = 0
+					--and t.is_memory_optimized = 0
 					and t.is_replicated = 0
 					and coalesce(t.filestream_data_space_id,0,1) = 0
 					and t.is_filetable = 0
@@ -242,14 +238,11 @@ begin
 		order by sum(p.rows) desc, sum(a.total_pages) desc;
 
 	-- Show the found results
-	select case when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
-					  [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
-					  - ([LOBs] + [Computed])) > 0 then 'None' 
-				when ([Clustered Index] + [Nonclustered Indexes] + [Primary Key] + [Foreign Keys] + [CDC] + [CT] +
-					  [Unique Constraints] + [Triggers] + [RCSI] + [Snapshot] + [CDC] + [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
+	select case when ([Triggers] + [Replication] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
+				when ([Clustered Index] + [CDC] + [CT] +
+					  [Unique Constraints] + [Triggers] + [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) = 0 and [Unsupported] = 0 then 'Both Columnstores' 
-				when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
-					  [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
+				when ( [Triggers] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) <= 0 then 'Nonclustered Columnstore'  
 		   end as 'Compatible With'
 		, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
@@ -344,7 +337,8 @@ begin
 					0 as [Sort Order]
 					from #TablesToColumnstore t
 			) coms
-		order by coms.type desc, coms.[Sort Order]; --coms.TableName
+		order by coms.type desc, coms.[Sort Order]; --coms.TableName 
+			 
 	end
 
 	drop table #TablesToColumnstore; 
