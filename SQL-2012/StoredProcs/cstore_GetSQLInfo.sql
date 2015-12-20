@@ -38,7 +38,10 @@ Changes in 1.0.2
 
 Changes in 1.0.3
 	+ Added information about CU8 for SQL Server 2012 SP 2
-	+ Added information about SQL Server 2012 SP 3	
+	+ Added information about SQL Server 2012 SP 3
+	
+Changes in 1.0.4
+	+ Added information about each release date and the number of days since the installed released was published	
 */
 
 
@@ -94,7 +97,6 @@ begin
 	if OBJECT_ID('tempdb..#SQLVersions', 'U') IS NOT NULL
 		drop table #SQLVersions;
 
-	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
 	create table #SQLColumnstoreImprovements(
 		BuildVersion smallint not null,
 		SQLBranch char(3) not null,
@@ -109,53 +111,54 @@ begin
 	create table #SQLVersions(
 		SQLBranch char(3) not null,
 		SQLVersion smallint not null Primary Key,
+		ReleaseDate datetime not null,	
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
 		values ('RTM', 2100 ), ('SP1', 3000), ('SP2', 5058), ('SP3', 6020);
 
-	insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
+	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-		( 'RTM', 2000, 'SQL Server 2012 RTM' ),
-		( 'RTM', 2316, 'CU 1 for SQL Server 2012 RTM' ),
-		( 'RTM', 2325, 'CU 2 for SQL Server 2012 RTM' ),
-		( 'RTM', 2332, 'CU 3 for SQL Server 2012 RTM' ),
-		( 'RTM', 2383, 'CU 4 for SQL Server 2012 RTM' ),
-		( 'RTM', 2395, 'CU 5 for SQL Server 2012 RTM' ),
-		( 'RTM', 2401, 'CU 6 for SQL Server 2012 RTM' ),
-		( 'RTM', 2405, 'CU 7 for SQL Server 2012 RTM' ),
-		( 'RTM', 2410, 'CU 8 for SQL Server 2012 RTM' ),
-		( 'RTM', 2419, 'CU 9 for SQL Server 2012 RTM' ),
-		( 'RTM', 2420, 'CU 10 for SQL Server 2012 RTM' ),
-		( 'RTM', 2424, 'CU 11 for SQL Server 2012 RTM' ),
-		( 'SP1', 3000, 'SQL Server 2012 SP1' ),
-		( 'SP1', 3321, 'CU 1 for SQL Server 2012 SP1' ),
-		( 'SP1', 3339, 'CU 2 for SQL Server 2012 SP1' ),
-		( 'SP1', 3349, 'CU 3 for SQL Server 2012 SP1' ),
-		( 'SP1', 3368, 'CU 4 for SQL Server 2012 SP1' ),
-		( 'SP1', 3373, 'CU 5 for SQL Server 2012 SP1' ),
-		( 'SP1', 3381, 'CU 6 for SQL Server 2012 SP1' ),
-		( 'SP1', 3393, 'CU 7 for SQL Server 2012 SP1' ),
-		( 'SP1', 3401, 'CU 8 for SQL Server 2012 SP1' ),
-		( 'SP1', 3412, 'CU 9 for SQL Server 2012 SP1' ),
-		( 'SP1', 3431, 'CU 10 for SQL Server 2012 SP1' ),
-		( 'SP1', 3449, 'CU 11 for SQL Server 2012 SP1' ),
-		( 'SP1', 3470, 'CU 12 for SQL Server 2012 SP1' ),
-		( 'SP1', 3482, 'CU 13 for SQL Server 2012 SP1' ),
-		( 'SP1', 3486, 'CU 14 for SQL Server 2012 SP1' ),
-		( 'SP1', 3487, 'CU 15 for SQL Server 2012 SP1' ),
-		( 'SP1', 3492, 'CU 16 for SQL Server 2012 SP1' ),
-		( 'SP1', 5058, 'SQL Server 2012 SP2' ),
-		( 'SP2', 5532, 'CU 1 for SQL Server 2012 SP2' ),
-		( 'SP2', 5548, 'CU 2 for SQL Server 2012 SP2' ),
-		( 'SP2', 5556, 'CU 3 for SQL Server 2012 SP2' ),
-		( 'SP2', 5569, 'CU 4 for SQL Server 2012 SP2' ),
-		( 'SP2', 5582, 'CU 5 for SQL Server 2012 SP2' ),
-		( 'SP2', 5592, 'CU 6 for SQL Server 2012 SP2' ),
-		( 'SP2', 5623, 'CU 7 for SQL Server 2012 SP2' ),
-		( 'SP2', 5634, 'CU 8 for SQL Server 2012 SP2' ),
-		( 'SP2', 5641, 'CU 9 for SQL Server 2012 SP2' ),
-		( 'SP3', 6020, 'SQL Server 2012 SP3' );
+		( 'RTM', 2000, convert(datetime,'06-03-2012',105), 'SQL Server 2012 RTM' ),
+		( 'RTM', 2316, convert(datetime,'12-04-2012',105), 'CU 1 for SQL Server 2012 RTM' ),
+		( 'RTM', 2325, convert(datetime,'18-06-2012',105), 'CU 2 for SQL Server 2012 RTM' ),
+		( 'RTM', 2332, convert(datetime,'29-08-2012',105), 'CU 3 for SQL Server 2012 RTM' ),
+		( 'RTM', 2383, convert(datetime,'18-10-2012',105), 'CU 4 for SQL Server 2012 RTM' ),
+		( 'RTM', 2395, convert(datetime,'18-12-2012',105), 'CU 5 for SQL Server 2012 RTM' ),
+		( 'RTM', 2401, convert(datetime,'18-02-2013',105), 'CU 6 for SQL Server 2012 RTM' ),
+		( 'RTM', 2405, convert(datetime,'15-04-2013',105), 'CU 7 for SQL Server 2012 RTM' ),
+		( 'RTM', 2410, convert(datetime,'18-06-2013',105), 'CU 8 for SQL Server 2012 RTM' ),
+		( 'RTM', 2419, convert(datetime,'21-08-2013',105), 'CU 9 for SQL Server 2012 RTM' ),
+		( 'RTM', 2420, convert(datetime,'21-10-2013',105), 'CU 10 for SQL Server 2012 RTM' ),
+		( 'RTM', 2424, convert(datetime,'17-12-2013',105), 'CU 11 for SQL Server 2012 RTM' ),
+		( 'SP1', 3000, convert(datetime,'06-11-2012',105), 'SQL Server 2012 SP1' ),
+		( 'SP1', 3321, convert(datetime,'20-11-2012',105), 'CU 1 for SQL Server 2012 SP1' ),
+		( 'SP1', 3339, convert(datetime,'25-01-2013',105), 'CU 2 for SQL Server 2012 SP1' ),
+		( 'SP1', 3349, convert(datetime,'18-03-2013',105), 'CU 3 for SQL Server 2012 SP1' ),
+		( 'SP1', 3368, convert(datetime,'31-05-2013',105), 'CU 4 for SQL Server 2012 SP1' ),
+		( 'SP1', 3373, convert(datetime,'16-07-2013',105), 'CU 5 for SQL Server 2012 SP1' ),
+		( 'SP1', 3381, convert(datetime,'16-09-2013',105), 'CU 6 for SQL Server 2012 SP1' ),
+		( 'SP1', 3393, convert(datetime,'18-11-2013',105), 'CU 7 for SQL Server 2012 SP1' ),
+		( 'SP1', 3401, convert(datetime,'20-01-2014',105), 'CU 8 for SQL Server 2012 SP1' ),
+		( 'SP1', 3412, convert(datetime,'18-03-2014',105), 'CU 9 for SQL Server 2012 SP1' ),
+		( 'SP1', 3431, convert(datetime,'19-05-2014',105), 'CU 10 for SQL Server 2012 SP1' ),
+		( 'SP1', 3449, convert(datetime,'21-07-2014',105), 'CU 11 for SQL Server 2012 SP1' ),
+		( 'SP1', 3470, convert(datetime,'15-09-2014',105), 'CU 12 for SQL Server 2012 SP1' ),
+		( 'SP1', 3482, convert(datetime,'17-11-2014',105), 'CU 13 for SQL Server 2012 SP1' ),
+		( 'SP1', 3486, convert(datetime,'19-01-2015',105), 'CU 14 for SQL Server 2012 SP1' ),
+		( 'SP1', 3487, convert(datetime,'16-03-2015',105), 'CU 15 for SQL Server 2012 SP1' ),
+		( 'SP1', 3492, convert(datetime,'18-05-2015',105), 'CU 16 for SQL Server 2012 SP1' ),
+		( 'SP1', 5058, convert(datetime,'10-06-2014',105), 'SQL Server 2012 SP2' ),
+		( 'SP2', 5532, convert(datetime,'24-07-2014',105), 'CU 1 for SQL Server 2012 SP2' ),
+		( 'SP2', 5548, convert(datetime,'15-09-2014',105), 'CU 2 for SQL Server 2012 SP2' ),
+		( 'SP2', 5556, convert(datetime,'17-11-2014',105), 'CU 3 for SQL Server 2012 SP2' ),
+		( 'SP2', 5569, convert(datetime,'20-01-2015',105), 'CU 4 for SQL Server 2012 SP2' ),
+		( 'SP2', 5582, convert(datetime,'16-03-2015',105), 'CU 5 for SQL Server 2012 SP2' ),
+		( 'SP2', 5592, convert(datetime,'19-05-2015',105), 'CU 6 for SQL Server 2012 SP2' ),
+		( 'SP2', 5623, convert(datetime,'20-07-2015',105), 'CU 7 for SQL Server 2012 SP2' ),
+		( 'SP2', 5634, convert(datetime,'21-09-2015',105), 'CU 8 for SQL Server 2012 SP2' ),
+		( 'SP2', 5641, convert(datetime,'18-11-2015',105), 'CU 9 for SQL Server 2012 SP2' ),
+		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -181,18 +184,24 @@ begin
 			SQLBranch char(3) not null,
 			SQLVersion smallint NULL );
 
+		-- Identify the number of days that has passed since the installed release
+		declare @daysSinceLastRelease int = NULL;
+		select @daysSinceLastRelease = datediff(dd,max(ReleaseDate),getdate())
+			from #SQLVersions
+			where SQLBranch = ServerProperty('ProductLevel')
+				and SQLVersion = cast(@SQLServerBuild as int);
+
 		-- Get information about current SQL Server Version
 		if( exists (select 1
 						from #SQLVersions
 						where SQLVersion = cast(@SQLServerBuild as int) ) )
-			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion
+			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 				from #SQLVersions
 				where SQLVersion = cast(@SQLServerBuild as int);
 		else
 			select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, '-' as SQLVersionDescription, 
-				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion;
-			
-	
+				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+		
 		-- Select information about all newer SQL Server versions that are known
 		if @showNewerVersions = 1
 		begin 
@@ -211,7 +220,7 @@ begin
 			drop table #TempVersionResults;
 		end 
 
-	
+		
 	end
 
 	-- Select all known bugfixes that are applied to the newer versions of SQL Server
@@ -262,5 +271,4 @@ begin
 
 	drop table #ColumnstoreTraceFlags;
 	drop table #ActiveTraceFlags;
-
 end

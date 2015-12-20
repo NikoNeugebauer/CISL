@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.3, November 2015
+	Version: 1.0.4, December 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -31,11 +31,15 @@ Changes in 1.0.1
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early versions
 	- Fixed erroneous build version for the SQL Server 2014 SP2 CU2
+
 Changes in 1.0.2
 	+ Added information about CU 3 for SQL Server 2014 SP1 and CU 10 for SQL Server 2014 RTM
 	+ Added column with the CU Version for the Bugfixes output
 	- Fixed bug with the wrong CU9 Version 
 	* Updated temporary tables in order to avoid 
+	
+Changes in 1.0.4
+	+ Added information about each release date and the number of days since the installed released was published
 */
 
 -- Params --
@@ -89,28 +93,29 @@ create table #SQLBranches(
 create table #SQLVersions(
 	SQLBranch char(3) not null,
 	SQLVersion smallint not null Primary Key,
+	ReleaseDate datetime not null,
 	SQLVersionDescription nvarchar(100) );
 
 insert into #SQLBranches (SQLBranch, MinVersion)
 	values ('RTM', 2000 ), ('SP1', 4100);
 
-insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
+insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	values 
-	( 'RTM', 2000, 'SQL Server 2014 RTM' ),
-	( 'RTM', 2342, 'CU 1 for SQL Server 2014 RTM' ),
-	( 'RTM', 2370, 'CU 2 for SQL Server 2014 RTM' ),
-	( 'RTM', 2402, 'CU 3 for SQL Server 2014 RTM' ),
-	( 'RTM', 2430, 'CU 4 for SQL Server 2014 RTM' ),
-	( 'RTM', 2456, 'CU 5 for SQL Server 2014 RTM' ),
-	( 'RTM', 2480, 'CU 6 for SQL Server 2014 RTM' ),
-	( 'RTM', 2495, 'CU 7 for SQL Server 2014 RTM' ),
-	( 'RTM', 2546, 'CU 8 for SQL Server 2014 RTM' ),
-	( 'RTM', 2553, 'CU 9 for SQL Server 2014 RTM' ),
-	( 'RTM', 2556, 'CU 10 for SQL Server 2014 RTM' ),
-	( 'SP1', 4100, 'SQL Server 2014 SP1' ),
-	( 'SP1', 4416, 'CU 1 for SQL Server 2014 SP1' ),
-	( 'SP1', 4422, 'CU 2 for SQL Server 2014 SP1' ),
-	( 'SP1', 4427, 'CU 3 for SQL Server 2014 SP1' );
+	( 'RTM', 2000, convert(datetime,'01-04-2014',105), 'SQL Server 2014 RTM' ),
+	( 'RTM', 2342, convert(datetime,'21-04-2014',105), 'CU 1 for SQL Server 2014 RTM' ),
+	( 'RTM', 2370, convert(datetime,'27-06-2014',105), 'CU 2 for SQL Server 2014 RTM' ),
+	( 'RTM', 2402, convert(datetime,'18-08-2014',105), 'CU 3 for SQL Server 2014 RTM' ),
+	( 'RTM', 2430, convert(datetime,'21-10-2014',105), 'CU 4 for SQL Server 2014 RTM' ),
+	( 'RTM', 2456, convert(datetime,'18-12-2014',105), 'CU 5 for SQL Server 2014 RTM' ),
+	( 'RTM', 2480, convert(datetime,'16-02-2015',105), 'CU 6 for SQL Server 2014 RTM' ),
+	( 'RTM', 2495, convert(datetime,'23-04-2015',105), 'CU 7 for SQL Server 2014 RTM' ),
+	( 'RTM', 2546, convert(datetime,'22-06-2015',105), 'CU 8 for SQL Server 2014 RTM' ),
+	( 'RTM', 2553, convert(datetime,'17-08-2015',105), 'CU 9 for SQL Server 2014 RTM' ),
+	( 'RTM', 2556, convert(datetime,'20-10-2015',105), 'CU 10 for SQL Server 2014 RTM' ),
+	( 'SP1', 4100, convert(datetime,'14-05-2015',105), 'SQL Server 2014 SP1' ),
+	( 'SP1', 4416, convert(datetime,'22-06-2015',105), 'CU 1 for SQL Server 2014 SP1' ),
+	( 'SP1', 4422, convert(datetime,'17-08-2015',105), 'CU 2 for SQL Server 2014 SP1' ),
+	( 'SP1', 4427, convert(datetime,'21-10-2015',105), 'CU 3 for SQL Server 2014 SP1' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -163,15 +168,23 @@ begin
 		SQLBranch char(3) not null,
 		SQLVersion smallint NULL );
 
+	-- Identify the number of days that has passed since the installed release
+	declare @daysSinceLastRelease int = NULL;
+	select @daysSinceLastRelease = datediff(dd,max(ReleaseDate),getdate())
+		from #SQLVersions
+		where SQLBranch = ServerProperty('ProductLevel')
+			and SQLVersion = cast(@SQLServerBuild as int);
+
+	-- Display the current information about this SQL Server 
 	if( exists (select 1
 					from #SQLVersions
 					where SQLVersion = cast(@SQLServerBuild as int) ) )
-		select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion
+		select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 			from #SQLVersions
 			where SQLVersion = cast(@SQLServerBuild as int);
 	else
 		select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, '-' as SQLVersionDescription, 
-			ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion;
+			ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
 
 	-- Select information about all newer SQL Server versions that are known
 	if @showNewerVersions = 1

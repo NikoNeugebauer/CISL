@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.3, November 2015
+	Version: 1.0.4, December 2015
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -22,6 +22,12 @@
 	Known Issues & Limitations: 
 		- Custom non-standard (non-CU & non-SP) versions are not targeted yet
 		- Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) are not eliminated from the list yet
+*/
+
+/*
+Changes in 1.0.4
+	+ Added information about each release date and the number of days since the installed released was published	
+	+ Added information on CTP 3.1 & CTP 3.2
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -67,7 +73,7 @@ begin
 	if OBJECT_ID('tempdb..#SQLVersions', 'U') IS NOT NULL
 		drop table #SQLVersions;
 
-	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	--  
 	create table #SQLColumnstoreImprovements(
 		BuildVersion smallint not null,
 		SQLBranch char(3) not null,
@@ -82,19 +88,22 @@ begin
 	create table #SQLVersions(
 		SQLBranch char(3) not null,
 		SQLVersion smallint not null Primary Key,
+		ReleaseDate datetime not null,	
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
 		values ('CTP', 200 );
 
-	insert #SQLVersions( SQLBranch, SQLVersion, SQLVersionDescription )
+	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-		( 'CTP', 200, 'CTP 2 for SQL Server 2016' ),
-		( 'CTP', 300, 'CTP 2.1 for SQL Server 2016' ),
-		( 'CTP', 400, 'CTP 2.2 for SQL Server 2016' ),
-		( 'CTP', 500, 'CTP 2.3 for SQL Server 2016' ),
-		( 'CTP', 600, 'CTP 2.4 for SQL Server 2016' ),
-		( 'CTP', 700, 'CTP 3 for SQL Server 2016' );
+		( 'CTP', 200, convert(datetime,'27-05-2015',105), 'CTP 2 for SQL Server 2016' ),
+		( 'CTP', 300, convert(datetime,'24-06-2015',105), 'CTP 2.1 for SQL Server 2016' ),
+		( 'CTP', 400, convert(datetime,'23-07-2015',105), 'CTP 2.2 for SQL Server 2016' ),
+		( 'CTP', 500, convert(datetime,'28-08-2015',105), 'CTP 2.3 for SQL Server 2016' ),
+		( 'CTP', 600, convert(datetime,'30-09-2015',105), 'CTP 2.4 for SQL Server 2016' ),
+		( 'CTP', 700, convert(datetime,'28-10-2015',105), 'CTP 3 for SQL Server 2016' ),
+		( 'CTP', 800, convert(datetime,'30-11-2015',105), 'CTP 3.1 for SQL Server 2016' ),
+		( 'CTP', 900, convert(datetime,'16-12-2015',105), 'CTP 3.2 for SQL Server 2016' );
 
 
 	if @identifyCurrentVersion = 1
@@ -108,15 +117,24 @@ begin
 			SQLBranch char(3) not null,
 			SQLVersion smallint NULL );
 
+		-- Identify the number of days that has passed since the installed release
+		declare @daysSinceLastRelease int = NULL;
+		select @daysSinceLastRelease = datediff(dd,max(ReleaseDate),getdate())
+			from #SQLVersions
+			where SQLBranch = ServerProperty('ProductLevel')
+				and SQLVersion = cast(@SQLServerBuild as int);
+
+		-- Get information about current SQL Server Version
 		if( exists (select 1
 						from #SQLVersions
 						where SQLVersion = cast(@SQLServerBuild as int) ) )
-			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion
+			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 				from #SQLVersions
 				where SQLVersion = cast(@SQLServerBuild as int);
 		else
 			select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, '-' as SQLVersionDescription, 
-				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion;
+				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+		
 
 		-- Select information about all newer SQL Server versions that are known
 		if @showNewerVersions = 1
@@ -175,8 +193,9 @@ begin
 		(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
-		( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 );
-		
+		( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
+		(10207, 'Skips Corrupted Columnstore Segments (Fixed in CU8 for SQL Server 2014 RTM and CU1 for SQL Server 2014 SP1)', 'https://support.microsoft.com/en-us/kb/3067257', 1 );
+
 	select tf.TraceFlag, isnull(conf.Description,'Unrecognized') as Description, isnull(conf.URL,'-') as URL, SupportedStatus
 		from #ActiveTraceFlags tf
 			left join #ColumnstoreTraceFlags conf
@@ -185,5 +204,6 @@ begin
 
 	drop table #ColumnstoreTraceFlags;
 	drop table #ActiveTraceFlags;
+
 
 end
