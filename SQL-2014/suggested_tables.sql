@@ -19,24 +19,29 @@
 */
 
 /*
-	Known Issues & Limitations: 
-		- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
-		- CLR support is not included or tested
-		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
+Known Issues & Limitations: 
+	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- CLR support is not included or tested
+	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 
-	Changes in 1.0.3
-		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
+Changes in 1.0.3
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
+
+Changes in 1.0.4
+	- Bug fixes for the Nonclustered Columnstore Indexes creation conditions
+	- Buf fixes for the data types of the monitored functionalities, that in certain condition would give an error message
+	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
 */
 
 -- Params --
 declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
-		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = 'FactOnlineSales',							-- Allows to show data filtered down to the specified table name pattern
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
-		@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
+		@showTSQLCommandsBeta bit = 1,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
 		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered';		-- Allows to define the type of Columnstore Index to be created with possible values of 'Clustered' and 'Nonclustered'
 -- end of --
 
@@ -63,8 +68,8 @@ end
 set nocount on;
 
 declare 
-	@readCommitedSnapshot bit = 0,
-	@snapshotIsolation bit = 0;
+	@readCommitedSnapshot tinyint = 0,
+	@snapshotIsolation tinyint = 0;
 
 -- Verify Snapshot Isolation Level or Read Commited Snapshot 
 select @readCommitedSnapshot = is_read_committed_snapshot_on, 
@@ -89,22 +94,22 @@ create table #TablesToColumnstore(
 	[Unsupported] smallint NOT NULL,
 	[LOBs] smallint NOT NULL,
 	[Computed] smallint NOT NULL,
-	[Clustered Index] bit NOT NULL,
+	[Clustered Index] tinyint NOT NULL,
 	[Nonclustered Indexes] smallint NOT NULL,
 	[XML Indexes] smallint NOT NULL,
 	[Spatial Indexes] smallint NOT NULL,
-	[Primary Key] bit NOT NULL,
+	[Primary Key] tinyint NOT NULL,
 	[Foreign Keys] smallint NOT NULL,
 	[Unique Constraints] smallint NOT NULL,
 	[Triggers] smallint NOT NULL,
-	[RCSI] bit NOT NULL,
-	[Snapshot] bit NOT NULL,
-	[CDC] bit NOT NULL,
-	[CT] bit NOT NULL,
-	[InMemoryOLTP] bit NOT NULL,
-	[Replication] bit NOT NULL,
-	[FileStream] bit NOT NULL,
-	[FileTable] bit NOT NULL
+	[RCSI] tinyint NOT NULL,
+	[Snapshot] tinyint NOT NULL,
+	[CDC] tinyint NOT NULL,
+	[CT] tinyint NOT NULL,
+	[InMemoryOLTP] tinyint NOT NULL,
+	[Replication] tinyint NOT NULL,
+	[FileStream] tinyint NOT NULL,
+	[FileTable] tinyint NOT NULL
 );
 
 insert into #TablesToColumnstore
@@ -238,15 +243,14 @@ select t.object_id as [ObjectId]
 	order by sum(p.rows) desc, sum(a.total_pages) desc;
 
 -- Show the found results
-select case when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
+select case when ([InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
+				  - ([LOBs] + [Computed])) <= 0 then 'Nonclustered Columnstore'
+			when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
 				  [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 				  - ([LOBs] + [Computed])) > 0 then 'None' 
 			when ([Clustered Index] + [Nonclustered Indexes] + [Primary Key] + [Foreign Keys] + [CDC] + [CT] +
 				  [Unique Constraints] + [Triggers] + [RCSI] + [Snapshot] + [CDC] + [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
-				  - ([LOBs] + [Computed])) = 0 and [Unsupported] = 0 then 'Both Columnstores' 
-			when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
-				  [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
-				  - ([LOBs] + [Computed])) <= 0 then 'Nonclustered Columnstore'  
+				  - ([LOBs] + [Computed])) = 0 and [Unsupported] = 0 then 'Both Columnstores'  
 	   end as 'Compatible With'
 	, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 	, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
@@ -313,14 +317,24 @@ begin
 				from #TablesToColumnstore t
 				inner join sys.indexes ind
 					on t.ObjectId = ind.object_id
-				where type = 1
+				where type = 1 and not exists
+					(select 1 from #TablesToColumnstore t1
+						inner join sys.objects so1
+							on t1.ObjectId = so1.parent_object_id
+						where UPPER(so1.type) in ('PK','F','UQ')
+							and quotename(ind.name) <> quotename(so1.name))
 			union all 
 			select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
 				10 as [Sort Order]
 				from #TablesToColumnstore t
 				inner join sys.indexes ind
 					on t.ObjectId = ind.object_id
-				where type = 2
+				where type = 2 and not exists
+					(select 1 from #TablesToColumnstore t1
+						inner join sys.objects so1
+							on t1.ObjectId = so1.parent_object_id
+						where UPPER(so1.type) in ('PK','F','UQ')
+							and quotename(ind.name) <> quotename(so1.name))
 			union all 
 			select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 				10 as [Sort Order]

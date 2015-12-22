@@ -28,19 +28,22 @@ Changes in 1.0.1:
 Changes in 1.0.3:
 	+ Added information about maximum sizes for the Global & Local dictionaries	
 	+ Added new parameter for enabling the details of all available dictionaries
+
+Changes in 1.0.4
+	+ Added new parameter for filtering on the schema - @schemaName
 */
 
 -- Params --
 declare 
-	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
+ 	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
 	@warningDictionarySizeInMB Decimal(8,2) = 6.,		-- The size of the dictionary, after which the dictionary should be selected. The value is in Megabytes 
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries independently from their warning status
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
+	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL;					-- Allows to filter out data base on 1 particular column name
-
 -- end of --
 
 declare @table_object_id int = NULL;
@@ -89,7 +92,8 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
 		inner join sys.column_store_dictionaries AS csd
 			on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
     where i.type in (5,6)
-		and i.object_id = isnull(@table_object_id,i.object_id)
+		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
+		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
 	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number;
 
 
@@ -133,7 +137,8 @@ select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_na
 				when 'sysname' then 1
 			end = 1
 		) OR @showAllTextDictionaries = 0 )
-		and ind.object_id = isnull(@table_object_id,ind.object_id)
+		and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+		and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;

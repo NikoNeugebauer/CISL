@@ -19,14 +19,17 @@
 */
 
 /*
-	Known Issues & Limitations: 
-		- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
-		- CLR support is not included or tested
-		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
-		- InMemory OLTP compatibility is not tested
+Known Issues & Limitations: 
+	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- CLR support is not included or tested
+	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
+	- InMemory OLTP compatibility is not tested
 
-	Changes in 1.0.3
-		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
+Changes in 1.0.3
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
+
+Changes in 1.0.4
+	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
 */
 
 -- Params --
@@ -186,7 +189,7 @@ select t.object_id as [ObjectId]
 				from sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-		 and (@tableNamePattern is null or object_name (t.object_id) like '%' + @tableNamePattern + '%')
+		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
 		 and (( @showReadyTablesOnly = 1 
 				and  
@@ -298,14 +301,24 @@ begin
 				from #TablesToColumnstore t
 				inner join sys.indexes ind
 					on t.ObjectId = ind.object_id
-				where type = 1
+				where type = 1 and not exists
+					(select 1 from #TablesToColumnstore t1
+						inner join sys.objects so1
+							on t1.ObjectId = so1.parent_object_id
+						where UPPER(so1.type) in ('PK','F','UQ')
+							and quotename(ind.name) <> quotename(so1.name))
 			union all 
 			select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
 				10 as [Sort Order]
 				from #TablesToColumnstore t
 				inner join sys.indexes ind
 					on t.ObjectId = ind.object_id
-				where type = 2
+				where type = 2 and not exists
+					(select 1 from #TablesToColumnstore t1
+						inner join sys.objects so1
+							on t1.ObjectId = so1.parent_object_id
+						where UPPER(so1.type) in ('PK','F','UQ')
+							and quotename(ind.name) <> quotename(so1.name))
 			union all 
 			select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 				10 as [Sort Order]

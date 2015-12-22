@@ -20,6 +20,7 @@
 
 /*
 Known Issues & Limitations: 
+	- View Permission State is required to run this stored procedure.
 
 Changes in 1.0.3
 	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
@@ -54,7 +55,7 @@ create procedure dbo.cstore_GetRowGroups(
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
-		@tableName nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 		@showPartitionDetails bit = 1					-- Allows to show details of each of the available partitions
 -- end of --

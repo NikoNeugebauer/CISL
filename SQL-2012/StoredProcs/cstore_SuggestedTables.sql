@@ -19,14 +19,19 @@
 */
 
 /*
-	Known Issues & Limitations: 
-		- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
-		- CLR support is not included or tested
-		- Output [Min RowGroups] is not taking present partitions into calculations yet :)
-		- Data Precision is not being taken into account
+Known Issues & Limitations: 
+	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- CLR support is not included or tested
+	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
+	- Data Precision is not being taken into account
 
-	Changes in 1.0.3
-		* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
+Changes in 1.0.3
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
+
+Changes in 1.0.4
+	- Bug fixes for the Nonclustered Columnstore Indexes creation conditions
+	- Buf fixes for the data types of the monitored functionalities, that in certain condition would give an error message
+	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -84,21 +89,21 @@ begin
 		[Unsupported] smallint NOT NULL,
 		[LOBs] smallint NOT NULL,
 		[Computed] smallint NOT NULL,
-		[Clustered Index] bit NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
 		[Nonclustered Indexes] smallint NOT NULL,
 		[XML Indexes] smallint NOT NULL,
 		[Spatial Indexes] smallint NOT NULL,
-		[Primary Key] bit NOT NULL,
+		[Primary Key] tinyint NOT NULL,
 		[Foreign Keys] smallint NOT NULL,
 		[Unique Constraints] smallint NOT NULL,
 		[Triggers] smallint NOT NULL,
-		[RCSI] bit NOT NULL,
-		[Snapshot] bit NOT NULL,
-		[CDC] bit NOT NULL,
-		[CT] bit NOT NULL,
-		[Replication] bit NOT NULL,
-		[FileStream] bit NOT NULL,
-		[FileTable] bit NOT NULL
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
 	);
 
 	insert into #TablesToColumnstore
@@ -231,12 +236,11 @@ begin
 		order by sum(p.rows) desc, sum(a.total_pages) desc;
 
 	-- Show the found results
-	select case when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
+	select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported] 
+					  - ([LOBs] + [Computed])) <= 0 then 'Nonclustered Columnstore'  
+				 when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
 					  [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) > 0 then 'None' 
-				when ([Primary Key] + [Foreign Keys] + [Unique Constraints] + [Triggers] + [CDC] + [CT] +
-					  [Replication] + [FileStream] + [FileTable] + [Unsupported] 
-					  - ([LOBs] + [Computed])) <= 0 then 'Nonclustered Columnstore'  
 		   end as 'Compatible With'
 		, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 		, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
@@ -303,14 +307,24 @@ begin
 					from #TablesToColumnstore t
 					inner join sys.indexes ind
 						on t.ObjectId = ind.object_id
-					where type = 1
+					where type = 1 and not exists
+						(select 1 from #TablesToColumnstore t1
+							inner join sys.objects so1
+								on t1.ObjectId = so1.parent_object_id
+							where UPPER(so1.type) in ('PK','F','UQ')
+								and quotename(ind.name) <> quotename(so1.name))
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
 					10 as [Sort Order]
 					from #TablesToColumnstore t
 					inner join sys.indexes ind
 						on t.ObjectId = ind.object_id
-					where type = 2
+					where type = 2 and not exists
+						(select 1 from #TablesToColumnstore t1
+							inner join sys.objects so1
+								on t1.ObjectId = so1.parent_object_id
+							where UPPER(so1.type) in ('PK','F','UQ')
+								and quotename(ind.name) <> quotename(so1.name))
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 					10 as [Sort Order]

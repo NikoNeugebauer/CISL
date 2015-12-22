@@ -40,6 +40,7 @@ Changes in 1.0.2
 	
 Changes in 1.0.4
 	+ Added information about each release date and the number of days since the installed released was published
+	- Fixed bug with displayed results for the newer versions even if they were disabled
 */
 
 -- Params --
@@ -197,10 +198,12 @@ begin
 					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
 					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
+
+		select * 
+			from #TempVersionResults;
 	end 
 
-	select * 
-		from #TempVersionResults;
+
 
 	drop table #TempVersionResults;
 end

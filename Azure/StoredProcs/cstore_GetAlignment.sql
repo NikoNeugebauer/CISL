@@ -25,6 +25,9 @@ Known Issues & Limitations:
 
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
+
+Changes in 1.0.4
+	+ Added new parameter for filtering on the schema - @schemaName
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -46,9 +49,10 @@ GO
 
 create procedure dbo.cstore_GetAlignment(
 -- Params --
+	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
+	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
-	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular column name
 	@columnId int = NULL					-- Allows to filter one specific column Id
 -- end of --
@@ -102,7 +106,8 @@ begin
 							AND seg.segment_id <> otherSeg.segment_id
 							AND (seg.min_data_id < otherSeg.max_data_id and seg.max_data_id > otherSeg.max_data_id )  -- Scenario 2 
 				) filteredSeg
-			where part.object_id = isnull(object_id(@tableName),part.object_id)
+			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
+				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 	)
 	select quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 

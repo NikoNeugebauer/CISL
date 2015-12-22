@@ -14,6 +14,13 @@
     TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE. 
 */
 
+/*
+Changes in 1.0.4
+	+ Added new parameter for filtering on the schema - @schemaName
+	* Changed the output from '% of Total' to '% of Total Column Structures' for better clarity
+	- Fixed error where the delta-stores were counted as one of the objects to be inside Columnstore Object Pool
+*/
+
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
@@ -44,6 +51,7 @@ create procedure dbo.cstore_GetMemory(
 	@showColumnDetails bit = 1,					-- Drills down into each of the columns inside the memory
 	@showObjectTypeDetails bit = 1,				-- Shows details about the type of the object that is located in memory
 	@minMemoryInMb Decimal(8,2) = 0.0,			-- Filters the minimum amount of memory that the Columnstore object should occupy
+	@schemaName nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,			-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL,			-- Allows to filter a specific column name
 	@objectType nvarchar(50) = NULL				-- Allows to filter a specific type of the memory object. Possible values are 'Segment','Global Dictionary','Local Dictionary','Primary Dictionary Bulk','Deleted Bitmap'
@@ -70,7 +78,8 @@ begin
 				inner join sys.partitions part
 					on cache.value('(/cache/@hobt_id)[1]', 'bigint') = part.hobt_id 
 			where cache.value('(/cache/@db_id)[1]', 'smallint') = db_id()
-				and object_name(part.object_id) = isnull(@tableName,object_name(part.object_id))
+				and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
+				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 	)
 	select TableName, 
 			case @showColumnDetails when 1 then ColumnId else NULL end as ColumnId, 
@@ -93,7 +102,8 @@ begin
 						 + max(case @showObjectTypeDetails & @showColumnDetails when 1 then (case ObjectType when 1 then 0 else NULL end) else NULL end)	
 																											-- Resets to -1 when when @showObjectTypeDetails & @showColumnDetails are not set 
 					from sys.column_store_row_groups rg
-								where rg.object_id = mem.object_id) as Decimal(8,2)) as '% of Total',
+						where rg.object_id = mem.object_id
+							and rg.state = 3 ) as Decimal(8,2)) as '% of Total Column Structures',
 			cast( sum( pages_kb ) / 1024. as Decimal(8,3) ) as 'SizeInMB',
 			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',

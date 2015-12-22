@@ -18,11 +18,19 @@
     limitations under the License.
 */
 
+/*
+Changes in 1.0.4
+	+ Added new parameter for filtering on the schema - @schemaName
+	* Changed the output from '% of Total' to '% of Total Column Structures' for better clarity
+	- Fixed error where the delta-stores were counted as one of the objects to be inside Columnstore Object Pool
+*/
+
 -- Params --
 declare
 	@showColumnDetails bit = 1,					-- Drills down into each of the columns inside the memory
 	@showObjectTypeDetails bit = 1,				-- Shows details about the type of the object that is located in memory
 	@minMemoryInMb Decimal(8,2) = 0.0,			-- Filters the minimum amount of memory that the Columnstore object should occupy
+	@schemaName nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,			-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL,			-- Allows to filter a specific column name
 	@objectType nvarchar(50) = NULL;			-- Allows to filter a specific type of the memory object. Possible values are 'Segment','Global Dictionary','Local Dictionary','Primary Dictionary Bulk','Deleted Bitmap'
@@ -68,7 +76,8 @@ MemCacheXML as (
 			inner join sys.partitions part
 				on cache.value('(/cache/@hobt_id)[1]', 'bigint') = part.hobt_id 
 		where cache.value('(/cache/@db_id)[1]', 'smallint') = db_id()
-			and object_name(part.object_id) = isnull(@tableName,object_name(part.object_id))
+			and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 )
 select TableName, 
 		case @showColumnDetails when 1 then ColumnId else NULL end as ColumnId, 
