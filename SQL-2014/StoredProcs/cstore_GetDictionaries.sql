@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -31,6 +31,11 @@ Changes in 1.0.3:
 
 Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -53,11 +58,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetDictionaries;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetDictionaries as select 1');
 GO
 
-create procedure dbo.cstore_GetDictionaries(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetDictionaries(
 -- Params --
 	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
@@ -65,6 +75,7 @@ create procedure dbo.cstore_GetDictionaries(
 	@warningEntryCount Int = 1000000,					-- Enables selecting of dictionaries with more than this number 
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries indepentantly from their warning status
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
+	@objectId int = NULL,								-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
 	@columnName nvarchar(256) = NULL					-- Allows to filter out data base on 1 particular column name
@@ -72,13 +83,6 @@ create procedure dbo.cstore_GetDictionaries(
 ) as 
 begin
 	set nocount on;
-
-	--declare @table_object_id int = NULL;
-
-	--if (@tableName is not NULL )
-	--	set @table_object_id = isnull(object_id(@tableName),-1);
-	--else 
-	--	set @table_object_id = NULL;
 
 	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 			p.partition_number as 'Partition',
@@ -97,7 +101,7 @@ begin
 			inner join sys.column_store_dictionaries AS csd
 				on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
 		where i.type in (5,6)
-			--and i.object_id = isnull(@table_object_id,i.object_id)
+			and i.object_id = isnull(@objectId, i.object_id)
 			and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
 		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number;
@@ -143,7 +147,7 @@ begin
 					when 'sysname' then 1
 				end = 1
 			) OR @showAllTextDictionaries = 0 )
-			--and ind.object_id = isnull(@table_object_id,ind.object_id)
+			and ind.object_id = isnull(@objectId, ind.object_id)
 			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
@@ -152,3 +156,4 @@ begin
 
 
 end
+GO

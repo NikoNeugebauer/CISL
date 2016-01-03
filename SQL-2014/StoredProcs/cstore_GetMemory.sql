@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -19,6 +19,11 @@ Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
 	* Changed the output from '% of Total' to '% of Total Column Structures' for better clarity
 	- Fixed error where the delta-stores were counted as one of the objects to be inside Columnstore Object Pool
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -42,17 +47,23 @@ end
 
 --------------------------------------------------------------------------------------------------------------------
 
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetMemory' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetMemory;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetMemory' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetMemory as select 1');
 GO
 
-create procedure dbo.cstore_GetMemory(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2014: 
+	MemoryInfo - Shows the content of the Columnstore Object Pool
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetMemory(
 -- Params --
 	@showColumnDetails bit = 1,					-- Drills down into each of the columns inside the memory
 	@showObjectTypeDetails bit = 1,				-- Shows details about the type of the object that is located in memory
 	@minMemoryInMb Decimal(8,2) = 0.0,			-- Filters the minimum amount of memory that the Columnstore object should occupy
 	@schemaName nvarchar(256) = NULL,			-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,			-- Allows to show data filtered down to 1 particular table
+	@objectId int = NULL,						-- Allows to idenitfy a table thorugh the ObjectId
 	@columnName nvarchar(256) = NULL,			-- Allows to filter a specific column name
 	@objectType nvarchar(50) = NULL				-- Allows to filter a specific type of the memory object. Possible values are 'Segment','Global Dictionary','Local Dictionary','Primary Dictionary Bulk','Deleted Bitmap'
 -- end of --
@@ -80,6 +91,7 @@ begin
 			where cache.value('(/cache/@db_id)[1]', 'smallint') = db_id()
 				and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+				and part.object_id = isnull(@objectId, part.object_id)
 	)
 	select TableName, 
 			case @showColumnDetails when 1 then ColumnId else NULL end as ColumnId, 
@@ -149,3 +161,4 @@ begin
 
 
 end
+GO
