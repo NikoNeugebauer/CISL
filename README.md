@@ -1,9 +1,11 @@
-# CSIL
-Welcome to CISL - Columnstore Indexes Scripts Library
+# Columnstore Indexes Scripts Library (CSIL)
+Welcome to CISL - Microsoft SQL Server Columnstore Indexes Scripts Library
 
-The library is launched with the very first release on 1st of September 2015. The current release (1.0.2) is targeting SQL Server 2012, 2014, 2016 & Azure SQL Database.  
+A columnstore index is a technology for storing, retrieving and managing data by using a columnar data format, called a columnstore. More information you can find here: https://msdn.microsoft.com/en-us/library/gg492088.aspx
 
-At the moment, the CISL consists from 7 scripts, but soon (in 2015) I expect to expand this library with more complex stuff such as maintenance solution.  
+The library is launched with the very first release on 1st of September 2015. The current release (1.0.4) is targeting SQL Server 2012, 2014, 2016 & Azure SQL Database.  
+
+At the moment, the CISL consists from 8 scripts, but soon (in 2016) I expect to expand this library with more complex stuff such as maintenance solution.  
 Every CISL script comes in 2 variants: a simple executable script & stored procedure.  
 Stored Procedures are here so that you can store them inside your database and use more commonly and include them into your own solutions.  
 
@@ -16,3 +18,7 @@ CISL consists from the following scripts:
 6. Dictionaries (dictionaries.sql) - Shows detailed information about the Columnstore Dictionaries.  
 7. Memory (memory.sql) - Shows the content of the Columnstore Object Pool.  
 8. Row Groups Details (row_groups_details.sql) - Shows detailed information on the Columnstore Row Groups, listing all individual row groups and filtering them based on different criterias. 
+
+
+## License
+[Apache License 2.0](\LICENSE)
