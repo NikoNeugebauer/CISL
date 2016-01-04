@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -16,6 +16,14 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+*/
+
+/*
+Changes in 1.1.0
+	- Fixed error with a semicolon inside the parameters of the stored procedure
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -36,22 +44,28 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetRowGroupsDetails;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetRowGroupsDetails as select 1');
 GO
 
-create procedure dbo.cstore_GetRowGroupsDetails(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2012: 
+	Row Groups Details - Shows detailed information on the Columnstore Row Groups
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
-	    @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
-		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
-		@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
-		@showTrimmedGroupsOnly bit = 0,					-- Filters only those Row Groups, which size <> 1048576
-		@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
-		@showFragmentedGroupsOnly bit = 0,				-- Allows to show the Row Groups that have Deleted Rows in them
-		@minSizeInMB Decimal(16,3) = NULL,				-- Minimum size in MB for a table to be included
-		@maxSizeInMB Decimal(16,3) = NULL 				-- Maximum size in MB for a table to be included
+	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
+	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
+	@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
+	@showTrimmedGroupsOnly bit = 0,					-- Filters only those Row Groups, which size <> 1048576
+	@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
+	@showFragmentedGroupsOnly bit = 0,				-- Allows to show the Row Groups that have Deleted Rows in them
+	@minSizeInMB Decimal(16,3) = NULL,				-- Minimum size in MB for a table to be included
+	@maxSizeInMB Decimal(16,3) = NULL 				-- Maximum size in MB for a table to be included
 -- end of --
-	) as
+) as
 BEGIN
 	set nocount on;
 
@@ -68,6 +82,7 @@ BEGIN
 				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
 		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
+			and part.object_id = isnull(@objectId, part.object_id)
 			and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
@@ -78,3 +93,4 @@ BEGIN
 		order by quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)),
 			part.partition_number, rg.segment_id
 END
+GO

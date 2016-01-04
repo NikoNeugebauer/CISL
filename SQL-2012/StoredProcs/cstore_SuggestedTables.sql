@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -32,6 +32,10 @@ Changes in 1.0.4
 	- Bug fixes for the Nonclustered Columnstore Indexes creation conditions
 	- Buf fixes for the data types of the monitored functionalities, that in certain condition would give an error message
 	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
+
+Changes in 1.1.0
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -53,11 +57,16 @@ end
 
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_SuggestedTables;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
 GO
 
-create procedure dbo.cstore_SuggestedTables(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2012: 
+	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_SuggestedTables(
 -- Params --
 		@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
@@ -350,3 +359,5 @@ begin
 
 	drop table #TablesToColumnstore; 
 end
+
+GO

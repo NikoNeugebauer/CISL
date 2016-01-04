@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -29,8 +29,12 @@ Changes in 1.0.3:
 	+ Added information about maximum sizes for the Global & Local dictionaries	
 	+ Added new parameter for enabling the details of all available dictionaries	
 
-Changes in 1.0.4
+Changes in 1.0.4:
 	+ Added new parameter for filtering on the schema - @schemaName
+
+Changes in 1.1.0:
+	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 version)
+	
 */
 	
 -- Params --
@@ -77,9 +81,8 @@ set nocount on;
 
 SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 		p.partition_number as 'Partition',
-		(select count(rg.row_group_id) from sys.column_store_row_groups rg
-			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
-				  and rg.state = 3) as 'RowGroups',
+		(select count(distinct rg.segment_id) from sys.column_store_segments rg
+				where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
 		count(csd.column_id) as 'Dictionaries', 
 		sum(csd.entry_count) as 'EntriesCount',
 		min(p.rows) as 'Rows Serving',
@@ -94,7 +97,7 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number;
+	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id;
 
 
 if @showDetails = 1
