@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -24,6 +24,11 @@ Known Issues & Limitations:
 Changes in 1.0.3
 	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
 	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -38,19 +43,25 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetRowGroups;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetRowGroups as select 1');
 GO
 
-create procedure dbo.cstore_GetRowGroups(
+/*
+	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
+	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetRowGroups(
 -- Params --
-		@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
-		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
-		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
-		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
-		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
-		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
-		@showPartitionDetails bit = 1					-- Allows to show details of each of the available partitions
+	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
+	@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
+	@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
+	@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
+	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
+	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
+	@showPartitionDetails bit = 1					-- Allows to show details of each of the available partitions
 -- end of --
 	) as
 begin
@@ -86,6 +97,7 @@ begin
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 			  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+			  and ind.object_id = isnull(@objectId, ind.object_id)
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
@@ -93,3 +105,4 @@ begin
 				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
 end
 
+GO
