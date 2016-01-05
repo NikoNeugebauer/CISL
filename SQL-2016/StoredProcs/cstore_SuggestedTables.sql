@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -30,10 +30,15 @@ Changes in 1.0.3
 
 Changes in 1.0.4
 	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
+
+Changes in 1.1.0
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
-		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
+		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
+		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2016
@@ -48,23 +53,27 @@ begin
 	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
-
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_SuggestedTables;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
 GO
 
-create procedure dbo.cstore_SuggestedTables(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2016: 
+	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_SuggestedTables(
 -- Params --
-		@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
-		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
-		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
-		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
-		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
-		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
-		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
-		@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
-		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered'		-- Allows to define the type of Columnstore Index to be created eith possible values of 'Clustered' and 'Nonclustered'
+	@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
+	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
+	@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
+	@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+	@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
+	@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
+	@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
+	@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
+	@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered'		-- Allows to define the type of Columnstore Index to be created eith possible values of 'Clustered' and 'Nonclustered'
 -- end of --
 ) as 
 begin
@@ -81,8 +90,7 @@ begin
 		where database_id = DB_ID();
 
 	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
-	if OBJECT_ID('tempdb..#TablesToColumnstore') IS NOT NULL
-		drop table #TablesToColumnstore;
+	drop table IF EXISTS #TablesToColumnstore;
 
 	create table #TablesToColumnstore(
 		[ObjectId] int NOT NULL PRIMARY KEY,
@@ -356,3 +364,5 @@ begin
 
 	drop table #TablesToColumnstore; 
 end
+
+GO

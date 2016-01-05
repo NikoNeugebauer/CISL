@@ -1,7 +1,7 @@
 /*
-	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
+	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -26,6 +26,11 @@ Changes in 1.0.3
 	- Solved error with wrong partitioning information
 	+ Added information on the total number of rows
 	* Changed the format of the table returned in Result Set, now being returned with brackets []	
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -49,14 +54,20 @@ end
 
 --------------------------------------------------------------------------------------------------------------------
 
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetFragmentation;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetFragmentation as select 1');
 GO
 
-create procedure dbo.cstore_GetFragmentation (
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2016: 
+	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1						-- Allows to drill down fragmentation statistics on the partition level
 -- end of --
 ) as 
@@ -85,9 +96,12 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
+			and rg.object_id = isnull(@objectId,rg.object_id)
 			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 		order by quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name(p.object_id));
 
 end
+
+GO

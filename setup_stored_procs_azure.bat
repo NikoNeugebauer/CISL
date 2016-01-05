@@ -1,0 +1,1 @@
+type Azure\StoredProcs\cstore_GetAlignment.sql Azure\StoredProcs\cstore_GetDictionaries.sql Azure\StoredProcs\cstore_GetFragmentation.sql Azure\StoredProcs\cstore_GetRowGroups.sql Azure\StoredProcs\cstore_GetRowGroupsDetails.sql Azure\StoredProcs\cstore_SuggestedTables.sql > Azure\StoredProcs\cstore_install_all_stored_procs.sql

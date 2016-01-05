@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -28,6 +28,10 @@
 Changes in 1.0.4
 	+ Added information about each release date and the number of days since the installed released was published	
 	+ Added information on CTP 3.1 & CTP 3.2
+
+Changes in 1.1.0
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -50,11 +54,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetSQLInfo' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetSQLInfo;
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetSQLInfo' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetSQLInfo as select 1');
 GO
 
-create procedure dbo.cstore_GetSQLInfo(
+/*
+	Columnstore Indexes Scripts Library for SQL Server 2016: 
+	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
 	@showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
 	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
@@ -207,3 +216,5 @@ begin
 
 
 end
+
+GO

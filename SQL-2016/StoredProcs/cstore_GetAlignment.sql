@@ -1,7 +1,7 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.0.4, December 2015
+	Version: 1.1.0, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -22,12 +22,17 @@
 Known Issues & Limitations: 
 	- no support for Multi-Dimensional Segment Clustering in this version
 
-
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
 
 Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* Added support for DROP TABLE IF EXISTS construct for the temporary table inside the code
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -48,14 +53,20 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
-	Drop Procedure dbo.cstore_GetAlignment;
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetAlignment as select 1');
 GO
 
-create procedure dbo.cstore_GetAlignment(
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
+	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
+	Version: 1.1.0, January 2016
+*/
+alter procedure dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
+	@objectId int = NULL,					-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
 	@columnName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular column name
@@ -66,8 +77,7 @@ begin
 
 	set nocount on;
 
-	IF OBJECT_ID('tempdb..#column_store_segments') IS NOT NULL
-		DROP TABLE #column_store_segments
+	DROP TABLE IF EXISTS #column_store_segments
 
 	SELECT part.object_id, part.partition_number, part.hobt_id, part.partition_id, seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id
 	INTO #column_store_segments
@@ -77,10 +87,10 @@ begin
 	WHERE part.object_id = isnull(object_id(@tableName),part.object_id)
 
 	ALTER TABLE #column_store_segments
-	ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);
+		ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);
 
 	ALTER TABLE #column_store_segments
-	ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
+		ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
 
 	with cteSegmentAlignment as (
 		select  part.object_id,  case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
@@ -113,6 +123,7 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+				and part.object_id = isnull(@objectId, part.object_id)
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 	)
 	select quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
@@ -139,5 +150,6 @@ begin
 		group by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id;
 
-
 end
+
+GO
