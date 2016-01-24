@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.1.0, January 2016
+	Version: 1.1.1, January 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -16,6 +16,14 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+*/
+
+/*
+
+Changes in 1.1.1
+
+	+ Added Primary Key for dbo.cstore_Clustering table
+	+ Improved setup script for dbo.cstore_Clustering table, for avoiding adding already existing tables
 */
 
 declare @createLogTables bit = 1;
@@ -127,7 +135,7 @@ IF @createLogTables = 1 AND NOT EXISTS (select * from sys.objects where type = '
 begin
 	-- Configuration table for the Segment Clustering
 	create table dbo.cstore_Clustering(
-		TableName nvarchar(256),
+		TableName nvarchar(256)  constraint [PK_cstore_Clustering] primary key clustered,
 		Partition int,
 		ColumnName nvarchar(256)
 	);
@@ -160,8 +168,8 @@ begin
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
 		select TableName, Partition, NULL 
-			from #ColumnstoreIndexes;
-
+			from #ColumnstoreIndexes ci
+			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
 
 
@@ -173,7 +181,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.1.0, January 2016
+	Version: 1.1.1, January 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -183,7 +191,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@closeOpenDeltaStores bit = 0,					-- Controls if the Open Delta-Stores are closed and compressed
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
-	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct 
+	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct maintenance proceedings
 	@maxdop tinyint = 0,							-- Allows to control the maximum degreee of parallelism
 	@logData bit = 1,								-- Controls if functionalites are being logged into the logging tables
 	@debug bit = 0,									-- Prints out the debug information and the commands that will be executed if the @execute parameter is set to 1
