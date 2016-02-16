@@ -1,4 +1,4 @@
-# Columnstore Indexes Scripts Library (CSIL)
+# Columnstore Indexes Scripts Library (CISL)
 Welcome to CISL - Microsoft SQL Server Columnstore Indexes Scripts Library
 
 A columnstore index is a technology for storing, retrieving and managing data by using a columnar data format, called a columnstore. More information you can find here: https://msdn.microsoft.com/en-us/library/gg492088.aspx
