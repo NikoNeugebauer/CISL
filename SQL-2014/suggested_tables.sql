@@ -349,10 +349,6 @@ begin
 				inner join sys.indexes ind
 					on t.ObjectId = ind.object_id
 				where type = 4
-			union all 
-			select t.TableName, '-- - - - - - - - - - - - - - - - - - - - - -' as [TSQL Command], '---' as type,
-				0 as [Sort Order]
-				from #TablesToColumnstore t
 		) coms
 	order by coms.type desc, coms.[Sort Order]; --coms.TableName 
 			 
