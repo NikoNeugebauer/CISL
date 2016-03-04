@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -28,6 +28,9 @@
 Changes in 1.0.4
 	+ Added information about each release date and the number of days since the installed released was published	
 	+ Added information on CTP 3.1 & CTP 3.2
+
+Changes in 1.2.0
+	+ Added information on CTP 3.3
 */
 
 -- Params --
@@ -96,8 +99,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'CTP', 600, convert(datetime,'30-09-2015',105), 'CTP 2.4 for SQL Server 2016' ),
 	( 'CTP', 700, convert(datetime,'28-10-2015',105), 'CTP 3 for SQL Server 2016' ),
 	( 'CTP', 800, convert(datetime,'30-11-2015',105), 'CTP 3.1 for SQL Server 2016' ),
-	( 'CTP', 900, convert(datetime,'16-12-2015',105), 'CTP 3.2 for SQL Server 2016' );
-
+	( 'CTP', 900, convert(datetime,'16-12-2015',105), 'CTP 3.2 for SQL Server 2016' ),
+	( 'CTP', 1000, convert(datetime,'03-02-2016',105), 'CTP 3.3 for SQL Server 2016' );
 
 if @identifyCurrentVersion = 1
 begin
@@ -114,8 +117,7 @@ begin
 	declare @daysSinceLastRelease int = NULL;
 	select @daysSinceLastRelease = datediff(dd,max(ReleaseDate),getdate())
 		from #SQLVersions
-		where SQLBranch = ServerProperty('ProductLevel')
-			and SQLVersion = cast(@SQLServerBuild as int);
+		where SQLVersion = cast(@SQLServerBuild as int);
 
 	-- Get information about current SQL Server Version
 	if( exists (select 1

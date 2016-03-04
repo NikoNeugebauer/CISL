@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -24,6 +24,9 @@ Known Issues & Limitations:
 Changes in 1.0.3
 	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
 	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
+
+Changes in 1.2.0
+	- Removed Tombstones from the calculations of Deleted Rows, Active Rows and Total Rows
 */
 
 -- Params --
@@ -65,9 +68,9 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 		sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
 		count(*) as 'Total',
-		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(case state when 4 then 0 else deleted_rows end,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+		cast( sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) /1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(case state when 4 then 0 else total_rows end,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
