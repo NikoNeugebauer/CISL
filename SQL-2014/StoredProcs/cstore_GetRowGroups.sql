@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -30,6 +30,10 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed bug with showing 1 row group for an empty Columnstore (now showing correctly 0 row groups)
+	- Fixed bugs for filtering by schema & name of the columnstore table (it is now using the sys.indexes DMV as the base, thus guaranteeing correct results for the empty Columnstore)	
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -57,7 +61,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -78,11 +82,11 @@ begin
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
 		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
-		sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
-		sum(case state when 1 then 1 else 0 end) as 'Open DS',
-		sum(case state when 2 then 1 else 0 end) as 'Closed DS',
-		sum(case state when 3 then 1 else 0 end) as 'Compressed',
-		count(*) as 'Total',
+		sum(case rg.state when 0 then 1 else 0 end) as 'Bulk Load RG',
+		sum(case rg.state when 1 then 1 else 0 end) as 'Open DS',
+		sum(case rg.state when 2 then 1 else 0 end) as 'Closed DS',
+		sum(case rg.state when 3 then 1 else 0 end) as 'Compressed',
+		count(rg.row_group_id) as 'Total',
 		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
 		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
 		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
@@ -101,8 +105,8 @@ begin
 			  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-			  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+			  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			  and ind.object_id = isnull(@objectId, ind.object_id)
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB

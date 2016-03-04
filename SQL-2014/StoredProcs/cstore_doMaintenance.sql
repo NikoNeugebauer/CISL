@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -20,10 +20,11 @@
 
 /*
 
-Changes in 1.1.1
+Changes in 1.2.0
 
 	+ Added Primary Key for dbo.cstore_Clustering table
 	+ Improved setup script for dbo.cstore_Clustering table, for avoiding adding already existing tables
+	- Fixed bug for the tables with no comrpessed Row Groups, which were never maintained, even though under some conditions forcing not completely full Delta-Store is important
 */
 
 declare @createLogTables bit = 1;
@@ -181,7 +182,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.1.1, January 2016
+	Version: 1.2.0, March 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -425,6 +426,15 @@ begin
 		select @indexName = IndexName
 			from #Fragmentation
 			where TableName = @currentTableName
+
+		-- In the case when there is no fragmentation whatsoever (because there is just open Delta-Stores, for example)
+		-- Get the Index Name directly from the DMV
+		if @indexName is NULL
+		begin 
+			select @indexName = ind.name 
+				from sys.indexes ind
+				where ind.type in (5,6) and ind.object_id = @objectId;
+		end
 
 		-- Reorganize for Open Delta-Stores
 		if @openDeltaStores > 0 AND (@executeReorganize = 1 OR @execute = 1)
