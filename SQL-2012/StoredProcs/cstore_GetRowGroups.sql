@@ -30,6 +30,9 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed bug with conversion to bigint for row_count
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -84,8 +87,8 @@ begin
 		count(distinct segment_id) as 'Compressed',
 		count(distinct segment_id) as 'Total',
 		cast( sum(isnull(0,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(row_count-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(row_count,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint)-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint),0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
@@ -105,7 +108,7 @@ begin
 			  and part.object_id = isnull(@objectId, part.object_id)
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
-				and sum(isnull(row_count,0)) >= @minTotalRows
+				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
 		order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
 				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
 

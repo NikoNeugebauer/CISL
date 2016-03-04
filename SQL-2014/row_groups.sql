@@ -21,9 +21,14 @@
 /*
 Known Issues & Limitations: 
 
+Modifications:
+
 Changes in 1.0.3
 	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
 	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
+
+Changes in 1.2.0
+	- Fixed bug with conversion to bigint for row_count
 */
 
 -- Params --

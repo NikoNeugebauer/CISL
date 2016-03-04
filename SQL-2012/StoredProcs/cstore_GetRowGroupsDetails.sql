@@ -24,6 +24,9 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed bug with conversion to bigint for row_count
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -74,7 +77,7 @@ BEGIN
 		rg.segment_id as row_group_id,
 		3 as state,
 		'COMPRESSED' as state_description,
-		sum(rg.row_count)/count(distinct rg.column_id) as total_rows,
+		sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
 		0 as deleted_rows,
 		cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
 		from sys.column_store_segments rg		
@@ -87,7 +90,7 @@ BEGIN
 			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 		group by part.object_id, part.partition_number, rg.segment_id
-		having sum(rg.row_count)/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
+		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
 		order by quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)),
