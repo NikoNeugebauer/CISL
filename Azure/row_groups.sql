@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 

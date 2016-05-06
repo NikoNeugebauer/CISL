@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -27,6 +27,7 @@ Changes in 1.0.3
 
 Changes in 1.2.0
 	- Fixed bug with conversion to bigint for row_count
+	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database	
 */
 
 -- Params --
@@ -86,6 +87,7 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 		  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 		  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 		  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+		  and stat.database_id = db_id()
 	group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 	having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 			and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows

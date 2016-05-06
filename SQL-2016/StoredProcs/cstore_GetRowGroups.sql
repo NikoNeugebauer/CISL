@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -32,6 +32,7 @@ Changes in 1.1.0
 
 Changes in 1.2.0
 	- Removed Tombstones from the calculations of Deleted Rows, Active Rows and Total Rows
+	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database	
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -60,7 +61,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -108,6 +109,7 @@ begin
 			  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 			  and ind.object_id = isnull(@objectId, ind.object_id)
+			  and stat.database_id = db_id()			  
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows

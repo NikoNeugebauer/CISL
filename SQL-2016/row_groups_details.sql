@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -16,6 +16,23 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+*/
+
+/*
+Known Issues & Limitations: 
+
+Changes in 1.0.3
+	+ Added parameter for showing aggregated information on the whole table, instead of partitioned view as before
+	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
+
+Changes in 1.1.0
+	+ Added new parameter for filtering on the object id - @objectId
+	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Removed Tombstones from the calculations of Deleted Rows, Active Rows and Total Rows
+	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database	
 */
 
 -- Params --
@@ -65,4 +82,5 @@ select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name
 		and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
+		and stat.database_id = db_id()
 	order by quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)), rg.partition_number, rg.row_group_id

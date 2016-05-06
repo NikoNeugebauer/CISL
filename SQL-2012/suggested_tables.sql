@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -32,6 +32,10 @@ Changes in 1.0.4
 	- Bug fixes for the Nonclustered Columnstore Indexes creation conditions
 	- Buf fixes for the data types of the monitored functionalities, that in certain condition would give an error message
 	- Bug fix for displaying the same primary key index twice in the T-SQL drop script
+
+Changes in 1.2.0
+	- Fixed displaying wrong number of rows for the found suggested tables
+	- Fixed error for filtering out the secondary nonclustered indexes in some bigger databases
 */
 
 -- Params --
@@ -107,8 +111,8 @@ insert into #TablesToColumnstore
 select t.object_id as [ObjectId]
 	, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 	, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-	, sum(p.rows) as 'Row Count'
-	, ceiling(sum(p.rows)/1045678.) as 'Min RowGroups' 
+	, max(p.rows) as 'Row Count'
+	, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
 	, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 	, (select count(*) from sys.columns as col
 		where t.object_id = col.object_id ) as 'Cols Count'
@@ -230,7 +234,7 @@ select t.object_id as [ObjectId]
 			 @considerColumnsOver8K = 1 )
 			and 
 			(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
-	order by sum(p.rows) desc, sum(a.total_pages) desc;
+	order by max(p.rows) desc, sum(a.total_pages) desc;
 
 -- Show the found results
 select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported] 
@@ -321,7 +325,7 @@ begin
 						inner join sys.objects so1
 							on t1.ObjectId = so1.parent_object_id
 						where UPPER(so1.type) in ('PK','F','UQ')
-							and quotename(ind.name) <> quotename(so1.name))
+							and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId )
 			union all 
 			select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 				10 as [Sort Order]

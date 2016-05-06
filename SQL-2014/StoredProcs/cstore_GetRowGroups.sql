@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -34,6 +34,7 @@ Changes in 1.1.0
 Changes in 1.2.0
 	- Fixed bug with showing 1 row group for an empty Columnstore (now showing correctly 0 row groups)
 	- Fixed bugs for filtering by schema & name of the columnstore table (it is now using the sys.indexes DMV as the base, thus guaranteeing correct results for the empty Columnstore)	
+	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -61,7 +62,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, March 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -87,10 +88,10 @@ begin
 		sum(case rg.state when 2 then 1 else 0 end) as 'Closed DS',
 		sum(case rg.state when 3 then 1 else 0 end) as 'Compressed',
 		count(rg.row_group_id) as 'Total',
-		cast( sum(isnull(deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
-		cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
+		cast( sum(isnull(rg.deleted_rows,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+		cast( sum(isnull(rg.total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(rg.total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(rg.size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
 		max(stat.last_user_scan) as 'LastScan'
@@ -100,7 +101,7 @@ begin
 			left join sys.partitions part with(READUNCOMMITTED)
 				on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
-				on rg.object_id = stat.object_id and ind.index_id = stat.index_id
+				on rg.object_id = stat.object_id and ind.index_id = stat.index_id 
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
@@ -108,7 +109,8 @@ begin
 			  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			  and ind.object_id = isnull(@objectId, ind.object_id)
-		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
+			  and stat.database_id = db_id()
+		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) --, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
 		order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
