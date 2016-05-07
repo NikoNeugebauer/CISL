@@ -21,7 +21,7 @@
 /*
 Known Issues & Limitations: 
 	- no support for Multi-Dimensional Segment Clustering in this version
-
+	- no support for the Temporary Tables
 
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
@@ -33,7 +33,7 @@ Changes in 1.0.4
 -- Params --
 declare
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
-	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
+	@tableName nvarchar(256) = 'Temp',		-- Allows to show data filtered down to 1 particular table
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
 	@columnName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular column name

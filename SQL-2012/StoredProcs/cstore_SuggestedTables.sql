@@ -40,6 +40,7 @@ Changes in 1.1.0
 Changes in 1.2.0
 	- Fixed displaying wrong number of rows for the found suggested tables
 	- Fixed error for filtering out the secondary nonclustered indexes in some bigger databases
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -246,7 +247,134 @@ begin
 				 @considerColumnsOver8K = 1 )
 				and 
 				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
-		order by max(p.rows) desc, sum(a.total_pages) desc;
+	union all
+	select t.object_id as [ObjectId]
+		, quotename(object_schema_name(t.object_id,db_id('tempdb'))) + '.' + quotename(object_name(t.object_id,db_id('tempdb'))) as 'TableName'
+		, replace(object_name(t.object_id,db_id('tempdb')),' ', '') as 'ShortTableName'
+		, max(p.rows) as 'Row Count'
+		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
+		, (select count(*) from tempdb.sys.columns as col
+			where t.object_id = col.object_id ) as 'Cols Count'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR','SYSNAME') 
+		   ) as 'String Cols'
+		, (select sum(col.max_length) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id 
+		  ) as 'Sum Length'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 (UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY') OR
+					  (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+					 )
+		   ) as 'Unsupported'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+		   ) as 'LOBs'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+				where is_computed = 1 ) as 'Computed'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 2 AND ind.object_id = t.object_id ) as 'Nonclustered Indexes'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 3 AND ind.object_id = t.object_id ) as 'XML Indexes'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 4 AND ind.object_id = t.object_id ) as 'Spatial Indexes'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) = 'PK' AND parent_object_id = t.object_id ) as 'Primary Key'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) = 'F' AND parent_object_id = t.object_id ) as 'Foreign Keys'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) in ('UQ') AND parent_object_id = t.object_id ) as 'Unique Constraints'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) in ('TA','TR') AND parent_object_id = t.object_id ) as 'Triggers'
+		, 0 as 'RCSI'
+		, 0 as 'Snapshot'
+		, t.is_tracked_by_cdc as 'CDC'
+		, (select count(*) 
+				from tempdb.sys.change_tracking_tables ctt with(READUNCOMMITTED)
+				where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
+					  and DB_ID() in (select database_id from tempdb.sys.change_tracking_databases ctdb)) as 'CT'
+		, t.is_replicated as 'Replication'
+		, coalesce(t.filestream_data_space_id,0,1) as 'FileStream'
+		, t.is_filetable as 'FileTable'
+		from tempdb.sys.tables t
+			inner join tempdb.sys.partitions as p 
+				ON t.object_id = p.object_id
+			inner join tempdb.sys.allocation_units as a 
+				ON p.partition_id = a.container_id
+		where p.data_compression in (0,1,2) -- None, Row, Page
+			 and (select count(*)
+					from tempdb.sys.indexes ind
+					where t.object_id = ind.object_id
+						and ind.type in (5,6) ) = 0
+			 and (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+			 and (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName)
+			 and (( @showReadyTablesOnly = 1 
+					and  
+					(select count(*) 
+						from tempdb.sys.columns as col
+							inner join tempdb.sys.types as tp
+								on col.system_type_id = tp.system_type_id
+						where t.object_id = col.object_id and 
+								(UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY'))
+						) = 0 
+					and (select count(*)
+							from tempdb.sys.objects so
+							where UPPER(so.type) in ('PK','F','UQ','TA','TR') and parent_object_id = t.object_id ) = 0
+					and (select count(*)
+							from tempdb.sys.indexes ind
+							where t.object_id = ind.object_id
+								and ind.type in (3,4) ) = 0
+					and (select count(*) 
+							from tempdb.sys.change_tracking_tables ctt with(READUNCOMMITTED)
+							where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
+									and DB_ID() in (select database_id from tempdb.sys.change_tracking_databases ctdb)) = 0
+					and t.is_tracked_by_cdc = 0
+					--and t.is_memory_optimized = 0
+					and t.is_replicated = 0
+					and coalesce(t.filestream_data_space_id,0,1) = 0
+					and t.is_filetable = 0
+				  )
+				 or @showReadyTablesOnly = 0)
+		group by t.object_id, t.is_tracked_by_cdc, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+		having sum(p.rows) > @minRowsToConsider 
+				and
+				(((select sum(col.max_length) 
+					from tempdb.sys.columns as col
+						inner join tempdb.sys.types as tp
+							on col.system_type_id = tp.system_type_id
+					where t.object_id = col.object_id 
+				  ) < 8000 and @considerColumnsOver8K = 0 ) 
+				  OR
+				 @considerColumnsOver8K = 1 )
+				and 
+				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+
 
 	-- Show the found results
 	select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported] 
