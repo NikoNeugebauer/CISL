@@ -32,7 +32,7 @@ Changes in 1.1.0
 
 Changes in 1.2.0
 	- Removed Tombstones from the calculations of Deleted Rows, Active Rows and Total Rows
-	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database	
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 -- Params --
@@ -82,5 +82,22 @@ select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name
 		and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
-		and stat.database_id = db_id()
-	order by quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)), rg.partition_number, rg.row_group_id
+union all
+select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quotename(object_name(rg.object_id, db_id('tempdb'))) as [Table Name],
+	rg.partition_number,
+	rg.row_group_id,
+	rg.state,
+	rg.state_description,
+	rg.total_rows,
+	rg.deleted_rows,
+	cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
+	from tempdb.sys.column_store_row_groups rg
+	where   rg.total_rows <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
+		and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
+		and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
+		and (@tableName is null or object_name (rg.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+		and (@schemaName is null or object_schema_name(rg.object_id, db_id('tempdb')) = @schemaName)
+		and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
+		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
+		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
+	order by [Table Name], rg.partition_number, rg.row_group_id

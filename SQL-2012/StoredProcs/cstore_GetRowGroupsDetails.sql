@@ -27,6 +27,7 @@ Changes in 1.1.0
 
 Changes in 1.2.0
 	- Fixed bug with conversion to bigint for row_count
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -88,6 +89,28 @@ BEGIN
 			and part.object_id = isnull(@objectId, part.object_id)
 			and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
+		group by part.object_id, part.partition_number, rg.segment_id
+		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
+				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
+				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
+	union all
+	select quotename(object_schema_name(part.object_id, db_id('tempdb'))) + '.' + quotename(object_name(part.object_id, db_id('tempdb'))) as 'TableName', 
+		part.partition_number,
+		rg.segment_id as row_group_id,
+		3 as state,
+		'COMPRESSED' as state_description,
+		sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
+		0 as deleted_rows,
+		cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
+		from tempdb.sys.column_store_segments rg		
+			left join tempdb.sys.partitions part with(READUNCOMMITTED)
+				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
+			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
+			and part.object_id = isnull(@objectId, part.object_id)
+			and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 		group by part.object_id, part.partition_number, rg.segment_id
 		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end

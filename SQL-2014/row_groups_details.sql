@@ -17,6 +17,14 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
+/*
+Known Issues & Limitations: 
+
+Modifications:
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+*/
 
 -- Params --
 declare @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
