@@ -31,6 +31,9 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -94,7 +97,34 @@ begin
 			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
-		order by quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name(p.object_id));
+	union all
+	SELECT  quotename(object_schema_name(p.object_id,db_id('tempdb'))) + '.' + quotename(object_name(p.object_id,db_id('tempdb'))) as 'TableName',
+			ind.name as 'IndexName',
+			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
+			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', 
+			cast( Avg( (rg.deleted_rows * 1. / rg.total_rows) * 100 ) as Decimal(5,2)) as 'Fragmentation Perc.',
+			sum (case rg.deleted_rows when rg.total_rows then 1 else 0 end ) as 'Deleted RGs',
+			cast( (sum (case rg.deleted_rows when rg.total_rows then 1 else 0 end ) * 1. / count(*)) * 100 as Decimal(5,2)) as 'Deleted RGs Perc.',
+			sum( case rg.total_rows when 1048576 then 0 else 1 end ) as 'Trimmed RGs',
+			cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
+			avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
+			sum(rg.total_rows) as [Total Rows],
+			count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
+			cast((count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
+			count(*) as 'Row Groups'
+		FROM tempdb.sys.partitions AS p 
+			INNER JOIN tempdb.sys.column_store_row_groups rg
+				ON p.object_id = rg.object_id and p.partition_number = rg.partition_number
+			INNER JOIN tempdb.sys.indexes ind
+				on rg.object_id = ind.object_id and rg.index_id = ind.index_id
+		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
+			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
+			and p.index_id in (1,2)
+			and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
+			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
+		group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
+		order by TableName;	
+
 
 end
 

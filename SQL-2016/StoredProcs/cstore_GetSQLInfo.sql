@@ -34,7 +34,7 @@ Changes in 1.1.0
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 
 Changes in 1.2.0
-	+ Added information on CTP 3.3
+	+ Added information on CTP 3.3, RC0, RC1, RC2, RC3
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ begin
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
-		values ('CTP', 200 ), ( 'RC', 1100 );
+		values ('CTP', 200 ), ( 'RC0', 1100 ), ( 'RC1', 1200 ), ( 'RC2', 1300 ), ( 'RC3', 1400 );
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
@@ -117,10 +117,10 @@ begin
 		( 'CTP', 800, convert(datetime,'30-11-2015',105), 'CTP 3.1 for SQL Server 2016' ),
 		( 'CTP', 900, convert(datetime,'16-12-2015',105), 'CTP 3.2 for SQL Server 2016' ),
 		( 'CTP', 1000, convert(datetime,'03-02-2016',105), 'CTP 3.3 for SQL Server 2016' ),
-		( 'RC', 1100, convert(datetime,'07-03-2016',105), 'RC 0 for SQL Server 2016' ),
-		( 'RC', 1200, convert(datetime,'16-03-2016',105), 'RC 1 for SQL Server 2016' ),
-		( 'RC', 1300, convert(datetime,'01-04-2016',105), 'RC 2 for SQL Server 2016' ),
-		( 'RC', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' );
+		( 'RC0', 1100, convert(datetime,'07-03-2016',105), 'RC 0 for SQL Server 2016' ),
+		( 'RC1', 1200, convert(datetime,'16-03-2016',105), 'RC 1 for SQL Server 2016' ),
+		( 'RC2', 1300, convert(datetime,'01-04-2016',105), 'RC 2 for SQL Server 2016' ),
+		( 'RC3', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' );
 
 
 	if @identifyCurrentVersion = 1

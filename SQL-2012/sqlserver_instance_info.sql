@@ -139,7 +139,7 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP1', 3486, convert(datetime,'19-01-2015',105), 'CU 14 for SQL Server 2012 SP1' ),
 	( 'SP1', 3487, convert(datetime,'16-03-2015',105), 'CU 15 for SQL Server 2012 SP1' ),
 	( 'SP1', 3492, convert(datetime,'18-05-2015',105), 'CU 16 for SQL Server 2012 SP1' ),
-	( 'SP1', 5058, convert(datetime,'10-06-2014',105), 'SQL Server 2012 SP2' ),
+	( 'SP2', 5058, convert(datetime,'10-06-2014',105), 'SQL Server 2012 SP2' ),
 	( 'SP2', 5532, convert(datetime,'24-07-2014',105), 'CU 1 for SQL Server 2012 SP2' ),
 	( 'SP2', 5548, convert(datetime,'15-09-2014',105), 'CU 2 for SQL Server 2012 SP2' ),
 	( 'SP2', 5556, convert(datetime,'17-11-2014',105), 'CU 3 for SQL Server 2012 SP2' ),
@@ -207,10 +207,16 @@ begin
 			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
 					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
 					from #SQLVersions
+					where  @SQLServerBuild <  SQLVersion
+			UNION ALL
+			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
+					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
 
 		select * 
-			from #TempVersionResults;
+			from #TempVersionResults
+			order by isnull(SQLVersion,-1);
 
 		drop table #TempVersionResults;
 	end 
