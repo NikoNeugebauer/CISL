@@ -31,6 +31,9 @@ Changes in 1.0.3:
 
 Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 -- Params --
@@ -87,7 +90,31 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number;
+	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number
+union all
+SELECT QuoteName(isnull(object_schema_name(i.object_id,db_id('tempdb')),'dbo')) + '.' + 
+	   QuoteName(isnull(object_name(i.object_id,db_id('tempdb')),obj.name)) as 'TableName', 
+		p.partition_number as 'Partition',
+		(select count(rg.row_group_id) from tempdb.sys.column_store_row_groups rg
+			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
+				  and rg.state = 3 ) as 'RowGroups',
+		count(csd.column_id) as 'Dictionaries', 
+		sum(csd.entry_count) as 'EntriesCount',
+		min(p.rows) as 'Rows Serving',
+		cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
+		cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
+		cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
+    FROM tempdb.sys.indexes AS i
+		inner join tempdb.sys.partitions AS p
+			on i.object_id = p.object_id 
+		inner join tempdb.sys.column_store_dictionaries AS csd
+			on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
+		inner join tempdb.sys.objects obj
+			on i.object_id = obj.object_id
+    where i.type in (5,6)
+		and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+		and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
+	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, obj.name, p.partition_number;
 
 
 if @showDetails = 1
@@ -134,6 +161,54 @@ select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_na
 		and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
-	order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
+union all
+select QuoteName(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + 
+	QuoteName(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as 'TableName',
+		ind.name as 'IndexName', 
+		part.partition_number as 'Partition',
+		cols.name as ColumnName, 
+		dict.column_id as ColumnId,
+		dict.dictionary_id as 'SegmentId',
+		tp.name as ColumnType,
+		dict.column_id as 'ColumnId', 
+		case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
+		part.rows as 'Rows Serving', 
+		entry_count as 'Entry Count', 
+		cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
+	from tempdb.sys.column_store_dictionaries dict
+		inner join tempdb.sys.partitions part
+			ON dict.hobt_id = part.hobt_id and dict.partition_id = part.partition_id
+		inner join tempdb.sys.indexes ind
+			on part.object_id = ind.object_id and part.index_id = ind.index_id
+		inner join tempdb.sys.columns cols
+			on part.object_id = cols.object_id and dict.column_id = cols.column_id
+		inner join tempdb.sys.types tp
+			on cols.system_type_id = tp.system_type_id and cols.user_type_id = tp.user_type_id
+		inner join tempdb.sys.objects obj
+			on ind.object_id = obj.object_id
+	where 
+		(( @showWarningsOnly = 1 
+			AND 
+			( cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) > @warningDictionarySizeInMB OR
+				entry_count > @warningEntryCount
+			)
+		) OR @showWarningsOnly = 0 )
+		AND
+		(( @showAllTextDictionaries = 1 
+			AND
+			case tp.name 
+				when 'char' then 1
+				when 'nchar' then 1
+				when 'varchar' then 1
+				when 'nvarchar' then 1
+				when 'sysname' then 1
+			end = 1
+		) OR @showAllTextDictionaries = 0 )
+		and (@tableName is null or object_name(ind.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+		and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
+		and cols.name = isnull(@columnName,cols.name)
+		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+	order by TableName, ind.name, part.partition_number, dict.column_id;
+
 
 
