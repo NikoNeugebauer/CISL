@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -21,7 +21,7 @@
 /*
 Known Issues & Limitations: 
 	- no support for Multi-Dimensional Segment Clustering in this version
-
+	- no support for the Temporary Tables
 
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
@@ -61,7 +61,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -159,7 +159,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -194,6 +194,9 @@ Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 version)
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -223,7 +226,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -252,7 +255,7 @@ begin
 	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
 			p.partition_number as 'Partition',
 			(select count(distinct rg.segment_id) from sys.column_store_segments rg
-				where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
+					where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
 			count(csd.column_id) as 'Dictionaries', 
 			sum(csd.entry_count) as 'EntriesCount',
 			min(p.rows) as 'Rows Serving',
@@ -265,14 +268,34 @@ begin
 			inner join sys.column_store_dictionaries AS csd
 				on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
 		where i.type in (5,6)
-			and i.object_id = isnull(@objectId, i.object_id)
 			and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id;
+		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id
+	union all
+	SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(i.object_id,db_id('tempdb'))) as 'TableName', 
+			p.partition_number as 'Partition',
+			(select count(rg.row_group_id) from tempdb.sys.column_store_row_groups rg
+				where rg.object_id = i.object_id and rg.partition_number = p.partition_number
+					  and rg.state = 3 ) as 'RowGroups',
+			count(csd.column_id) as 'Dictionaries', 
+			sum(csd.entry_count) as 'EntriesCount',
+			min(p.rows) as 'Rows Serving',
+			cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
+			cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
+			cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
+		FROM tempdb.sys.indexes AS i
+			inner join tempdb.sys.partitions AS p
+				on i.object_id = p.object_id 
+			inner join tempdb.sys.column_store_dictionaries AS csd
+				on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
+		where i.type in (5,6)
+			and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
+		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.partition_number;
 
 
-
-	select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
+	if @showDetails = 1
+		select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
 				ind.name as 'IndexName', 
 				part.partition_number as 'Partition',
 				cols.name as ColumnName, 
@@ -311,12 +334,57 @@ begin
 					when 'sysname' then 1
 				end = 1
 			) OR @showAllTextDictionaries = 0 )
-			and ind.object_id = isnull(@objectId, ind.object_id)
 			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
-		order by object_schema_name(part.object_id) + '.' +	object_name(part.object_id), ind.name, part.partition_number, dict.column_id;
+		union all
+		select QuoteName(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(part.object_id,db_id('tempdb'))) as 'TableName',
+				ind.name as 'IndexName', 
+				part.partition_number as 'Partition',
+				cols.name as ColumnName, 
+				dict.column_id as [ColumnId],
+				dict.dictionary_id as 'SegmentId',
+				tp.name as ColumnType,
+				dict.column_id as 'ColumnId', 
+				case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
+				part.rows as 'Rows Serving', 
+				entry_count as 'Entry Count', 
+				cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
+		from tempdb.sys.column_store_dictionaries dict
+			inner join tempdb.sys.partitions part
+				ON dict.hobt_id = part.hobt_id and dict.partition_id = part.partition_id
+			inner join tempdb.sys.indexes ind
+				on part.object_id = ind.object_id and part.index_id = ind.index_id
+			inner join tempdb.sys.columns cols
+				on part.object_id = cols.object_id and dict.column_id = cols.column_id
+			inner join tempdb.sys.types tp
+				on cols.system_type_id = tp.system_type_id and cols.user_type_id = tp.user_type_id
+		where 
+			(( @showWarningsOnly = 1 
+				AND 
+				( cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) > @warningDictionarySizeInMB OR
+					entry_count > @warningEntryCount
+				)
+			) OR @showWarningsOnly = 0 )
+			AND
+			(( @showAllTextDictionaries = 1 
+				AND
+				case tp.name 
+					when 'char' then 1
+					when 'nchar' then 1
+					when 'varchar' then 1
+					when 'nvarchar' then 1
+					when 'sysname' then 1
+				end = 1
+			) OR @showAllTextDictionaries = 0 )
+			and (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
+			and cols.name = isnull(@columnName,cols.name)
+			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+			order by TableName, ind.name, part.partition_number, dict.column_id;
+
+
 
 
 end
@@ -325,7 +393,7 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.1.0, January 2016
+    Version: 1.2.0, May 2016
 
     Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -383,7 +451,7 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.1.0, January 2016
+    Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -494,7 +562,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -523,6 +591,11 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed bug with conversion to bigint for row_count
+	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -550,7 +623,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -577,8 +650,8 @@ begin
 		count(distinct segment_id) as 'Compressed',
 		count(distinct segment_id) as 'Total',
 		cast( sum(isnull(0,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(row_count-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(row_count,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint)-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint),0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
@@ -596,10 +669,45 @@ begin
 			  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			  and part.object_id = isnull(@objectId, part.object_id)
+			  and isnull(stat.database_id,db_id()) = db_id()			  
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
-				and sum(isnull(row_count,0)) >= @minTotalRows
-		order by quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)),
+				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
+	union all
+	select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
+		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
+		part.data_compression_desc as 'Compression Type',
+		0 as 'Bulk Load RG',
+		0 as 'Open DS',
+		0 as 'Closed DS',
+		count(distinct segment_id) as 'Compressed',
+		count(distinct segment_id) as 'Total',
+		cast( sum(isnull(0,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint)-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint),0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
+		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
+		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
+		max(stat.last_user_scan) as 'LastScan'
+		from tempdb.sys.column_store_segments rg		
+			left join tempdb.sys.partitions part with(READUNCOMMITTED)
+				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+			inner join tempdb.sys.indexes ind
+				on ind.object_id = part.object_id 
+			left join tempdb.sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
+				on part.object_id = stat.object_id and ind.index_id = stat.index_id
+		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
+			  and part.data_compression_desc in ('COLUMNSTORE') 
+			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
+			  and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			  and part.object_id = isnull(@objectId, part.object_id)
+			  and isnull(stat.database_id, db_id('tempdb')) = db_id('tempdb')			  
+		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
+		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
+				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
+		order by TableName,
 				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
 
 end
@@ -608,7 +716,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -631,6 +739,10 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed bug with conversion to bigint for row_count
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -658,7 +770,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -681,7 +793,7 @@ BEGIN
 		rg.segment_id as row_group_id,
 		3 as state,
 		'COMPRESSED' as state_description,
-		sum(rg.row_count)/count(distinct rg.column_id) as total_rows,
+		sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
 		0 as deleted_rows,
 		cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
 		from sys.column_store_segments rg		
@@ -694,7 +806,29 @@ BEGIN
 			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 		group by part.object_id, part.partition_number, rg.segment_id
-		having sum(rg.row_count)/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
+		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
+				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
+				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
+	union all
+	select quotename(object_schema_name(part.object_id, db_id('tempdb'))) + '.' + quotename(object_name(part.object_id, db_id('tempdb'))) as 'TableName', 
+		part.partition_number,
+		rg.segment_id as row_group_id,
+		3 as state,
+		'COMPRESSED' as state_description,
+		sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
+		0 as deleted_rows,
+		cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
+		from tempdb.sys.column_store_segments rg		
+			left join tempdb.sys.partitions part with(READUNCOMMITTED)
+				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
+			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
+			and part.object_id = isnull(@objectId, part.object_id)
+			and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
+		group by part.object_id, part.partition_number, rg.segment_id
+		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
 		order by quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)),
@@ -749,6 +883,14 @@ Changes in 1.0.4
 Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.1.1
+	+ Added information about CU10 for SQL Server 2012 SP 2
+	+ Added information about CU1 for SQL Server 2012 SP 3
+
+Changes in 1.2.0
+	+ Added information about CU 11 for SQL Server 2012 SP 2
+	+ Added information about CU 2 for SQL Server 2012 SP 3
 */
 
 
@@ -871,7 +1013,11 @@ begin
 		( 'SP2', 5623, convert(datetime,'20-07-2015',105), 'CU 7 for SQL Server 2012 SP2' ),
 		( 'SP2', 5634, convert(datetime,'21-09-2015',105), 'CU 8 for SQL Server 2012 SP2' ),
 		( 'SP2', 5641, convert(datetime,'18-11-2015',105), 'CU 9 for SQL Server 2012 SP2' ),
-		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' );
+		( 'SP2', 5643, convert(datetime,'19-01-2016',105), 'CU 10 for SQL Server 2012 SP2' ),
+		( 'SP2', 5646, convert(datetime,'22-03-2016',105), 'CU 11 for SQL Server 2012 SP2' ),
+		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
+		( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
+		( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -990,7 +1136,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1025,6 +1171,11 @@ Changes in 1.0.4
 Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	- Fixed displaying wrong number of rows for the found suggested tables
+	- Fixed error for filtering out the secondary nonclustered indexes in some bigger databases
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1053,7 +1204,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.1.0, January 2016
+	Version: 1.2.0, May 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1108,8 +1259,8 @@ begin
 	select t.object_id as [ObjectId]
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, sum(p.rows) as 'Row Count'
-		, ceiling(sum(p.rows)/1045678.) as 'Min RowGroups' 
+		, max(p.rows) as 'Row Count'
+		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
 		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -1231,7 +1382,134 @@ begin
 				 @considerColumnsOver8K = 1 )
 				and 
 				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
-		order by sum(p.rows) desc, sum(a.total_pages) desc;
+	union all
+	select t.object_id as [ObjectId]
+		, quotename(object_schema_name(t.object_id,db_id('tempdb'))) + '.' + quotename(object_name(t.object_id,db_id('tempdb'))) as 'TableName'
+		, replace(object_name(t.object_id,db_id('tempdb')),' ', '') as 'ShortTableName'
+		, max(p.rows) as 'Row Count'
+		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
+		, (select count(*) from tempdb.sys.columns as col
+			where t.object_id = col.object_id ) as 'Cols Count'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR','SYSNAME') 
+		   ) as 'String Cols'
+		, (select sum(col.max_length) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id 
+		  ) as 'Sum Length'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 (UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY') OR
+					  (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+					 )
+		   ) as 'Unsupported'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+					inner join tempdb.sys.types as tp
+						on col.user_type_id = tp.user_type_id
+				where t.object_id = col.object_id and 
+					 (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+		   ) as 'LOBs'
+		, (select count(*) 
+				from tempdb.sys.columns as col
+				where is_computed = 1 ) as 'Computed'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 2 AND ind.object_id = t.object_id ) as 'Nonclustered Indexes'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 3 AND ind.object_id = t.object_id ) as 'XML Indexes'
+		, (select count(*)
+				from tempdb.sys.indexes ind
+				where type = 4 AND ind.object_id = t.object_id ) as 'Spatial Indexes'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) = 'PK' AND parent_object_id = t.object_id ) as 'Primary Key'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) = 'F' AND parent_object_id = t.object_id ) as 'Foreign Keys'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) in ('UQ') AND parent_object_id = t.object_id ) as 'Unique Constraints'
+		, (select count(*)
+				from tempdb.sys.objects
+				where UPPER(type) in ('TA','TR') AND parent_object_id = t.object_id ) as 'Triggers'
+		, 0 as 'RCSI'
+		, 0 as 'Snapshot'
+		, t.is_tracked_by_cdc as 'CDC'
+		, (select count(*) 
+				from tempdb.sys.change_tracking_tables ctt with(READUNCOMMITTED)
+				where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
+					  and DB_ID() in (select database_id from tempdb.sys.change_tracking_databases ctdb)) as 'CT'
+		, t.is_replicated as 'Replication'
+		, coalesce(t.filestream_data_space_id,0,1) as 'FileStream'
+		, t.is_filetable as 'FileTable'
+		from tempdb.sys.tables t
+			inner join tempdb.sys.partitions as p 
+				ON t.object_id = p.object_id
+			inner join tempdb.sys.allocation_units as a 
+				ON p.partition_id = a.container_id
+		where p.data_compression in (0,1,2) -- None, Row, Page
+			 and (select count(*)
+					from tempdb.sys.indexes ind
+					where t.object_id = ind.object_id
+						and ind.type in (5,6) ) = 0
+			 and (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+			 and (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName)
+			 and (( @showReadyTablesOnly = 1 
+					and  
+					(select count(*) 
+						from tempdb.sys.columns as col
+							inner join tempdb.sys.types as tp
+								on col.system_type_id = tp.system_type_id
+						where t.object_id = col.object_id and 
+								(UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY'))
+						) = 0 
+					and (select count(*)
+							from tempdb.sys.objects so
+							where UPPER(so.type) in ('PK','F','UQ','TA','TR') and parent_object_id = t.object_id ) = 0
+					and (select count(*)
+							from tempdb.sys.indexes ind
+							where t.object_id = ind.object_id
+								and ind.type in (3,4) ) = 0
+					and (select count(*) 
+							from tempdb.sys.change_tracking_tables ctt with(READUNCOMMITTED)
+							where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
+									and DB_ID() in (select database_id from tempdb.sys.change_tracking_databases ctdb)) = 0
+					and t.is_tracked_by_cdc = 0
+					--and t.is_memory_optimized = 0
+					and t.is_replicated = 0
+					and coalesce(t.filestream_data_space_id,0,1) = 0
+					and t.is_filetable = 0
+				  )
+				 or @showReadyTablesOnly = 0)
+		group by t.object_id, t.is_tracked_by_cdc, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+		having sum(p.rows) > @minRowsToConsider 
+				and
+				(((select sum(col.max_length) 
+					from tempdb.sys.columns as col
+						inner join tempdb.sys.types as tp
+							on col.system_type_id = tp.system_type_id
+					where t.object_id = col.object_id 
+				  ) < 8000 and @considerColumnsOver8K = 0 ) 
+				  OR
+				 @considerColumnsOver8K = 1 )
+				and 
+				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+
 
 	-- Show the found results
 	select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported] 
@@ -1322,7 +1600,7 @@ begin
 							inner join sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
 							where UPPER(so1.type) in ('PK','F','UQ')
-								and quotename(ind.name) <> quotename(so1.name))
+								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId )
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 					10 as [Sort Order]
