@@ -21,7 +21,6 @@
 /*
 Known Issues & Limitations: 
 	- no support for Multi-Dimensional Segment Clustering in this version
-	- no support for the Temporary Tables
 
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
@@ -34,6 +33,9 @@ Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
 	* Added support for DROP TABLE IF EXISTS construct for the temporary table inside the code
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -80,21 +82,29 @@ begin
 
 	DROP TABLE IF EXISTS #column_store_segments
 
-	SELECT part.object_id, part.partition_number, part.hobt_id, part.partition_id, seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id
+	SELECT SchemaName, TableName, object_id, partition_number, hobt_id, partition_id, column_id, segment_id, min_data_id, max_data_id
 	INTO #column_store_segments
-	FROM sys.column_store_segments seg
-	INNER JOIN sys.partitions part
-		   ON seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id
-	WHERE part.object_id = isnull(object_id(@tableName),part.object_id)
+	FROM ( select object_schema_name(part.object_id) as SchemaName, object_name(part.object_id) as TableName, part.object_id, part.partition_number, part.hobt_id, part.partition_id, seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id
+				FROM sys.column_store_segments seg
+				INNER JOIN sys.partitions part
+				   ON seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id
+		union all
+		select object_schema_name(part.object_id,db_id('tempdb')) as SchemaName, object_name(part.object_id,db_id('tempdb')) as TableName, part.object_id, part.partition_number, part.hobt_id, part.partition_id, seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id
+				FROM tempdb.sys.column_store_segments seg
+				INNER JOIN tempdb.sys.partitions part
+				   ON seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id
+		) as Res
 
 	ALTER TABLE #column_store_segments
-		ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);
+	ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);
 
 	ALTER TABLE #column_store_segments
-		ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
+	ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
 
 	with cteSegmentAlignment as (
-		select  part.object_id,  case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
+		select  part.object_id,  
+				quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)) as TableName,
+				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
 				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
 				seg.segment_id, 
 				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
@@ -124,10 +134,44 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
-				and part.object_id = isnull(@objectId, part.object_id)
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
+		UNION ALL
+		select  part.object_id,  
+				quotename(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + quotename(object_name(part.object_id,db_id('tempdb'))) as TableName,
+				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
+				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
+				seg.segment_id, 
+				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
+			from tempdb.sys.column_store_segments seg
+				inner join tempdb.sys.partitions part
+					on seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id 
+				inner join tempdb.sys.columns cols
+					on part.object_id = cols.object_id and seg.column_id = cols.column_id
+				inner join tempdb.sys.types tp
+					on cols.system_type_id = tp.system_type_id and cols.user_type_id = tp.user_type_id
+				outer apply (
+					SELECT TOP 1 otherSeg.segment_id
+					FROM #column_store_segments otherSeg --WITH (FORCESEEK)
+					WHERE seg.hobt_id = otherSeg.hobt_id 
+							AND seg.partition_id = otherSeg.partition_id 
+							AND seg.column_id = otherSeg.column_id
+							AND seg.segment_id <> otherSeg.segment_id
+							AND (seg.min_data_id < otherSeg.min_data_id and seg.max_data_id > otherSeg.min_data_id )  -- Scenario 1 
+					UNION ALL
+					SELECT TOP 1 otherSeg.segment_id
+					FROM #column_store_segments otherSeg --WITH (FORCESEEK)
+					WHERE seg.hobt_id = otherSeg.hobt_id 
+							AND seg.partition_id = otherSeg.partition_id 
+							AND seg.column_id = otherSeg.column_id
+							AND seg.segment_id <> otherSeg.segment_id
+							AND (seg.min_data_id < otherSeg.max_data_id and seg.max_data_id > otherSeg.max_data_id )  -- Scenario 2 
+				) filteredSeg
+			where (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%')
+				and (@schemaName is null or object_schema_name(part.object_id,db_id('tempdb')) = @schemaName)
+			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
+
 	)
-	select quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+	select TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
 		cte.ColumnType,
 		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
 							when 'datetimeoffset' then 'Segment Elimination is not supported' 
@@ -148,8 +192,9 @@ begin
 			  OR @showUnsupportedSegments = 1)
 			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
-		group by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
-		order by quotename(object_schema_name(object_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id;
+		group by TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
+		order by TableName, partition_number, cte.column_id;
+
 
 end
 
