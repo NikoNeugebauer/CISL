@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -37,6 +37,9 @@ Changes in 1.1.0:
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)	
+
+Changes in 1.3.0
+	- Fixed bug with non-existing DMV sys.column_store_row_groups
 */
 	
 -- Params --
@@ -103,9 +106,8 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
 union all
 SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(i.object_id,db_id('tempdb'))) as 'TableName', 
 		p.partition_number as 'Partition',
-		(select count(rg.row_group_id) from tempdb.sys.column_store_row_groups rg
-			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
-				  and rg.state = 3 ) as 'RowGroups',
+		(select count(distinct rg.segment_id) from tempdb.sys.column_store_segments rg
+				where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
 		count(csd.column_id) as 'Dictionaries', 
 		sum(csd.entry_count) as 'EntriesCount',
 		min(p.rows) as 'Rows Serving',
@@ -120,7 +122,7 @@ SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteN
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
-	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.partition_number;
+	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.hobt_id, p.partition_id, p.partition_number;
 
 
 if @showDetails = 1
