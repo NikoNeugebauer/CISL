@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -50,6 +50,10 @@ Changes in 1.1.1
 Changes in 1.2.0
 	+ Added information about CU 11 for SQL Server 2012 SP 2
 	+ Added information about CU 2 for SQL Server 2012 SP 3
+
+Changes in 1.3.0
+	+ Added information about CU 12 for SQL Server 2012 SP 2
+	+ Added information about CU 3 for SQL Server 2012 SP 3
 */
 
 -- Params --
@@ -151,9 +155,11 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP2', 5641, convert(datetime,'18-11-2015',105), 'CU 9 for SQL Server 2012 SP2' ),
 	( 'SP2', 5643, convert(datetime,'19-01-2016',105), 'CU 10 for SQL Server 2012 SP2' ),
 	( 'SP2', 5646, convert(datetime,'22-03-2016',105), 'CU 11 for SQL Server 2012 SP2' ),
+	( 'SP2', 5649, convert(datetime,'17-05-2016',105), 'CU 12 for SQL Server 2012 SP2' ),
 	( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
 	( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
-	( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' );
+	( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' ),
+	( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
