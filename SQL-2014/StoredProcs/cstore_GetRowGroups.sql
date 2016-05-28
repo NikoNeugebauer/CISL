@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -36,6 +36,9 @@ Changes in 1.2.0
 	- Fixed bugs for filtering by schema & name of the columnstore table (it is now using the sys.indexes DMV as the base, thus guaranteeing correct results for the empty Columnstore)	
 	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added new parameter for filtering a specific partition
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -63,7 +66,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -74,7 +77,8 @@ alter procedure dbo.cstore_GetRowGroups(
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
-	@showPartitionDetails bit = 1					-- Allows to show details of each of the available partitions
+	@showPartitionDetails bit = 0,					-- Allows to show details of each of the available partitions
+	@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
 	) as
 begin
@@ -111,6 +115,7 @@ begin
 			  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			  and ind.object_id = isnull(@objectId, ind.object_id)
 			  and isnull(stat.database_id,db_id()) = db_id()
+			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) --, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
@@ -146,6 +151,7 @@ begin
 			  and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 			  and ind.object_id = isnull(@objectId, ind.object_id)
 			  and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
+			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 		group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) --, part.data_compression_desc
 		having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows

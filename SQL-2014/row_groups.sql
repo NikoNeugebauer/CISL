@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -20,6 +20,7 @@
 
 /*
 Known Issues & Limitations: 
+	* The total number of partitions should be finally added 
 
 Modifications:
 
@@ -31,6 +32,9 @@ Changes in 1.2.0
 	- Fixed bug with conversion to bigint for row_count
 	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added new parameter for filtering a specific partition
 */
 
 -- Params --
@@ -40,7 +44,8 @@ declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes 
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
-		@showPartitionDetails bit = 1;					-- Allows to show details of each of the available partitions
+		@showPartitionDetails bit = 1,					-- Allows to show details of each of the available partitions
+		@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -92,6 +97,7 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 			and isnull(stat.database_id,db_id()) = db_id()
+			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 			and sum(isnull(total_rows,0)) >= @minTotalRows
@@ -126,6 +132,7 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 			and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 			and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
+			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) --, part.data_compression_desc
 	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 			and sum(isnull(total_rows,0)) >= @minTotalRows
