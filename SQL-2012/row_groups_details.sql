@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -26,6 +26,10 @@ Modifications:
 Changes in 1.2.0
 	- Fixed bug with conversion to bigint for row_count
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added compatibility support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
+	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
 */
 
 -- Params --
@@ -36,7 +40,9 @@ declare @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered dow
 		@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
 		@showFragmentedGroupsOnly bit = 0,				-- Allows to show the Row Groups that have Deleted Rows in them
 		@minSizeInMB Decimal(16,3) = NULL,				-- Minimum size in MB for a table to be included
-		@maxSizeInMB Decimal(16,3) = NULL 				-- Maximum size in MB for a table to be included
+		@maxSizeInMB Decimal(16,3) = NULL, 				-- Maximum size in MB for a table to be included
+		@minCreatedDateTime Datetime = NULL,			-- The earliest create datetime for Row Group to be included
+		@maxCreatedDateTime Datetime = NULL				-- The lateste create datetime for Row Group to be included
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -65,16 +71,27 @@ select quotename(object_schema_name(part.object_id)) + '.' + quotename(object_na
 	'COMPRESSED' as state_description,
 	sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
 	0 as deleted_rows,
-	cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
+	cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB],
+	NULL as trim_reason,
+	NULL as trim_reason_desc,
+	NULL compress_op, 
+	NULL as compress_op_desc,
+	NULL as optimised,
+	NULL as generation,
+	NULL as closed_time,	
+	ind.create_date as created_time
 	from sys.column_store_segments rg		
 		left join sys.partitions part with(READUNCOMMITTED)
 			on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+		inner join sys.objects ind
+			on part.object_id = ind.object_id 
 	where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 		and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 		and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 		and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
-	group by part.object_id, part.partition_number, rg.segment_id
+		and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
+	group by part.object_id, ind.object_id, ind.create_date, part.partition_number, rg.segment_id
 	having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 			and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 			and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
@@ -86,16 +103,27 @@ select quotename(object_schema_name(part.object_id, db_id('tempdb'))) + '.' + qu
 	'COMPRESSED' as state_description,
 	sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) as total_rows,
 	0 as deleted_rows,
-	cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB]
+	cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) as [Size in MB],
+	NULL as trim_reason,
+	NULL as trim_reason_desc,
+	NULL compress_op, 
+	NULL as compress_op_desc,
+	NULL as optimised,
+	NULL as generation,
+	NULL as closed_time,	
+	ind.create_date as created_time
 	from tempdb.sys.column_store_segments rg		
 		left join tempdb.sys.partitions part with(READUNCOMMITTED)
 			on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+		inner join tempdb.sys.objects ind
+			on part.object_id = ind.object_id 
 	where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 		and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 		and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
 		and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
-	group by part.object_id, part.partition_number, rg.segment_id
+		and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
+	group by part.object_id, ind.object_id, ind.create_date, part.partition_number, rg.segment_id
 	having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 			and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 			and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)

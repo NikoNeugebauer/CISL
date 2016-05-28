@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -28,6 +28,10 @@ Changes in 1.1.0
 Changes in 1.2.0
 	- Fixed bug with conversion to bigint for row_count
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added compatibility support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
+	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -55,7 +59,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, May 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -90,6 +94,7 @@ BEGIN
 			and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
+			and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
 		group by part.object_id, part.partition_number, rg.segment_id
 		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
@@ -112,6 +117,7 @@ BEGIN
 			and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
+			and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
 		group by part.object_id, part.partition_number, rg.segment_id
 		having sum(cast(rg.row_count as bigint))/count(distinct rg.column_id) <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
