@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -45,12 +45,15 @@ Changes in 1.0.4
 
 Changes in 1.2.0
 	+ Added Information about CU 5 & CU 6 for SQL Server 2014 SP1 & about CU 12 & CU 13 for SQL Server 2014 RTM
+
+Changes in 1.3.0
+	+ Added Information about updated CU 6 for SQL Server 2014 SP1
 */
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
 		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
-		@showNewerVersions bit = 0;					-- Enables showing the SQL Server versions that are posterior the current version
+		@showNewerVersions bit = 1;					-- Enables showing the SQL Server versions that are posterior the current version
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -126,7 +129,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP1', 4427, convert(datetime,'21-10-2015',105), 'CU 3 for SQL Server 2014 SP1' ),
 	( 'SP1', 4436, convert(datetime,'22-12-2015',105), 'CU 4 for SQL Server 2014 SP1' ),
 	( 'SP1', 4439, convert(datetime,'22-02-2016',105), 'CU 5 for SQL Server 2014 SP1' ),
-	( 'SP1', 4449, convert(datetime,'19-04-2015',105), 'CU 6 for SQL Server 2014 SP1' );
+	( 'SP1', 4449, convert(datetime,'19-04-2015',105), 'CU 6 for SQL Server 2014 SP1' ),
+	( 'SP1', 4457, convert(datetime,'31-05-2015',105), 'CU 6A for SQL Server 2014 SP1' );
 
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
