@@ -36,6 +36,15 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.2.0
+	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	* Removed Duplicate information on the ColumnId
+	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
+	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
+	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -78,7 +87,9 @@ alter procedure dbo.cstore_GetDictionaries(
 	@objectId int = NULL,								-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
-	@columnName nvarchar(256) = NULL					-- Allows to filter out data base on 1 particular column name
+	@columnName nvarchar(256) = NULL,					-- Allows to filter out data base on 1 particular column name
+	@indexLocation varchar(15) = NULL,					-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
+	@indexType char(2) = NULL							-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 -- end of --
 ) as 
 begin
@@ -92,6 +103,8 @@ begin
 		set @table_object_id = NULL;
 
 	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
+		case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		case i.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 		p.partition_number as 'Partition',
 		(select count(rg.row_group_id) from sys.column_store_row_groups rg
 			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -110,9 +123,13 @@ begin
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number
+		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, i.data_space_id, i.type, p.partition_number
 	union all
 	SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(i.object_id,db_id('tempdb'))) as 'TableName', 
+			case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+			case i.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 			p.partition_number as 'Partition',
 			(select count(rg.row_group_id) from tempdb.sys.column_store_row_groups rg
 				where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -131,7 +148,9 @@ begin
 		where i.type in (5,6)
 			and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
-		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.partition_number;
+			and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, i.type, i.data_space_id, p.partition_number;
 
 
 	if @showDetails = 1
@@ -140,16 +159,15 @@ begin
 			part.partition_number as 'Partition',
 			cols.name as ColumnName, 
 			dict.column_id as ColumnId,
-			dict.dictionary_id as 'SegmentId',
+			dict.dictionary_id as 'DictionaryId',
 			tp.name as ColumnType,
-			dict.column_id as 'ColumnId', 
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 			part.rows as 'Rows Serving', 
 			entry_count as 'Entry Count', 
 			cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 		from sys.column_store_dictionaries dict
 			inner join sys.partitions part
-				ON dict.hobt_id = part.hobt_id and dict.partition_id = part.partition_id
+				ON dict.partition_id = part.partition_id and dict.partition_id = part.partition_id
 			inner join sys.indexes ind
 				on part.object_id = ind.object_id and part.index_id = ind.index_id
 			inner join sys.columns cols
@@ -178,15 +196,16 @@ begin
 			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 	union all
 	select QuoteName(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(part.object_id,db_id('tempdb'))) as 'TableName',
 			ind.name as 'IndexName', 
 			part.partition_number as 'Partition',
 			cols.name as ColumnName, 
 			dict.column_id as ColumnId,
-			dict.dictionary_id as 'SegmentId',
+			dict.dictionary_id as 'DictionaryId',
 			tp.name as ColumnType,
-			dict.column_id as 'ColumnId', 
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 			part.rows as 'Rows Serving', 
 			entry_count as 'Entry Count', 
@@ -222,6 +241,8 @@ begin
 			and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 		order by TableName, ind.name, part.partition_number, dict.column_id;
 
 end

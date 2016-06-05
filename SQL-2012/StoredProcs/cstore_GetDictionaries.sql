@@ -42,6 +42,10 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	- Fixed bug with non-existing DMV sys.column_store_row_groups
+	* Removed Duplicate information on the ColumnId
+	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
+	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
+	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -84,7 +88,9 @@ alter procedure dbo.cstore_GetDictionaries(
 	@objectId int = NULL,								-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
-	@columnName nvarchar(256) = NULL					-- Allows to filter out data base on 1 particular column name
+	@columnName nvarchar(256) = NULL,					-- Allows to filter out data base on 1 particular column name
+	@indexLocation varchar(15) = NULL,					-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
+	@indexType char(2) = NULL							-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 -- end of --
 ) as 
 begin
@@ -98,6 +104,8 @@ begin
 		set @table_object_id = NULL;
 
 	SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
+			case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+			case i.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 			p.partition_number as 'Partition',
 			(select count(distinct rg.segment_id) from sys.column_store_segments rg
 					where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
@@ -115,9 +123,13 @@ begin
 		where i.type in (5,6)
 			and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id
+			and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+		group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id, i.data_space_id, i.type
 	union all
 	SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(i.object_id,db_id('tempdb'))) as 'TableName', 
+			case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+			case i.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 			p.partition_number as 'Partition',
 			(select count(distinct rg.segment_id) from tempdb.sys.column_store_segments rg
 					where rg.hobt_id = p.hobt_id and rg.partition_id = p.partition_id) as 'RowGroups',
@@ -135,7 +147,9 @@ begin
 		where i.type in (5,6)
 			and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
-		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.hobt_id, p.partition_id, p.partition_number;
+			and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.hobt_id, p.partition_id, p.partition_number, i.data_space_id, i.type;
 
 
 	if @showDetails = 1
@@ -146,7 +160,6 @@ begin
 				dict.column_id as [ColumnId],
 				dict.dictionary_id as 'SegmentId',
 				tp.name as ColumnType,
-				dict.column_id as 'ColumnId', 
 				case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 				part.rows as 'Rows Serving', 
 				entry_count as 'Entry Count', 
@@ -182,6 +195,8 @@ begin
 			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 		union all
 		select QuoteName(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(part.object_id,db_id('tempdb'))) as 'TableName',
 				ind.name as 'IndexName', 
@@ -190,7 +205,6 @@ begin
 				dict.column_id as [ColumnId],
 				dict.dictionary_id as 'SegmentId',
 				tp.name as ColumnType,
-				dict.column_id as 'ColumnId', 
 				case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 				part.rows as 'Rows Serving', 
 				entry_count as 'Entry Count', 
@@ -226,6 +240,8 @@ begin
 			and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
+			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			order by TableName, ind.name, part.partition_number, dict.column_id;
 
 

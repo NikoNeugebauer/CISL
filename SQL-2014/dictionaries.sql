@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -34,6 +34,12 @@ Changes in 1.0.4
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	* Removed Duplicate information on the ColumnId
+	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
+	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
+	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
 */
 
 -- Params --
@@ -45,8 +51,10 @@ declare
 	@showAllTextDictionaries bit = 0,					-- Enables selecting all textual dictionaries independently from their warning status
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
-	@tableName nvarchar(256) = 'Temp',					-- Allows to show data filtered down to 1 particular table
-	@columnName nvarchar(256) = NULL;					-- Allows to filter out data base on 1 particular column name
+	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
+	@columnName nvarchar(256) = NULL,					-- Allows to filter out data base on 1 particular column name
+	@indexLocation varchar(15) = NULL,					-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
+	@indexType char(2) = NULL							-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 -- end of --
 
 
@@ -73,6 +81,8 @@ end
 set nocount on;
 
 SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(i.object_id)) as 'TableName', 
+		case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		'Disk-Based' as [Location],	
 		p.partition_number as 'Partition',
 		(select count(rg.row_group_id) from sys.column_store_row_groups rg
 			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -91,9 +101,13 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
-	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.partition_number
+		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, i.type, p.partition_number
 union all
 SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteName(object_name(i.object_id,db_id('tempdb'))) as 'TableName', 
+		case i.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		'Disk-Based' as [Location],	
 		p.partition_number as 'Partition',
 		(select count(rg.row_group_id) from tempdb.sys.column_store_row_groups rg
 			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
@@ -112,7 +126,9 @@ SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteN
     where i.type in (5,6)
 		and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
-	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.partition_number;
+		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
+		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
+	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, i.type, p.partition_number;
 
 
 if @showDetails = 1
