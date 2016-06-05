@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -19,6 +19,9 @@
 */
 
 /*
+Known Limitations:
+	- No support for the InMemory Objects
+
 Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
 	* Changed the output from '% of Total' to '% of Total Column Structures' for better clarity
