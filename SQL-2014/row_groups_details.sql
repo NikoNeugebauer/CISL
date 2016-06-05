@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -66,6 +66,7 @@ end
 set nocount on;
 
 select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)) as [Table Name],
+	'Disk-Based' as Location,
 	rg.partition_number as partition,
 	rg.row_group_id,
 	rg.state,
@@ -95,6 +96,7 @@ select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name
 		and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
 UNION ALL
 select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quotename(object_name(rg.object_id, db_id('tempdb'))) as [Table Name],
+	'Disk-Based' as Location,
 	rg.partition_number as partition,
 	rg.row_group_id,
 	rg.state,

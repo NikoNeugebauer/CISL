@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -30,7 +30,7 @@ Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
 Changes in 1.3.0
-	+ Added compatibility support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
+	+ Added compatibility support for the SQL Server 2016 internals information on Location, Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
 	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
 */
 
@@ -59,7 +59,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -71,13 +71,15 @@ alter procedure dbo.cstore_GetRowGroupsDetails(
 	@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
 	@showFragmentedGroupsOnly bit = 0,				-- Allows to show the Row Groups that have Deleted Rows in them
 	@minSizeInMB Decimal(16,3) = NULL,				-- Minimum size in MB for a table to be included
-	@maxSizeInMB Decimal(16,3) = NULL 				-- Maximum size in MB for a table to be included
--- end of --
+	@maxSizeInMB Decimal(16,3) = NULL, 				-- Maximum size in MB for a table to be included
+	@minCreatedDateTime Datetime = NULL,			-- The earliest create datetime for Row Group to be included
+	@maxCreatedDateTime Datetime = NULL				-- The lateste create datetime for Row Group to be included-- end of --
 ) as
 BEGIN
 	set nocount on;
 
 	select quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)) as 'TableName', 
+		'Disk-Based' as [Location],
 		part.partition_number,
 		rg.segment_id as row_group_id,
 		3 as state,
@@ -88,6 +90,8 @@ BEGIN
 		from sys.column_store_segments rg		
 			left join sys.partitions part with(READUNCOMMITTED)
 				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+			inner join sys.objects ind
+				on part.object_id = ind.object_id 
 		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 			and part.object_id = isnull(@objectId, part.object_id)
@@ -101,6 +105,7 @@ BEGIN
 				and cast(sum(isnull(rg.on_disk_size,0)) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
 	union all
 	select quotename(object_schema_name(part.object_id, db_id('tempdb'))) + '.' + quotename(object_name(part.object_id, db_id('tempdb'))) as 'TableName', 
+		'Disk-Based' as [Location],
 		part.partition_number,
 		rg.segment_id as row_group_id,
 		3 as state,
@@ -111,6 +116,8 @@ BEGIN
 		from tempdb.sys.column_store_segments rg		
 			left join tempdb.sys.partitions part with(READUNCOMMITTED)
 				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
+			inner join tempdb.sys.objects ind
+				on part.object_id = ind.object_id 
 		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 			and part.object_id = isnull(@objectId, part.object_id)

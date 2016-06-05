@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -61,7 +61,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -87,6 +87,7 @@ BEGIN
 	set nocount on;
 
 	select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)) as [Table Name],
+		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 		rg.partition_number as partition_nr,
 		rg.row_group_id,
 		rg.state,
@@ -123,6 +124,7 @@ BEGIN
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 	union all
 	select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quotename(object_name(rg.object_id, db_id('tempdb'))) as [Table Name],
+		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 		rg.partition_number as partition_nr,
 		rg.row_group_id,
 		rg.state,

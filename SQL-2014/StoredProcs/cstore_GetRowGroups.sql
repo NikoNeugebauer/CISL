@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -39,6 +39,7 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added new parameter for filtering a specific partition
+	+ Added new column for the Index Location (Disk-Based)
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -66,7 +67,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, May 2016
+	Version: 1.3.0, June 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -86,6 +87,7 @@ begin
 
 	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		'Disk-Based' as Location,
 		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
 		sum(case rg.state when 0 then 1 else 0 end) as 'Bulk Load RG',
@@ -122,6 +124,7 @@ begin
 	union all
 	select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		'Disk-Based' as Location,
 		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
 		sum(case rg.state when 0 then 1 else 0 end) as 'Bulk Load RG',
