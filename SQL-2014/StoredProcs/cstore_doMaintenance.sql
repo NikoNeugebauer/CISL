@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, June 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -21,10 +21,15 @@
 /*
 
 Changes in 1.2.0
-
 	+ Added Primary Key for dbo.cstore_Clustering table
 	+ Improved setup script for dbo.cstore_Clustering table, for avoiding adding already existing tables
 	- Fixed bug for the tables with no comrpessed Row Groups, which were never maintained, even though under some conditions forcing not completely full Delta-Store is important
+
+Changes in 1.3.0
+	+ Added logic for the Optimizable Row Groups, meaning that if there is no potential gain for the Rebuild even with trimmed Row Groups - then no Rebuild will take place
+	+ Added new parameter for executing maintenance on a specific partition: @partition_number
+	* Updated to support the new output columns of the 1.3.0 functions
+	+ Added logic to support automated canceling of execution on the Availability Groups Seconary Replicas
 */
 
 declare @createLogTables bit = 1;
@@ -182,7 +187,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, June 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -191,6 +196,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@executeReorganize bit = 0,						-- Controls if the Tuple Mover is being invoked or not. We can execute just it, instead of the full rebuild
 	@closeOpenDeltaStores bit = 0,					-- Controls if the Open Delta-Stores are closed and compressed
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
+	@partition_number int = NULL,					-- Allows to specify a partition to execute maintenance on
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
 	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct maintenance proceedings
 	@maxdop tinyint = 0,							-- Allows to control the maximum degreee of parallelism
@@ -238,6 +244,33 @@ begin
 	-- Verify if the principal logging table exists and thus enabling logging
 	IF EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Operation_Log' and schema_id = SCHEMA_ID('dbo') )
 		set @loggingTableExists = 1;
+		
+	-- Check if we are running on the secondary replica and exit if not, because the AG readable secondary replica is not supported in SQL Server 2014
+	IF exists (select *
+					from sys.databases databases
+					  INNER JOIN sys.availability_databases_cluster adc 
+						ON databases.group_database_id = adc.group_database_id
+					  INNER JOIN sys.availability_groups ag 
+						ON adc.group_id = ag.group_id
+					  WHERE databases.name = DB_NAME() )
+		
+	begin
+		declare @replicaStatus int;
+		select @replicaStatus = sys.fn_hadr_is_primary_replica ( DB_NAME() );
+		
+		if @replicaStatus is NOT NULL or @replicaStatus <> 1 
+		begin 
+			if @loggingTableExists = 1
+			begin 
+				set @loggingCommand = N'
+									insert into dbo.cstore_Operation_Log( ExecutionId, TableName, Partition, OperationType, OperationReason, OperationCommand, OperationConfigured, OperationExecuted )
+										select ''' + convert(nvarchar(50),@execId) + ''', ''NULL'', ' + cast(@partitionNumber as varchar(10)) + ', ''Exit'', 
+												''Secondary Replica'', ''NULL'', 1, ' + cast(case when (@executeReorganize = 1 OR @execute = 1) then 1 else 0 end as char(1));			
+				exec (@loggingCommand);
+			end
+		end 
+		return;
+	end
 
 	-- ***********************************************************
 	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
@@ -292,6 +325,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
 		[BulkLoadRGs] int,
@@ -310,7 +344,7 @@ begin
 	
 	-- Obtain only Clustered Columnstore Indexes for SQL Server 2014
 	insert into #ColumnstoreIndexes
-		exec dbo.cstore_GetRowGroups @tableName = @tableName, @indexType = 'CC', @showPartitionDetails = @usePartitionLevel; 
+		exec dbo.cstore_GetRowGroups @tableName = @tableName, @indexType = 'CC', @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
 	
 	if( @debug = 1 )
 	begin
@@ -477,6 +511,8 @@ begin
 
 		create table #Dictionaries(
 			TableName nvarchar(256),
+			[Type] varchar(20),
+			[Location] varchar(15),
 			Partition int,
 			RowGroups bigint,
 			Dictionaries bigint,
@@ -487,7 +523,7 @@ begin
 			MaxLocalSizeMB Decimal(8,3),
 		);
 
-		insert into #Dictionaries (TableName, Partition, RowGroups, Dictionaries, EntryCount, RowsServing, TotalSizeMB, MaxGlobalSizeMB, MaxLocalSizeMB )
+		insert into #Dictionaries (TableName, Type, Location, Partition, RowGroups, Dictionaries, EntryCount, RowsServing, TotalSizeMB, MaxGlobalSizeMB, MaxLocalSizeMB )
 			exec dbo.cstore_GetDictionaries @objectId = @objectId, @showDetails = 0;
 
 		-- Get the current maximum sizes for the dictionaries
@@ -539,6 +575,7 @@ begin
 					@currentDeletedRGs int = 0,
 					@currentTrimmedRGsPerc int = 0,
 					@currentTrimmedRGs int = 0,
+					@currentOptimizableRGs int = 0,
 					@currentMinAverageRowsPerRG int = 0,
 					@currentRowGroups int = 0;
 			
@@ -548,6 +585,7 @@ begin
 					@currentDeletedRGs = DeletedRGs,
 					@currentTrimmedRGsPerc = TrimmedRGsPerc, 
 					@currentTrimmedRGs = TrimmedRGs,
+					@currentOptimizableRGs = OptimizableRgs,
 					@currentMinAverageRowsPerRG = AvgRows,
 					@currentRowGroups = RowGroups
 				from #Fragmentation
@@ -567,14 +605,16 @@ begin
 
 				-- !!! Check if the trimmed Row Groups are the last ones in the partition/index, and if yes then extract the number of available cores
 				-- For that use GetRowGroupsDetails
-				if( @rebuildNeeded = 0 AND @currenttrimmedRGsPerc >= @trimmedRGsPerc )
-					select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroup Percentage';
-				if( @rebuildNeeded = 0 AND @currenttrimmedRGs >= isnull(@trimmedRGs,2147483647) )
-					select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroups';
+				if( @currentOptimizableRGs > 0 AND @useRecommendations = 1 )
+				begin
+					if( @rebuildNeeded = 0 AND @currenttrimmedRGsPerc >= @trimmedRGsPerc )
+						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroup Percentage';
+					if( @rebuildNeeded = 0 AND @currenttrimmedRGs >= isnull(@trimmedRGs,2147483647) )
+						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroups';
 
-				if( @rebuildNeeded = 0 AND @currentMinAverageRowsPerRG <= @minAverageRowsPerRG )
-					select @rebuildNeeded = 1, @rebuildReason = 'Average Rows per RowGroup';
-
+					if( @rebuildNeeded = 0 AND @currentMinAverageRowsPerRG <= @minAverageRowsPerRG )
+						select @rebuildNeeded = 1, @rebuildReason = 'Average Rows per RowGroup';
+				end 
 		
 				-- Verify the dictionary pressure and avoid rebuilding in this case do not rebuild Columnstore
 				if( (@maxDictionarySizeInMB <= @maxGlobalDictionarySizeInMB OR @maxDictionarySizeInMB <= @maxLocalDictionarySizeInMB) AND
