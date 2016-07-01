@@ -47,7 +47,8 @@ Changes in 1.2.0
 	+ Added Information about CU 5 & CU 6 for SQL Server 2014 SP1 & about CU 12 & CU 13 for SQL Server 2014 RTM
 
 Changes in 1.3.0
-	+ Added Information about updated CU 6 for SQL Server 2014 SP1
+	+ Added Information about updated CU 6A, CU 7 for SQL Server 2014 SP1 & CU 14 for SQL Server 2014 RTM
+
 */
 
 -- Params --
@@ -123,14 +124,16 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'RTM', 2560, convert(datetime,'22-12-2015',105), 'CU 11 for SQL Server 2014 RTM' ),
 	( 'RTM', 2564, convert(datetime,'22-02-2016',105), 'CU 12 for SQL Server 2014 RTM' ),
 	( 'RTM', 2568, convert(datetime,'19-04-2016',105), 'CU 13 for SQL Server 2014 RTM' ),
+	( 'RTM', 2569, convert(datetime,'20-06-2016',105), 'CU 14 for SQL Server 2014 RTM' ),
 	( 'SP1', 4100, convert(datetime,'14-05-2015',105), 'SQL Server 2014 SP1' ),
 	( 'SP1', 4416, convert(datetime,'22-06-2015',105), 'CU 1 for SQL Server 2014 SP1' ),
 	( 'SP1', 4422, convert(datetime,'17-08-2015',105), 'CU 2 for SQL Server 2014 SP1' ),
 	( 'SP1', 4427, convert(datetime,'21-10-2015',105), 'CU 3 for SQL Server 2014 SP1' ),
 	( 'SP1', 4436, convert(datetime,'22-12-2015',105), 'CU 4 for SQL Server 2014 SP1' ),
 	( 'SP1', 4439, convert(datetime,'22-02-2016',105), 'CU 5 for SQL Server 2014 SP1' ),
-	( 'SP1', 4449, convert(datetime,'19-04-2015',105), 'CU 6 for SQL Server 2014 SP1' ),
-	( 'SP1', 4457, convert(datetime,'31-05-2015',105), 'CU 6A for SQL Server 2014 SP1' );
+	( 'SP1', 4449, convert(datetime,'19-04-2016',105), 'CU 6 for SQL Server 2014 SP1' ),
+	( 'SP1', 4457, convert(datetime,'31-05-2016',105), 'CU 6A for SQL Server 2014 SP1' ),
+	( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' );
 
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
@@ -177,7 +180,9 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 4436, 'SP1', 'FIX: Query stops responding when you run a parallel query on a table that has a columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3110497' ),
 	( 4439, 'SP1', 'FIX: Error 35377 occurs when you try to access clustered columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3020113' ),
 	( 4449, 'SP1', 'FIX: Columnstore index corruption occurs when you use AlwaysOn Availability Groups in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3135751' ),
-	( 4449, 'SP1', 'FIX: SELECT…INTO statement retrieves incorrect result from a clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3152606' );
+	( 4449, 'SP1', 'FIX: SELECT…INTO statement retrieves incorrect result from a clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3152606' ),
+	( 4459, 'SP1', 'FIX: DBCC CHECKTABLE returns an incorrect result after the clustered columnstore index is rebuilt in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3168712' ),
+	( 4459, 'SP1', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 ', 'https://support.microsoft.com/en-us/kb/3146123' );
 
 
 if @identifyCurrentVersion = 1
