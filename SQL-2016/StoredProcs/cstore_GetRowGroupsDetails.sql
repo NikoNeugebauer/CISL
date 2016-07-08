@@ -158,7 +158,7 @@ BEGIN
 			and isnull(rg.created_time,getDate()) <= coalesce(@maxCreatedDateTime,rg.created_time,getDate())
 			and isnull(rg.trim_reason,255) = coalesce(@trimReason, rg.trim_reason,255)
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
-			and isnull(rg.has_vertipaq_optimization,1) = case @showN
+			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 END
 
 GO
