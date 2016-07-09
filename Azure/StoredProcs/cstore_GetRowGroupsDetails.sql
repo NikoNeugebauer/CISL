@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -32,7 +32,7 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
 	+ Added 7 new parameters for filtering out the Index Location (In-Memory or Disk-Based), Index Type (CC or NC), Row Group Trimming, Build Process Identification, Vertipaq Optimisations, Min & Max Creation DateTimes
-
+	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
 */
 
 
@@ -56,7 +56,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -118,7 +118,7 @@ BEGIN
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 	union all
-	select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quotename(object_name(rg.object_id, db_id('tempdb'))) as [Table Name],
+	select quotename(isnull(object_schema_name(rg.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as [Table Name],
 		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
 		rg.partition_number as partition_nr,
 		rg.row_group_id,
@@ -138,13 +138,15 @@ BEGIN
 		from tempdb.sys.dm_db_column_store_row_group_physical_stats rg
 			inner join tempdb.sys.indexes ind
 				on ind.object_id = rg.object_id and rg.index_id = ind.index_id
+			inner join tempdb.sys.objects obj
+				on ind.object_id = obj.object_id
 		where isnull(rg.trim_reason,1) <> case isnull(@showTrimmedGroupsOnly,-1) when 1 then 1 /* NO_TRIM */ else -1 end 
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 			and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-			and (@tableName is null or object_name (rg.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id, db_id('tempdb')) = @schemaName)
+			and (@tableName is null or obj.name like '%' + @tableName + '%')
+			and (@schemaName is null or isnull(object_schema_name(rg.object_id, db_id('tempdb')),'dbo') = @schemaName)
 			and rg.object_id = isnull(@objectId, rg.object_id)
 			and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)

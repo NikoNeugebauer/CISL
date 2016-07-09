@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -35,6 +35,7 @@ Changes in 1.3.0
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed bug with partition information not being shown correctly
 	+ Added new parameter for filtering a specific partition
+	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
 */
 
 -- Params --
@@ -120,7 +121,7 @@ with partitionedInfo as (
 					as Decimal(8,2)) >= @minSizeInGB
 					and sum(isnull(total_rows,0)) >= @minTotalRows
 	union all
-	select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
+	select quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name),
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
 		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 		part.partition_number as Partition,
@@ -153,6 +154,8 @@ with partitionedInfo as (
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
 		max(stat.last_user_scan) as 'LastScan'
 		from tempdb.sys.indexes ind
+			inner join tempdb.sys.objects obj
+				on ind.object_id = obj.object_id
 			left join tempdb.sys.column_store_row_groups rg
 				on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 			left join tempdb.sys.partitions part with(READUNCOMMITTED)
@@ -164,10 +167,10 @@ with partitionedInfo as (
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+				and (@tableName is null or obj.name like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
-				and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
-		group by ind.object_id, ind.type, rg.partition_number,
+		--		and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
+		group by ind.object_id, obj.object_id, obj.name, ind.type, rg.partition_number,
 				ind.data_space_id,
 				part.partition_number
 		having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
