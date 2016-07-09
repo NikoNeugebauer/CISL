@@ -1,7 +1,7 @@
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     Cleanup - This script removes from the current database all CISL Stored Procedures that were previously installed there
-    Version: 1.2.0, May 2016
+    Version: 1.3.0, July 2016
 
     Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -44,4 +44,8 @@ GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_SuggestedTables;
+GO
+
+if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
+	drop procedure dbo.cstore_doMaintenance;
 GO
