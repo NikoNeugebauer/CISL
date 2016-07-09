@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -35,6 +35,11 @@ Changes in 1.1.0
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added support for the Index Location (Disk-Based, InMemory)
+	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
+	- Fixed bug with non-functioning @objectId parameter
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -62,12 +67,13 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
+	@indexLocation varchar(15) = NULL,		-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectId int = NULL,					-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
@@ -78,7 +84,7 @@ alter procedure dbo.cstore_GetAlignment(
 begin
 	set nocount on;
 
-	IF OBJECT_ID('tempdb..#column_store_segments') IS NOT NULL
+	IF OBJECT_ID('tempdb..#column_store_segments', 'U') IS NOT NULL
 		DROP TABLE #column_store_segments
 
 	SELECT SchemaName, TableName, object_id, partition_number, hobt_id, partition_id, column_id, segment_id, min_data_id, max_data_id
@@ -133,6 +139,8 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+				and (@objectId is null or part.object_id = @objectId)
+				and 1 = case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else 1 end
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 		UNION ALL
 		select  part.object_id,  
@@ -167,10 +175,12 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id,db_id('tempdb')) = @schemaName)
+				and (@objectId is null or part.object_id = @objectId)	
+				and 1 = case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else 1 end
 			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 
 	)
-	select TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+	select TableName, 'Disk-Based' as Location, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
 		cte.ColumnType,
 		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
 							when 'datetimeoffset' then 'Segment Elimination is not supported' 

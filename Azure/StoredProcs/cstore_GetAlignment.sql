@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -37,6 +37,12 @@ Changes in 1.1.0
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (local)
+
+Changes in 1.3.0
+	+ Added support InMemory Columnstore Indexes
+	+ Added support for the Index Location (Disk-Based, InMemory)
+	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
+	- Fixed bug with non-functioning @objectId parameter
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -59,12 +65,13 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
+	@indexLocation varchar(15) = NULL,		-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectId int = NULL,					-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
@@ -115,6 +122,7 @@ begin
 
 	with cteSegmentAlignment as (
 		select  part.object_id,  
+				case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 				quotename(object_schema_name(part.object_id)) + '.' + quotename(object_name(part.object_id)) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
 				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
@@ -123,8 +131,10 @@ begin
 			from sys.column_store_segments seg
 				inner join sys.partitions part
 					on seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id 
+				inner join sys.indexes ind
+					on part.object_id = ind.object_id and ind.type in (5,6)
 				inner join sys.columns cols
-					on part.object_id = cols.object_id and seg.column_id = cols.column_id
+					on part.object_id = cols.object_id and (seg.column_id = cols.column_id + case ind.data_space_id when 0 then 1 else 0 end )
 				inner join sys.types tp
 					on cols.system_type_id = tp.system_type_id and cols.user_type_id = tp.user_type_id
 				outer apply (
@@ -146,9 +156,12 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
-			group by part.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
+				and (@objectId is null or part.object_id = @objectId)
+				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			group by part.object_id, ind.data_space_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 		UNION ALL
 		select  part.object_id,  
+				case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 				quotename(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + quotename(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
 				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
@@ -157,6 +170,8 @@ begin
 			from tempdb.sys.column_store_segments seg
 				inner join tempdb.sys.partitions part
 					on seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id 
+				inner join tempdb.sys.indexes ind
+					on part.object_id = ind.object_id and ind.type in (5,6)
 				inner join tempdb.sys.objects obj
 					on obj.type = 'U' and obj.object_id = part.object_id
 				left join tempdb.sys.columns cols
@@ -182,12 +197,14 @@ begin
 				) filteredSeg
 			where (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(part.object_id,db_id('tempdb')) = @schemaName)
-			group by part.object_id, obj.name, 
+				and (@objectId is null or part.object_id = @objectId)
+				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			group by part.object_id, ind.data_space_id, obj.name, 
 				case @showPartitionStats when 1 then part.partition_number else 1 end, 
 				seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 
 	)
-	select TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+	select TableName, Location, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
 		cte.ColumnType,
 		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
 							when 'datetimeoffset' then 'Segment Elimination is not supported' 
@@ -208,7 +225,7 @@ begin
 			  OR @showUnsupportedSegments = 1)
 			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
-		group by TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
+		group by Location, TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
 
 
