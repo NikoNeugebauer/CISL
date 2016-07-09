@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -23,6 +23,7 @@ Known Issues & Limitations:
 	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 	- CLR support is not included or tested
 	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
+	- InMemory Tables have a bug in SQL Server 2014, that does not allow to know the number of rows - https://connect.microsoft.com/SQLServer/feedback/details/2909569, forcing the statistics update for discovering the number of rows
 
 Changes in 1.0.3
 	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions	
@@ -36,6 +37,12 @@ Changes in 1.2.0
 	- Fixed displaying wrong number of rows for the found suggested tables
 	- Fixed error for filtering out the secondary nonclustered indexes in some bigger databases
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added support for InMemory Tables
+	+ Added information about the converted table location (In-Memory or Disk-Based)
+	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
+	+ Added new parameter for controlling the needed statistics update for Memory Optimised tables - @updateMemoryOptimisedStats with default value set on false
 */
 
 -- Params --
@@ -43,11 +50,13 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+		@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
 		@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
-		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered';		-- Allows to define the type of Columnstore Index to be created with possible values of 'Clustered' and 'Nonclustered'
+		@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered',		-- Allows to define the type of Columnstore Index to be created with possible values of 'Clustered' and 'Nonclustered'
+		@updateMemoryOptimisedStats bit = 0							-- Allows statistics update on the InMemory tables, since they are stalled within SQL Server 2014
 -- end of --
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -88,6 +97,7 @@ if OBJECT_ID('tempdb..#TablesToColumnstore') IS NOT NULL
 
 create table #TablesToColumnstore(
 	[ObjectId] int NOT NULL PRIMARY KEY,
+	[TableLocation] varchar(15) NOT NULL,
 	[TableName] nvarchar(1000) NOT NULL,
 	[ShortTableName] nvarchar(256) NOT NULL,
 	[Row Count] bigint NOT NULL,
@@ -119,9 +129,10 @@ create table #TablesToColumnstore(
 
 insert into #TablesToColumnstore
 select t.object_id as [ObjectId]
+	, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
 	, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 	, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-	, max(p.rows) as 'Row Count'
+	, isnull(max(p.rows),0) as 'Row Count'
 	, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
 	, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 	, (select count(*) from sys.columns as col
@@ -198,6 +209,10 @@ select t.object_id as [ObjectId]
 			ON t.object_id = p.object_id
 		inner join sys.allocation_units as a 
 			ON p.partition_id = a.container_id
+		inner join sys.indexes ind
+			on ind.object_id = p.object_id and ind.index_id = p.index_id
+		left join sys.dm_db_xtp_table_memory_stats xtpMem
+			on xtpMem.object_id = t.object_id
 	where p.data_compression in (0,1,2) -- None, Row, Page
 		 and (select count(*)
 				from sys.indexes ind
@@ -205,6 +220,7 @@ select t.object_id as [ObjectId]
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
+		 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -232,8 +248,9 @@ select t.object_id as [ObjectId]
 				and t.is_filetable = 0
 			  )
 			 or @showReadyTablesOnly = 0)
-	group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-	having sum(p.rows) > @minRowsToConsider 
+	group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+	having 
+			(sum(p.rows) > @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
 			and
 			(((select sum(col.max_length) 
 				from sys.columns as col
@@ -244,9 +261,10 @@ select t.object_id as [ObjectId]
 			  OR
 			 @considerColumnsOver8K = 1 )
 			and 
-			(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+			(sum(a.total_pages) + isnull(sum(memory_allocated_for_table_kb),0) / 1024. / 1024 * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
 union all
 select t.object_id as [ObjectId]
+	, 'Disk-Based'
 	, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id, db_id('tempdb'))) as 'TableName'
 	, replace(object_name(t.object_id, db_id('tempdb')),' ', '') as 'ShortTableName'
 	, max(p.rows) as 'Row Count'
@@ -333,6 +351,7 @@ select t.object_id as [ObjectId]
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableName is null or object_name( t.object_id, db_id('tempdb') ) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id, db_id('tempdb') ) = @schemaName)
+		 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -374,6 +393,48 @@ select t.object_id as [ObjectId]
 			and 
 			(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
 
+-- Get the information on Memory Optimised Tables
+if @updateMemoryOptimisedStats = 1
+begin 
+	declare @updateStatTSQL nvarchar(1000);
+	declare inmemRowCountCursor CURSOR LOCAL READ_ONLY for
+   		select N'Update Statistics ' + TableName + ' WITH FULLSCAN, NORECOMPUTE'
+			from #TablesToColumnstore
+			where TableLocation = 'In-Memory';
+
+	open inmemRowCountCursor;
+
+	fetch next 
+		from inmemRowCountCursor 
+			into @updateStatTSQL;
+
+	while @@FETCH_STATUS = 0 BEGIN
+		exec sp_executesql @updateStatTSQL;
+		fetch next from inmemRowCountCursor 
+			into @updateStatTSQL;
+	END
+
+	close inmemRowCountCursor
+	deallocate inmemRowCountCursor
+
+
+	update #TablesToColumnstore
+		set [Row Count] = ISNULL(st.[rows],0),
+			[Min RowGroups] = ceiling(ISNULL(st.[rows],0)/1045678.),
+			[Size in GB] = cast( memory_allocated_for_table_kb / 1024. / 1024 as decimal(16,3) )
+		from #TablesToColumnstore temp
+			inner join sys.dm_db_xtp_index_stats AS ind
+				on temp.ObjectId = ind.object_id
+			cross apply sys.dm_db_stats_properties (ind.object_id,ind.index_id) st
+			inner join sys.dm_db_xtp_table_memory_stats xtpMem
+				on temp.ObjectId = xtpMem.object_id
+		  where ind.index_id = 2 and temp.TableLocation = 'In-Memory';
+
+end 
+
+delete from #TablesToColumnstore
+	where [Size in GB] < @minSizeToConsiderInGB
+		or [Row Count] < @minRowsToConsider;
 
 -- Show the found results
 select case when ([InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
@@ -385,6 +446,7 @@ select case when ([InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + 
 				  [Unique Constraints] + [Triggers] + [RCSI] + [Snapshot] + [CDC] + [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 				  - ([LOBs] + [Computed])) = 0 and [Unsupported] = 0 then 'Both Columnstores'  
 	   end as 'Compatible With'
+	, TableLocation	
 	, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 	, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 	, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [InMemoryOLTP], [Replication], [FileStream], [FileTable]
@@ -487,4 +549,4 @@ begin
 			 
 end
 
---drop table #TablesToColumnstore; 
+drop table #TablesToColumnstore; 

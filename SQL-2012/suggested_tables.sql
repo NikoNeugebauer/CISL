@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.2.0, May 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -37,6 +37,9 @@ Changes in 1.2.0
 	- Fixed displaying wrong number of rows for the found suggested tables
 	- Fixed error for filtering out the secondary nonclustered indexes in some bigger databases
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
+
+Changes in 1.3.0
+	+ Added information about the converted table location (Disk-Based)
 */
 
 -- Params --
@@ -80,6 +83,7 @@ if OBJECT_ID('tempdb..#TablesToColumnstore') IS NOT NULL
 
 create table #TablesToColumnstore(
 	[ObjectId] int NOT NULL PRIMARY KEY,
+	[TableLocation] varchar(15) NOT NULL,
 	[TableName] nvarchar(1000) NOT NULL,
 	[ShortTableName] nvarchar(256) NOT NULL,
 	[Row Count] bigint NOT NULL,
@@ -110,6 +114,7 @@ create table #TablesToColumnstore(
 
 insert into #TablesToColumnstore
 select t.object_id as [ObjectId]
+	, 'Disk-Based'
 	, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 	, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
 	, max(p.rows) as 'Row Count'
@@ -237,6 +242,7 @@ select t.object_id as [ObjectId]
 			(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
 union all
 select t.object_id as [ObjectId]
+	, 'Disk-Based'
 	, quotename(object_schema_name(t.object_id,db_id('tempdb'))) + '.' + quotename(object_name(t.object_id,db_id('tempdb'))) as 'TableName'
 	, replace(object_name(t.object_id,db_id('tempdb')),' ', '') as 'ShortTableName'
 	, max(p.rows) as 'Row Count'
@@ -371,6 +377,7 @@ select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported]
 					[Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					- ([LOBs] + [Computed])) > 0 then 'None' 
 		end as 'Compatible With'
+	, [TableLocation]
 	, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 	, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 	, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [Replication], [FileStream], [FileTable]
