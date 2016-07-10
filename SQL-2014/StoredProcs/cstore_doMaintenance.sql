@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -28,7 +28,7 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added logic for the Optimizable Row Groups, meaning that if there is no potential gain for the Rebuild even with trimmed Row Groups - then no Rebuild will take place
 	+ Added new parameter for executing maintenance on a specific partition: @partition_number
-	* Updated to support the new output columns of the 1.3.0 functions
+	* Updated to support the new output columns of the CISL 1.3.0 functions
 	+ Added logic to support automated canceling of execution on the Availability Groups Seconary Replicas
 */
 
@@ -187,7 +187,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -394,6 +394,7 @@ begin
 
 		create table #ColumnstoreAlignment(
 			TableName nvarchar(256),
+			Location varchar(15),
 			Partition bigint,
 			ColumnId int,
 			ColumnName nvarchar(256),
@@ -411,7 +412,7 @@ begin
 			set @columnId = NULL;
 
 		-- Get Results from "cstore_GetAlignment" Stored Procedure
-		insert into #ColumnstoreAlignment ( TableName, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment )
+		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment )
 				exec dbo.cstore_GetAlignment @objectId = @objectId, 
 											@showPartitionStats = @usePartitionLevel, 
 											@showUnsupportedSegments = 1, @columnName = @orderingColumnName, @columnId = @columnId;		
@@ -438,6 +439,7 @@ begin
 		create table #Fragmentation(
 			TableName nvarchar(256),
 			IndexName nvarchar(256),
+			Location varchar(15),
 			IndexType nvarchar(256),
 			Partition int,
 			Fragmentation Decimal(8,2),
