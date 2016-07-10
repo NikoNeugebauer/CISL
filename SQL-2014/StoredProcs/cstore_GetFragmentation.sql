@@ -38,6 +38,7 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
+	- Fixed a bug for the trimmed row groups with just 1 row giving wrong information about a potential optimizable row group
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -94,8 +95,8 @@ begin
 			cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
 			avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
 			sum(rg.total_rows) as [Total Rows],
-			count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
-			cast((count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
+			count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
+			cast((count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 			count(*) as 'Row Groups'
 		FROM sys.partitions AS p 
 			INNER JOIN sys.column_store_row_groups rg
@@ -122,8 +123,8 @@ begin
 			cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
 			avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
 			sum(rg.total_rows) as [Total Rows],
-			count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
-			cast((count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
+			count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
+			cast((count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 			count(*) as 'Row Groups'
 		FROM tempdb.sys.partitions AS p 
 			inner join tempdb.sys.objects obj
