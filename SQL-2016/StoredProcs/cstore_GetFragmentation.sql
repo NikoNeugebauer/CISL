@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -64,12 +64,13 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, June 2016
+	Version: 1.3.0, July 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1						-- Allows to drill down fragmentation statistics on the partition level
 -- end of --
@@ -79,6 +80,7 @@ begin
 
 	SELECT  quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name(p.object_id)) as 'TableName',
 			ind.name as 'IndexName',
+			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', --p.partition_number as 'Partition',
 			cast( Avg( (rg.deleted_rows * 1. / rg.total_rows) * 100 ) as Decimal(5,2)) as 'Fragmentation Perc.',
@@ -102,10 +104,12 @@ begin
 			and rg.object_id = isnull(@objectId,rg.object_id)
 			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-		group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
+			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
-	SELECT  quotename(object_schema_name(p.object_id,db_id('tempdb'))) + '.' + quotename(object_name(p.object_id,db_id('tempdb'))) as 'TableName',
+	SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as 'TableName',
 			ind.name as 'IndexName',
+			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', --p.partition_number as 'Partition',
 			cast( Avg( (rg.deleted_rows * 1. / rg.total_rows) * 100 ) as Decimal(5,2)) as 'Fragmentation Perc.',
@@ -119,6 +123,8 @@ begin
 			cast((count(*) - ceiling(count(*) * 1. * avg(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 			count(*) as 'Row Groups'
 		FROM tempdb.sys.partitions AS p 
+			inner join tempdb.sys.objects obj
+				on p.object_id = obj.object_id
 			INNER JOIN tempdb.sys.column_store_row_groups rg
 				ON p.object_id = rg.object_id and p.partition_number = rg.partition_number
 			INNER JOIN tempdb.sys.indexes ind
@@ -128,7 +134,7 @@ begin
 			and p.index_id in (1,2)
 			and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
 			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
-		group by p.object_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
+		group by p.object_id, obj.object_id, obj.name, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 		order by TableName;
 
 end
