@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
 	Version: 1.3.0, July 2016
 
@@ -19,18 +19,10 @@
 */
 
 /*
+Known Limitations:
+	- Segment Clustering is supported only for the Disk-Based Clustered Columnstore Indexes. 
+	- Segment Clustering is not supported on the partition level
 
-Changes in 1.2.0
-	+ Added Primary Key for dbo.cstore_Clustering table
-	+ Improved setup script for dbo.cstore_Clustering table, for avoiding adding already existing tables
-	- Fixed bug for the tables with no comrpessed Row Groups, which were never maintained, even though under some conditions forcing not completely full Delta-Store is important
-
-Changes in 1.3.0
-	+ Added logic for the Optimizable Row Groups, meaning that if there is no potential gain for the Rebuild even with trimmed Row Groups - then no Rebuild will take place
-	+ Added new parameter for executing maintenance on a specific partition: @partition_number
-	* Updated to support the new output columns of the CISL 1.3.0 functions
-	+ Added logic to support automated canceling of execution on the Availability Groups Seconary Replicas
-	* Improved debug logging output with less useless messages
 */
 
 declare @createLogTables bit = 1;
@@ -39,16 +31,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server 2014
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'12'
+-- Ensure that we are running Azure SQLDatabase
+if SERVERPROPERTY('EngineEdition') <> 5 
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2014. Your SQL Server version is ' + @SQLServerVersion);
-	Throw 51000, @errorMessage, 1;
-end
-
-if SERVERPROPERTY('EngineEdition') <> 3 
-begin
-	set @errorMessage = (N'Your SQL Server 2014 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script agains Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -57,6 +43,11 @@ end
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
 begin
 	Throw 60000, 'Please install dbo.cstore_GetRowGroups Stored Procedure from CISL before advancing!', 1; 
+	Return;
+end
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
+begin
+	Throw 60000, 'Please install dbo.cstore_GetRowGroupsDetails Stored Procedure from CISL before advancing!', 1; 
 	Return;
 end
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
@@ -86,6 +77,7 @@ begin
 		TableName nvarchar(256) not null,
 		IndexName nvarchar(256) not null,
 		IndexType nvarchar(256) not null,
+		IndexLocation varchar(15) not null,
 
 		Partition int,
 
@@ -147,18 +139,19 @@ begin
 		ColumnName nvarchar(256)
 	);
 
-	IF OBJECT_ID('tempdb..#ColumnstoreIndexes') IS NOT NULL
-		DROP TABLE #ColumnstoreIndexes;
+	DROP TABLE IF EXISTS #ColumnstoreIndexes;
 
 	create table #ColumnstoreIndexes(
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
 		[BulkLoadRGs] int,
 		[Open DeltaStores] int,
 		[Closed DeltaStores] int,
+		[Tombstones] int,
 		[Compressed RowGroups] int,
 		[Total RowGroups] int,
 		[Deleted Rows] Decimal(18,6),
@@ -170,7 +163,9 @@ begin
 		[LastScan] DateTime
 	);
 
-	insert into #ColumnstoreIndexes
+	insert into #ColumnstoreIndexes (TableName, Type, Location, Partition, [Compression Type], 
+									 BulkLoadRGs, [Open DeltaStores], [Closed DeltaStores], [Tombstones], [Compressed RowGroups], [Total RowGroups], 
+									[Deleted Rows], [Active Rows], [Total Rows], [Size in GB], Scans, Updates, LastScan)
 		exec dbo.cstore_GetRowGroups @indexType = 'CC', @showPartitionDetails = 1;
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
@@ -186,7 +181,7 @@ IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doM
 GO
 
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
 	Version: 1.3.0, July 2016
 */
@@ -196,6 +191,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@orderSegments bit = 0,							-- Controls whether Segment Clustering is being applied or not
 	@executeReorganize bit = 0,						-- Controls if the Tuple Mover is being invoked or not. We can execute just it, instead of the full rebuild
 	@closeOpenDeltaStores bit = 0,					-- Controls if the Open Delta-Stores are closed and compressed
+	@forceRebuild bit = 0,							-- Allows to force rebuild operation on the tables
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
 	@partition_number int = NULL,					-- Allows to specify a partition to execute maintenance on
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
@@ -221,6 +217,10 @@ begin
 	declare @currentTableName nvarchar(256) = NULL;  
 	declare @indexName nvarchar(256) = NULL;  
 	declare @orderingColumnName nvarchar(128) = NULL;
+	declare @indexType varchar(20) = NULL;
+	declare @indexLocation varchar(15) = NULL;
+	declare	@totalRows Decimal(18,6) = NULL;
+	declare @openRows Decimal(18,6) = NULL;
 
 	-- Alignment
 	declare @columnId int = NULL;
@@ -246,33 +246,6 @@ begin
 	-- Verify if the principal logging table exists and thus enabling logging
 	IF EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Operation_Log' and schema_id = SCHEMA_ID('dbo') )
 		set @loggingTableExists = 1;
-		
-	-- Check if we are running on the secondary replica and exit if not, because the AG readable secondary replica is not supported in SQL Server 2014
-	IF exists (select *
-					from sys.databases databases
-					  INNER JOIN sys.availability_databases_cluster adc 
-						ON databases.group_database_id = adc.group_database_id
-					  INNER JOIN sys.availability_groups ag 
-						ON adc.group_id = ag.group_id
-					  WHERE databases.name = DB_NAME() )
-		
-	begin
-		declare @replicaStatus int;
-		select @replicaStatus = sys.fn_hadr_is_primary_replica ( DB_NAME() );
-		
-		if @replicaStatus is NOT NULL or @replicaStatus <> 1 
-		begin 
-			if @loggingTableExists = 1
-			begin 
-				set @loggingCommand = N'
-									insert into dbo.cstore_Operation_Log( ExecutionId, TableName, Partition, OperationType, OperationReason, OperationCommand, OperationConfigured, OperationExecuted )
-										select ''' + convert(nvarchar(50),@execId) + ''', ''NULL'', ' + cast(@partitionNumber as varchar(10)) + ', ''Exit'', 
-												''Secondary Replica'', ''NULL'', 1, ' + cast(case when (@executeReorganize = 1 OR @execute = 1) then 1 else 0 end as char(1));			
-				exec (@loggingCommand);
-			end
-		end 
-		return;
-	end
 
 	-- ***********************************************************
 	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
@@ -307,15 +280,19 @@ begin
 		where upper(status) = 'VISIBLE ONLINE' and is_online = 1
 
 	declare @effectiveDop smallint  
-	select @effectiveDop = effective_max_dop 
-		from sys.dm_resource_governor_workload_groups
-		where group_id in (select group_id from sys.dm_exec_requests where session_id = @@spid)
+	-- dm_resource_governor_workload_groups is not supported in Azure SQLDatabase yet
+	--select @effectiveDop = effective_max_dop 
+	--	from sys.dm_resource_governor_workload_groups
+	--	where group_id in (select group_id from sys.dm_exec_requests where session_id = @@spid)
+	select @effectiveDop = cast( value as int )
+		from sys.database_scoped_configurations
+		where name = 'MAXDOP' and cast( value as int ) < @effectiveDop;
 	
 	if( @maxdop < 0 )
 		set @maxdop = 0;
 	if( @maxdop > @coresDop )
 		set @maxdop = @coresDop;
-	if( @maxdop > @effectiveDop )
+	if( @maxdop > @effectiveDop AND @maxdop <> 0 AND @effectiveDop <> 0  )
 		set @maxdop = @effectiveDop;
 
 	if @debug = 1
@@ -323,11 +300,9 @@ begin
 		print 'MAXDOP: ' + cast( @maxdop as varchar(3) );
 		print 'EFECTIVE DOP: ' + cast( @effectiveDop as varchar(3) );
 	end
-
 	-- ***********************************************************
 	-- Get All Columnstore Indexes for the maintenance
-	IF OBJECT_ID('tempdb..#ColumnstoreIndexes') IS NOT NULL
-		DROP TABLE #ColumnstoreIndexes;
+	DROP TABLE IF EXISTS #ColumnstoreIndexes;
 
 	create table #ColumnstoreIndexes(
 		[id] int identity(1,1),
@@ -339,6 +314,7 @@ begin
 		[BulkLoadRGs] int,
 		[Open DeltaStores] int,
 		[Closed DeltaStores] int,
+		[Tombstones] int,
 		[Compressed RowGroups] int,
 		[Total RowGroups] int,
 		[Deleted Rows] Decimal(18,6),
@@ -348,11 +324,11 @@ begin
 		[Scans] int,
 		[Updates] int,
 		[LastScan] DateTime
-	)
+	);
 	
-	-- Obtain only Clustered Columnstore Indexes for SQL Server 2014
-	insert into #ColumnstoreIndexes
-		exec dbo.cstore_GetRowGroups @tableName = @tableName, @indexType = 'CC', @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
+	-- Obtain all Columnstore Indexes
+	insert into #ColumnstoreIndexes 
+		exec dbo.cstore_GetRowGroups @tableName = @tableName, @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
 	
 	if( @debug = 1 )
 	begin
@@ -362,9 +338,13 @@ begin
 
 	while( exists (select * from #ColumnstoreIndexes) )
 	begin
+
 		select top 1 @workid = id,
 				@partitionNumber = Partition,
 				@currentTableName = TableName,
+				@indexType = Type,
+				@indexLocation = Location,
+				@totalRows = [Total Rows],
 				@compressionType = [Compression Type],
 				@openDeltaStores = [Open DeltaStores],
 				@closedDeltaStores = [Closed DeltaStores],
@@ -400,9 +380,36 @@ begin
 		end
 
 		-- ***********************************************************
+		-- Get Number of Rows within open Delta-Stores. This is especially useful to determine if In-Memory Tables can have "Row Migration" process.
+		DROP TABLE IF EXISTS #RowGroupsDetails;
+
+		create table #RowGroupsDetails(
+			[Table Name] nvarchar(512),
+			Location varchar(15),
+			partition_nr int,
+			row_group_id int,
+			state tinyint,
+			state_description nvarchar(60),
+			total_rows bigint,
+			deleted_rows bigint,
+			[Size in MB] decimal(8,3),
+			trim_reason tinyint,
+			trim_reason_desc nvarchar(60),
+			compress_op tinyint,
+			compress_op_desc nvarchar(60),
+			optimised bit,
+			generation bigint,
+			closed_time datetime,
+			created_time datetime );
+
+		exec dbo.cstore_GetRowGroupsDetails @objectId = @objectId, @showNonCompressedOnly = 1;
+
+		select @openRows = sum([total_rows] - [deleted_rows]) / 1000000.
+			from #RowGroupsDetails
+
+		-- ***********************************************************
 		-- Get Segments Alignment
-		IF OBJECT_ID('tempdb..#ColumnstoreAlignment') IS NOT NULL
-			DROP TABLE #ColumnstoreAlignment
+		DROP TABLE IF EXISTS #ColumnstoreAlignment;
 
 		create table #ColumnstoreAlignment(
 			TableName nvarchar(256),
@@ -445,8 +452,7 @@ begin
 		
 		-- ***********************************************************
 		-- Get Fragmentation
-		IF OBJECT_ID('tempdb..#Fragmentation') IS NOT NULL
-			DROP TABLE #Fragmentation;
+		DROP TABLE IF EXISTS #Fragmentation;
 
 		create table #Fragmentation(
 			TableName nvarchar(256),
@@ -487,14 +493,26 @@ begin
 		-- Reorganize for Open Delta-Stores
 		if @openDeltaStores > 0 AND (@executeReorganize = 1 OR @execute = 1)
 		begin
-			set @SQLCommand = 'alter index ' + @indexName + ' on ' + @currentTableName + ' Reorganize';
+			if @indexLocation = 'Disk-Based' 
+			begin 
+				set @SQLCommand = 'alter index ' + @indexName + ' on ' + @currentTableName + ' Reorganize';
 
-			if( @usePartitionLevel = 1 AND @isPartitioned = 1 )
-				set @SQLCommand += ' partition = ' + cast(@partitionNumber as varchar(5));
+				if( @usePartitionLevel = 1 AND @isPartitioned = 1 )
+					set @SQLCommand += ' partition = ' + cast(@partitionNumber as varchar(5));
 		
-			-- Force open Delta-Stores closure
-			if( @closeOpenDeltaStores = 1 )
-				set @SQLCommand += ' with (compress_all_row_groups = on ) ';
+				-- Force open Delta-Stores closure
+				if( @closeOpenDeltaStores = 1 )
+					set @SQLCommand += ' with (compress_all_row_groups = on ) ';
+			end
+			else if @indexLocation = 'In-Memory'
+			begin
+				-- Execute Row Migration process for the InMemory Tables (if we are forcing reorganize or if have over 500.000 rows in the Tail Row Group
+				if @openRows >= 0.5 OR @executeReorganize = 1
+					set @SQLCommand = 'exec sys.sp_memory_optimized_cs_migration @object_id = ' + cast(@objectId as varchar(15)) + ' /* ' + isnull(@currentTableName,'NULL') + ' */';
+				else
+					set @SQLCommand = '';			
+			end
+			
 
 			if @logData = 1
 			begin				
@@ -512,7 +530,9 @@ begin
 			if( @debug = 1 )
 			begin
 				print 'Reorganize Open Delta-Stores';
-				print @SQLCommand;
+				print 'Location: ' + @indexLocation;
+				print isnull(@SQLCommand, 'NULL');
+				print '+++++';
 			end
 
 			if( @execute = 1 OR @executeReorganize = 1 )
@@ -520,8 +540,7 @@ begin
 		end
 
 		-- Obtain Dictionaries informations
-		IF OBJECT_ID('tempdb..#Dictionaries') IS NOT NULL
-			DROP TABLE #Dictionaries;
+		DROP TABLE IF EXISTS #Dictionaries;
 
 		create table #Dictionaries(
 			TableName nvarchar(256),
@@ -550,14 +569,14 @@ begin
 		begin
 			IF EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_MaintenanceData_Log' and schema_id = SCHEMA_ID('dbo') )
 			begin
-				insert into dbo.cstore_MaintenanceData_Log( ExecutionId, TableName, IndexName, IndexType, Partition, 
+				insert into dbo.cstore_MaintenanceData_Log( ExecutionId, TableName, IndexName, IndexType, IndexLocation, Partition, 
 														[CompressionType], [BulkLoadRGs], [OpenDeltaStores], [ClosedDeltaStores], [CompressedRowGroups],
 														ColumnId, ColumnName, ColumntType, 
 														SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment, 
 														Fragmentation, DeletedRGs, DeletedRGsPerc, TrimmedRGs, TrimmedRGsPerc, AvgRows, 
 														TotalRows, OptimizableRGs, OptimizableRGsPerc, RowGroups,
 														TotalDictionarySizes, MaxGlobalDictionarySize, MaxLocalDictionarySize )
-					select top 1 @execId, align.TableName, IndexName, IndexType, align.Partition, 
+					select top 1 @execId, align.TableName, IndexName, ind.Type, ind.Location, align.Partition, 
 							[Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores], [Compressed RowGroups],
 							align.ColumnId, align.ColumnName, align.ColumnType, 
 							align.SegmentElimination, align.DealignedSegments, align.TotalSegments, align.SegmentAlignment,
@@ -630,7 +649,7 @@ begin
 						select @rebuildNeeded = 1, @rebuildReason = 'Average Rows per RowGroup';
 				end 
 		
-				-- Verify the dictionary pressure and avoid rebuilding in this case do not rebuild Columnstore
+				-- Verify the dictionary pressure and avoid rebuilding in this case
 				if( (@maxDictionarySizeInMB <= @maxGlobalDictionarySizeInMB OR @maxDictionarySizeInMB <= @maxLocalDictionarySizeInMB) AND
 					@rebuildReason in ('Trimmed RowGroups','Trimmed RowGroup Percentage','Average Rows per RowGroup') )
 				begin
@@ -639,7 +658,9 @@ begin
 				end
 			end
 		end
-
+		
+		if( @rebuildNeeded = 0 )
+			set @SQLCommand = '';
 		
 		if( @debug = 1 )
 		begin
@@ -657,23 +678,31 @@ begin
 		--if( @rebuildNeeded = 1 )
 		begin
 			if( @orderSegmentsNeeded = 1 AND @orderingColumnName is not null AND 
-				@isPartitioned = 0 )
+				@isPartitioned = 0 AND @indexType = 'Clustered')
 			begin
-				set @SQLCommand = 'create clustered index ' + @indexName + ' on ' + @currentTableName + '(' + @orderingColumnName + ') with (drop_existing = on, maxdop = ' + cast(@maxdop as varchar(3)) + ');';
-
-				if( @debug = 1 )
+				if @indexLocation = 'Disk-Based' 
 				begin
-					print @SQLCommand;
-				end
+					set @SQLCommand = 'create clustered index ' + @indexName + ' on ' + @currentTableName + '(' + @orderingColumnName + ') with (drop_existing = on, maxdop = ' + cast(@maxdop as varchar(3)) + ');';
 			
-				-- Let's recreate Clustered Columnstore Index
-				set @SQLCommand += 'create clustered columnstore index ' + @indexName + ' on ' + @currentTableName;
-				set @SQLCommand += ' with (data_compression = ' + @compressionType + ', drop_existing = on, maxdop = 1);';
+					-- Let's recreate Clustered Columnstore Index
+					set @SQLCommand += 'create clustered columnstore index ' + @indexName + ' on ' + @currentTableName;
+					set @SQLCommand += ' with (data_compression = ' + @compressionType + ', drop_existing = on, maxdop = 1);';
+
+					if( @debug = 1 )
+						print 'SQLCommand:' + @SQLCommand;
+				end
+				else if @indexLocation = 'In-Memory' 
+				begin
+					set @SQLCommand = 'alter table ' + @currentTableName + 
+										' drop index ' + @indexName + ';';
+
+					set @SQLCommand += 'alter table ' + @currentTableName + 
+										' add index ' + @indexName + ' CLUSTERED COLUMNSTORE';
+					set @SQLCommand += ' with (data_compression = ' + @compressionType + ');';
+				end 
 
 				if @logData = 1
 				begin
-					--insert into dbo.cstore_Operation_Log( ExecutionId, TableName, Partition, OperationType, OperationReason, OperationCommand, OperationConfigured, OperationExecuted )
-					--	select @execId, @currentTableName, @partitionNumber, 'Recreate', @rebuildReason, @SQLCommand, @execute, @rebuildNeeded;
 					if @loggingTableExists = 1 
 					begin
 						set @loggingCommand = N'
@@ -687,14 +716,17 @@ begin
 
 				if( @debug = 1 )
 				begin
-					print @SQLCommand;
+					print 'SQLCommand:' + @SQLCommand;
 				end
 
-				-- This command will execute 2 operations at once: creation of rowstore index & creation of columnstore index
-				if( @execute = 1 AND @rebuildNeeded = 1 )
+				-- Execute Rebuild
+				if( @execute = 1 AND @rebuildNeeded = 1 AND @indexLocation = 'Disk-Based' )
 				begin 
 					begin try 
 						exec ( @SQLCommand );
+
+						if @debug = 1
+							print 'Executed Successfully';
 					end try
 					begin catch
 						-- In the future, to add a logging of the error message
@@ -710,18 +742,40 @@ begin
 			end
 		
 			-- Process Partitioned Table
-			if( @orderSegmentsNeeded = 0 OR (@orderSegmentsNeeded = 1 and @orderingColumnName is NULL) OR
-				@isPartitioned = 1 )
+			if( @orderSegmentsNeeded = 0 OR										-- No Segment Clustering 
+				(@orderSegmentsNeeded = 1 and @orderingColumnName is NULL) OR   -- Forcing Segment Clustering but no Column is configured
+				@isPartitioned = 1 )											-- Partitioned Table
 			begin
-				set @SQLCommand = 'alter table ' + @currentTableName + ' rebuild';
-				if( @usePartitionLevel = 1 AND @isPartitioned = 1 )
-					set @SQLCommand += ' partition = ' + cast(@partitionNumber as varchar(5));
-				set @SQLCommand += ' with (maxdop = ' + cast(@maxdop as varchar(3)) + ')';
+				if @indexLocation = 'Disk-Based'
+				begin 
+					if @forceRebuild = 0
+					begin
+						set @SQLCommand = 'alter index ' + @indexName + ' on ' + @currentTableName + ' reorganize';
+						if( @usePartitionLevel = 1 AND @isPartitioned = 1 )
+							set @SQLCommand += ' partition = ' + cast(@partitionNumber as varchar(5)) + ';';
+
+						-- The second invocation for the elimination of the Tombstones and new potential 
+						set @SQLCommand += @SQLCommand;
+					end
+					else
+					begin 
+						set @SQLCommand = 'alter table ' + @currentTableName + ' rebuild';
+						if( @usePartitionLevel = 1 AND @isPartitioned = 1 )
+							set @SQLCommand += ' partition = ' + cast(@partitionNumber as varchar(5));
+						set @SQLCommand += ' with (maxdop = ' + cast(@maxdop as varchar(3)) + ')';
+					end
+				end
+				else if @indexLocation = 'In-Memory'
+				begin
+					-- Invoking twice so some of the more complex processes, such as deleted Row Groups can be truly removed from the InMemory Table
+					set @SQLCommand = 'exec sys.sp_memory_optimized_cs_migration @object_id = ' + cast(@objectId as varchar(15)) + ' /* ' + isnull(@currentTableName,'NULL') + ' */;' + CHAR(10);
+					--set @SQLCommand += 'exec sys.sp_memory_optimized_cs_migration @object_id = ' + cast(@objectId as varchar(15)) + ' /* ' + isnull(@currentTableName,'NULL') + ' */;';
+				end
 
 				if( @debug = 1 )
 				begin
 					print 'Rebuild ' + @rebuildReason;
-					print @SQLCommand;
+					print 'SQLCommand:' + @SQLCommand;
 				end
 
 				if @logData = 1
@@ -738,7 +792,11 @@ begin
 				end
 
 				if( @execute = 1 AND @rebuildNeeded = 1 )
+				begin
 					exec ( @SQLCommand  );
+					if @debug = 1
+						print 'Executed Successfully';
+				end
 			end
 
 		end
