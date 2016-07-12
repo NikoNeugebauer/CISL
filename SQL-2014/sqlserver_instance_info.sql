@@ -48,13 +48,13 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added Information about updated CU 6A, CU 7 for SQL Server 2014 SP1 & CU 14 for SQL Server 2014 RTM
-
+	+ Added Information about SQL Server 2014 SP2
 */
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
 		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
-		@showNewerVersions bit = 1;					-- Enables showing the SQL Server versions that are posterior the current version
+		@showNewerVersions bit = 0;					-- Enables showing the SQL Server versions that are posterior the current version
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ create table #SQLVersions(
 	SQLVersionDescription nvarchar(100) );
 
 insert into #SQLBranches (SQLBranch, MinVersion)
-	values ('RTM', 2000 ), ('SP1', 4100);
+	values ('RTM', 2000 ), ('SP1', 4100), ('SP2', 5000) ;
 
 insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	values 
@@ -133,7 +133,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP1', 4439, convert(datetime,'22-02-2016',105), 'CU 5 for SQL Server 2014 SP1' ),
 	( 'SP1', 4449, convert(datetime,'19-04-2016',105), 'CU 6 for SQL Server 2014 SP1' ),
 	( 'SP1', 4457, convert(datetime,'31-05-2016',105), 'CU 6A for SQL Server 2014 SP1' ),
-	( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' );
+	( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' ),
+	( 'SP1', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' );
 
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
