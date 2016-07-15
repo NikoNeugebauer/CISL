@@ -255,6 +255,33 @@ begin
 	IF EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Operation_Log' and schema_id = SCHEMA_ID('dbo') )
 		set @loggingTableExists = 1;
 
+	-- Check if we are running on the secondary replica and exit if not, because the AG readable secondary replica is not supported in SQL Server 2014
+	IF exists (select *
+					from sys.databases databases
+					  INNER JOIN sys.availability_databases_cluster adc 
+						ON databases.group_database_id = adc.group_database_id
+					  INNER JOIN sys.availability_groups ag 
+						ON adc.group_id = ag.group_id
+					  WHERE databases.name = DB_NAME() )
+		
+	begin
+		declare @replicaStatus int;
+		select @replicaStatus = sys.fn_hadr_is_primary_replica ( DB_NAME() );
+		
+		if @replicaStatus is NOT NULL or @replicaStatus <> 1 
+		begin 
+			if @loggingTableExists = 1
+			begin 
+				set @loggingCommand = N'
+									insert into dbo.cstore_Operation_Log( ExecutionId, TableName, Partition, OperationType, OperationReason, OperationCommand, OperationConfigured, OperationExecuted )
+										select ''' + convert(nvarchar(50),@execId) + ''', ''NULL'', ' + cast(@partitionNumber as varchar(10)) + ', ''Exit'', 
+												''Secondary Replica'', ''NULL'', 1, ' + cast(case when (@executeReorganize = 1 OR @execute = 1) then 1 else 0 end as char(1));			
+				exec (@loggingCommand);
+			end
+		end 
+		return;
+	end
+
 	-- ***********************************************************
 	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
 	if( @useRecommendations = 1 )
