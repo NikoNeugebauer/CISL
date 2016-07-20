@@ -2107,6 +2107,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
 		[BulkLoadRGs] int,
