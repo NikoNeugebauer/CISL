@@ -52,8 +52,8 @@ Changes in 1.2.0
 	+ Added information about CU 2 for SQL Server 2012 SP 3
 
 Changes in 1.3.0
-	+ Added information about CU 12 for SQL Server 2012 SP 2
-	+ Added information about CU 3 for SQL Server 2012 SP 3
+	+ Added information about CU 12 & CU 13 for SQL Server 2012 SP 2
+	+ Added information about CU 3 & CU 4 for SQL Server 2012 SP 3
 */
 
 -- Params --
@@ -156,10 +156,12 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP2', 5643, convert(datetime,'19-01-2016',105), 'CU 10 for SQL Server 2012 SP2' ),
 	( 'SP2', 5646, convert(datetime,'22-03-2016',105), 'CU 11 for SQL Server 2012 SP2' ),
 	( 'SP2', 5649, convert(datetime,'17-05-2016',105), 'CU 12 for SQL Server 2012 SP2' ),
+	( 'SP2', 5644, convert(datetime,'18-07-2016',105), 'CU 13 for SQL Server 2012 SP2' ),
 	( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
 	( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
 	( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' ),
-	( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' );
+	( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' ),
+	( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
