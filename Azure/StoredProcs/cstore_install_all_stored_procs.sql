@@ -1920,7 +1920,8 @@ begin
 			closed_time datetime,
 			created_time datetime );
 
-		exec dbo.cstore_GetRowGroupsDetails @objectId = @objectId, @showNonCompressedOnly = 1;
+		insert into #RowGroupsDetails
+			exec dbo.cstore_GetRowGroupsDetails @objectId = @objectId, @showNonCompressedOnly = 1;
 
 		select @openRows = sum([total_rows] - [deleted_rows]) / 1000000.
 			from #RowGroupsDetails
