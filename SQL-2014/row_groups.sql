@@ -35,6 +35,7 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added new parameter for filtering a specific partition
+	+ Added new column for the Index Location (Disk-Based)
 */
 
 -- Params --
@@ -69,6 +70,7 @@ set nocount on;
 
 select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 	case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+	'Disk-Based' as Location,
 	(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 	case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
 	sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
@@ -104,6 +106,7 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 union all
 select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
 	case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+	'Disk-Based' as Location,
 	(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
 	case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
 	sum(case rg.state when 0 then 1 else 0 end) as 'Bulk Load RG',

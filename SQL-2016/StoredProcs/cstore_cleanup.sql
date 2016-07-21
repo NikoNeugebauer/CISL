@@ -19,28 +19,25 @@
 */
 
 drop procedure if exists dbo.cstore_GetAlignment;
-GO
 
 drop procedure if exists dbo.cstore_GetDictionaries;
-GO
 
 drop procedure if exists dbo.cstore_GetFragmentation;
-GO
 
 drop procedure if exists dbo.cstore_GetMemory;
-GO
 
 drop procedure if exists dbo.cstore_GetRowGroups;
-GO
 
 drop procedure if exists dbo.cstore_GetRowGroupsDetails;
-GO
 
 drop procedure if exists dbo.cstore_SuggestedTables;
-GO
 
 drop procedure if exists dbo.cstore_GetSQLInfo;
-GO
 
 drop procedure if exists dbo.cstore_doMaintenance;
-GO
+
+drop table if exists [dbo].[cstore_Clustering];
+
+drop table if exists [dbo].[cstore_MaintenanceData_Log];
+
+drop table if exists [dbo].[cstore_Operation_Log];

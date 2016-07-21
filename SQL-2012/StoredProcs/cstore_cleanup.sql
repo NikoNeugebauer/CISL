@@ -20,32 +20,24 @@
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetAlignment;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetDictionaries;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetMemory' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetMemory;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetRowGroups;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetRowGroupsDetails;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetSQLInfo' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetSQLInfo;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_SuggestedTables;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_doMaintenance;
-GO

@@ -20,48 +20,36 @@
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetAlignment;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetDictionaries;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetFragmentation;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetMemory' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetMemory;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetRowGroups;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetRowGroupsDetails;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetSQLInfo' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_GetSQLInfo;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_SuggestedTables;
-GO
 
 if EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
 	drop procedure dbo.cstore_doMaintenance;
-GO
 
 if EXISTS (select * from sys.objects where type = 'U' and name = 'cstore_Clustering' and schema_id = SCHEMA_ID('dbo') )
 	drop table dbo.cstore_Clustering;
-GO
 
 if EXISTS (select * from sys.objects where type = 'U' and name = 'cstore_MaintenanceData_Log' and schema_id = SCHEMA_ID('dbo') )
 	drop table dbo.cstore_MaintenanceData_Log;
-GO
 
 if EXISTS (select * from sys.objects where type = 'U' and name = 'cstore_Operation_Log' and schema_id = SCHEMA_ID('dbo') )
 	drop table dbo.cstore_Operation_Log;
-GO
