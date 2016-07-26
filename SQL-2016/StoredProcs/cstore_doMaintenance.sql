@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -23,6 +23,8 @@ Known Limitations:
 	- Segment Clustering is supported only for the Disk-Based Clustered Columnstore Indexes. 
 	- Segment Clustering is not supported on the partition level
 
+Changes in 1.3.1
+	+ Added awareness for the 10204 Trace Flag, which disables Merge/Recompress processes
 */
 
 declare @createLogTables bit = 1;
@@ -191,7 +193,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, July 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -283,7 +285,7 @@ begin
 	end
 
 	-- ***********************************************************
-	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
+	-- Engine Recommendations
 	if( @useRecommendations = 1 )
 	begin
 		create table #ActiveTraceFlags(	
@@ -302,8 +304,14 @@ begin
 			SupportedStatus bit not null 
 		);
 
+		-- Enable Reorganize automatically if the Trace Flag 634 is enabled
 		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '634') )
 			select @executeReorganize = 1, @closeOpenDeltaStores = 1;
+
+		-- TF 10204: Disables merge/recompress during columnstore index reorganization.
+		-- In this case there is no reason to Reorganize the Index.
+		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '10204') )
+			select @executeReorganize = 0, @closeOpenDeltaStores = 0;
 	end
 
 
