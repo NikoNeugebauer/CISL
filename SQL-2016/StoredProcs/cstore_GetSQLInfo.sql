@@ -42,6 +42,7 @@ Changes in 1.3.0
 Changes in 1.3.1
 	+ Added information on CU 1 for SQL Server 2016 RTM
 	+ Added information on the new trace flags 9347, 9349, 9358, 9389 & 10204
+	+ Added information on the trace flag 4199 which affects batch mode sort operations in a complex parallel query 
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -235,6 +236,7 @@ begin
 		(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
+		( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 		( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
 		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
