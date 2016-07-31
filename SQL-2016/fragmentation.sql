@@ -35,6 +35,10 @@ Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based, InMemory)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed a bug for the trimmed row groups with just 1 row giving wrong information about a potential optimizable row group
+
+Changes in 1.3.1
+	- Fixed wrong behaviour for the @tableName parameter
+	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
 */
 -- Params --
 declare
@@ -89,7 +93,8 @@ SELECT  quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 		and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2016)
 		and p.index_id in (1,2)
-		and rg.object_id = isnull(object_id(@tableName),rg.object_id)
+		and p.data_compression in (3,4)
+		and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 	group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
@@ -119,7 +124,8 @@ SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 		and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2016)
 		and p.index_id in (1,2)
-		and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
+		and p.data_compression in (3,4)
+		and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 		and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 	group by p.object_id, ind.name, obj.object_id, obj.name, ind.data_space_id, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
