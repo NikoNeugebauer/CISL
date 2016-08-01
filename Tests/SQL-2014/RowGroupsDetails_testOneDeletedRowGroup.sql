@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetRowGroupsDetails is tested with an empty columnstore table 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyTable' and schema_id = SCHEMA_ID('RowGroupsDetails') )
-	exec ('create procedure [RowGroupsDetails].[testEmptyTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testOneDeletedRowGroup' and schema_id = SCHEMA_ID('RowGroupsDetails') )
+	exec ('create procedure [RowGroupsDetails].[testOneDeletedRowGroup] as select 1');
 GO
 
-ALTER PROCEDURE [RowGroupsDetails].[testEmptyTable] AS
+ALTER PROCEDURE [RowGroupsDetails].[testOneDeletedRowGroup] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedRowGroupsDetails') IS NOT NULL
 		DROP TABLE #ExpectedRowGroupsDetails;
@@ -49,26 +49,27 @@ BEGIN
 
 	select top (0) *
 		into #ActualRowGroupsDetails
-		from #ExpectedRowGroupsDetails;
+		from #ExpectedRowGroupsDetails;	
 
 	-- CCI
+	-- Insert expected result
+	insert into #ExpectedRowGroupsDetails
+						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
+							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
+		select '[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 1, 0.0 /*Size in MB*/,
+				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
+
 	insert into #ActualRowGroupsDetails
-		exec dbo.cstore_GetRowGroupsDetails @tableName = 'EmptyCCI';
+		exec dbo.cstore_GetRowGroupsDetails @tableName = 'OneDeletedRowGroupCCI';
+
+	update top (1) #ExpectedRowGroupsDetails
+		set created_time = NULL;
+
+	update top (1) #ActualRowGroupsDetails
+		set created_time = NULL;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroupsDetails', '#ActualRowGroupsDetails';
-
-	-- NCI on HEAP
-	insert into #ActualRowGroupsDetails
-		exec dbo.cstore_GetRowGroupsDetails @tableName = 'EmptyNCI_Heap';
 	
-	exec tSQLt.AssertEqualsTable '#ExpectedRowGroupsDetails', '#ActualRowGroupsDetails';
-
-	-- NCI on Clustered
-	insert into #ActualRowGroupsDetails
-		exec dbo.cstore_GetRowGroupsDetails @tableName = 'EmptyNCI_Clustered';
-	
-	exec tSQLt.AssertEqualsTable '#ExpectedRowGroupsDetails', '#ActualRowGroupsDetails';
-
 END
 
 GO

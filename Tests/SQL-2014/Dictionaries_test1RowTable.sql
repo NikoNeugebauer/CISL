@@ -63,3 +63,5 @@ BEGIN
 
 	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
 END
+
+GO

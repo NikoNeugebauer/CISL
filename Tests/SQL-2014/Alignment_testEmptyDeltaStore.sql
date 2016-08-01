@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetAlignment is tested with an empty columnstore table 
+	Columnstore Tests - cstore_GetAlignment is tested with an empty delta-store at the columnstore table 
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyTable' and schema_id = SCHEMA_ID('Alignment') )
-	exec ('create procedure [Alignment].[testEmptyTable] as select 1');
+if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyDeltaStore' and schema_id = SCHEMA_ID('Alignment') )
+	exec ('create procedure [Alignment].[testEmptyDeltaStore] as select 1');
 GO
 
-ALTER PROCEDURE [Alignment].[testEmptyTable] AS
+ALTER PROCEDURE [Alignment].[testEmptyDeltaStore] AS
 BEGIN
 		create table #ExpectedAlignment(
 		TableName nvarchar(256),
@@ -43,24 +43,11 @@ BEGIN
 
 	-- CCI
 	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'EmptyCCI';
+		exec dbo.cstore_GetAlignment @tableName = 'EmptyDeltaStoreCCI';
 
 	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
 
 
-	-- NCI on HEAP
-	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'EmptyNCI_Heap';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
-
-	-- NCI on Clustered
-	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'EmptyNCI_Clustered';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
-	TRUNCATE TABLE #ExpectedAlignment;
-	TRUNCATE TABLE #ActualAlignment;
 END
 
 GO

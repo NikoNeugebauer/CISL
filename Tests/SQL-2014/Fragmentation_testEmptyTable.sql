@@ -77,3 +77,5 @@ BEGIN
 
 	exec tSQLt.AssertEqualsTable '#ExpectedFragmentation', '#ActualFragmentation';
 END
+
+GO

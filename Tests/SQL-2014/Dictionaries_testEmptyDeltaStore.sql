@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyTable' and schema_id = SCHEMA_ID('Dictionaries') )
-	exec ('create procedure [Dictionaries].[testEmptyTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyDeltaStore' and schema_id = SCHEMA_ID('Dictionaries') )
+	exec ('create procedure [Dictionaries].[testEmptyDeltaStore] as select 1');
 GO
 
-ALTER PROCEDURE [Dictionaries].[testEmptyTable] AS
+ALTER PROCEDURE [Dictionaries].[testEmptyDeltaStore] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedDictionaries') IS NOT NULL
 		DROP TABLE #ExpectedDictionaries;
@@ -47,21 +47,10 @@ BEGIN
 
 	-- CCI
 	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyCCI', @showDetails = 0;
+		exec dbo.cstore_GetDictionaries @tableName = 'EmptyDeltaStoreCCI', @showDetails = 0;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
 
-	-- NCI on HEAP
-	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyNCI_Heap', @showDetails = 0;
-
-	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
-
-	-- NCI on Clustered
-	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyNCI_Clustered', @showDetails = 0;
-
-	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
 END
 
 GO

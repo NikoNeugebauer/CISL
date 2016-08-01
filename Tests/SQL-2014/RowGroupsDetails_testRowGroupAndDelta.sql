@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'test1RowTable' and schema_id = SCHEMA_ID('RowGroupsDetails') )
-	exec ('create procedure [RowGroupsDetails].[test1RowTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testRowGroupAndDelta' and schema_id = SCHEMA_ID('RowGroupsDetails') )
+	exec ('create procedure [RowGroupsDetails].[testRowGroupAndDelta] as select 1');
 GO
 
-ALTER PROCEDURE [RowGroupsDetails].[test1RowTable] AS
+ALTER PROCEDURE [RowGroupsDetails].[testRowGroupAndDelta] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedRowGroupsDetails') IS NOT NULL
 		DROP TABLE #ExpectedRowGroupsDetails;
@@ -56,16 +56,19 @@ BEGIN
 	insert into #ExpectedRowGroupsDetails
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
-		select '[dbo].[OneRowCCI]', 'Disk-Based', 1, 0, 1, 'OPEN', 1, NULL, 0.0 /*Size in MB*/,
+		select '[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 0, 0.0 /*Size in MB*/,
+				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate()
+		union all
+		select '[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 1, 'OPEN', 1, NULL, 0.0 /*Size in MB*/,
 				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
-		exec dbo.cstore_GetRowGroupsDetails @tableName = 'OneRowCCI';
+		exec dbo.cstore_GetRowGroupsDetails @tableName = 'RowGroupAndDelta';
 
-	update top (1) #ExpectedRowGroupsDetails
+	update top (2) #ExpectedRowGroupsDetails
 		set created_time = NULL;
 
-	update top (1) #ActualRowGroupsDetails
+	update top (2) #ActualRowGroupsDetails
 		set created_time = NULL;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroupsDetails', '#ActualRowGroupsDetails';

@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row
+	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'test1RowTable' and schema_id = SCHEMA_ID('Fragmentation') )
-	exec ('create procedure [Fragmentation].[test1RowTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testRowGroupAndDelta' and schema_id = SCHEMA_ID('Fragmentation') )
+	exec ('create procedure [Fragmentation].[testRowGroupAndDelta] as select 1');
 GO
 
-ALTER PROCEDURE [Fragmentation].[test1RowTable] AS
+ALTER PROCEDURE [Fragmentation].[testRowGroupAndDelta] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedFragmentation') IS NOT NULL
 		DROP TABLE #ExpectedFragmentation
@@ -51,39 +51,15 @@ BEGIN
 
 	-- CCI
 	-- Insert expected result
-	insert into #ActualFragmentation 
-		exec dbo.cstore_GetFragmentation @tableName = 'OneRowCCI';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedFragmentation', '#ActualFragmentation';
-
-	-- NCI on HEAP
-	-- Insert expected result
 	insert into #ExpectedFragmentation (TableName, IndexName, Location, IndexType, Partition, Fragmentation, DeletedRGs, DeletedRGsPerc, 
 										TrimmedRGs, TrimmedRGsPerc, AvgRows, TotalRows, OptimizableRGs, OptimizableRGsPerc, RowGroups)
-		select '[dbo].[OneRowNCI_Heap]', 'NCI_OneRowNCI_Heap', 'Disk-Based', 'NONCLUSTERED', 1, 0 /*Fragmentation*/, 0, 0, 
+		select '[dbo].[RowGroupAndDeltaCCI]', 'CCI_RowGroupAndDeltaCCI', 'Disk-Based', 'CLUSTERED', 1, 0 /*Fragmentation*/, 0, 0, 
 				1, 100.0, 1, 1 /*Total Rows*/, 0, 0, 1;
 
 	insert into #ActualFragmentation 
-		exec dbo.cstore_GetFragmentation @tableName = 'OneRowNCI_Heap';
+		exec dbo.cstore_GetFragmentation @tableName = 'RowGroupAndDelta';
 
 	exec tSQLt.AssertEqualsTable '#ExpectedFragmentation', '#ActualFragmentation';
-	TRUNCATE TABLE #ExpectedFragmentation;
-	TRUNCATE TABLE #ActualFragmentation;
-
-
-	-- NCI on Clustered
-	-- Insert expected result
-	insert into #ExpectedFragmentation (TableName, IndexName, Location, IndexType, Partition, Fragmentation, DeletedRGs, DeletedRGsPerc, 
-										TrimmedRGs, TrimmedRGsPerc, AvgRows, TotalRows, OptimizableRGs, OptimizableRGsPerc, RowGroups)
-		select '[dbo].[OneRowNCI_Clustered]', 'NCI_OneRowNCI_Clustered', 'Disk-Based', 'NONCLUSTERED', 1, 0 /*Fragmentation*/, 0, 0, 
-				1, 100.0, 1, 1 /*Total Rows*/, 0, 0, 1;
-
-	insert into #ActualFragmentation 
-		exec dbo.cstore_GetFragmentation @tableName = 'OneRowNCI_Clustered';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedFragmentation', '#ActualFragmentation';
-	TRUNCATE TABLE #ExpectedFragmentation;
-	TRUNCATE TABLE #ActualFragmentation;
 END
 
 GO

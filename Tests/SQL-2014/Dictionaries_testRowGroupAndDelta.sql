@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetDictionaries is tested with an empty columnstore table 
+	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testEmptyTable' and schema_id = SCHEMA_ID('Dictionaries') )
-	exec ('create procedure [Dictionaries].[testEmptyTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testRowGroupAndDelta' and schema_id = SCHEMA_ID('Dictionaries') )
+	exec ('create procedure [Dictionaries].[testRowGroupAndDelta] as select 1');
 GO
 
-ALTER PROCEDURE [Dictionaries].[testEmptyTable] AS
+ALTER PROCEDURE [Dictionaries].[testRowGroupAndDelta] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedDictionaries') IS NOT NULL
 		DROP TABLE #ExpectedDictionaries;
@@ -47,21 +47,10 @@ BEGIN
 
 	-- CCI
 	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyCCI', @showDetails = 0;
+		exec dbo.cstore_GetDictionaries @tableName = 'RowGroupAndDelta', @showDetails = 0;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
 
-	-- NCI on HEAP
-	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyNCI_Heap', @showDetails = 0;
-
-	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
-
-	-- NCI on Clustered
-	insert into #ActualDictionaries
-		exec dbo.cstore_GetDictionaries @tableName = 'EmptyNCI_Clustered', @showDetails = 0;
-
-	exec tSQLt.AssertEqualsTable '#ExpectedDictionaries', '#ActualDictionaries';
 END
 
 GO

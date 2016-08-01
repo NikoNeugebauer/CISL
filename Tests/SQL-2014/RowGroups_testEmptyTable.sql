@@ -69,7 +69,7 @@ BEGIN
 	-- Insert expected result
 	insert into #ExpectedRowGroups (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 									[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
-		select '[dbo].[EmptyNCI_Heap]', 'Clustered', 'Disk-Based', 1, 'COLUMNSTORE', 0, 0, 0, 
+		select '[dbo].[EmptyNCI_Heap]', 'Nonclustered', 'Disk-Based', 1, 'COLUMNSTORE', 0, 0, 0, 
 				0, 0, 0, 0.0 /*Del Rows*/, 0.0, 0.0 /*Total Rows*/, 0, 0, NULL;
 
 	insert into #ActualRowGroups
@@ -83,7 +83,7 @@ BEGIN
 	-- Insert expected result
 	insert into #ExpectedRowGroups (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 									[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
-		select '[dbo].[EmptyNCI_Clustered]', 'Clustered', 'Disk-Based', 1, 'COLUMNSTORE', 0, 0, 0, 
+		select '[dbo].[EmptyNCI_Clustered]', 'Nonclustered', 'Disk-Based', 1, 'COLUMNSTORE', 0, 0, 0, 
 				0, 0, 0, 0.0 /*Del Rows*/, 0.0, 0.0 /*Total Rows*/, 0, 0, NULL;
 
 	insert into #ActualRowGroups
@@ -91,3 +91,5 @@ BEGIN
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 END
+
+GO

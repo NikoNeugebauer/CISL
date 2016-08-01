@@ -1,6 +1,6 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row
+	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
 	Version: 1.3.1, July 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
@@ -18,11 +18,11 @@
     limitations under the License.
 */
 
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'test1RowTable' and schema_id = SCHEMA_ID('Alignment') )
-	exec ('create procedure [Alignment].[test1RowTable] as select 1');
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testRowGroupAndDelta' and schema_id = SCHEMA_ID('Alignment') )
+	exec ('create procedure [Alignment].[testRowGroupAndDelta] as select 1');
 GO
 
-ALTER PROCEDURE [Alignment].[test1RowTable] AS
+ALTER PROCEDURE [Alignment].[testRowGroupAndDelta] AS
 BEGIN
 	IF OBJECT_ID('tempdb..#ExpectedAlignment') IS NOT NULL
 		DROP TABLE #ExpectedAlignment;
@@ -46,40 +46,16 @@ BEGIN
 	
 	-- CCI
 	-- Insert expected result
-	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'OneRowCCI';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
-
-
-	-- NCI on HEAP
-	-- Insert expected result
 	insert into #ExpectedAlignment
 		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1, 100.00 );
 
 	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Heap';
+		exec dbo.cstore_GetAlignment @tableName = 'RowGroupAndDelta';
 
 	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
-	TRUNCATE TABLE #ExpectedAlignment;
-	TRUNCATE TABLE #ActualAlignment;
 
-
-	-- NCI on Clustered
-	-- Insert expected result
-	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
-		values 
-		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1,	100.00 );
-
-	insert into #ActualAlignment 
-		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Clustered';
-
-	exec tSQLt.AssertEqualsTable '#ExpectedAlignment', '#ActualAlignment';
-	TRUNCATE TABLE #ExpectedAlignment;
-	TRUNCATE TABLE #ActualAlignment;
 END
 
 GO

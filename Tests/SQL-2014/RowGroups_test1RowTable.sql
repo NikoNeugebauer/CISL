@@ -96,3 +96,5 @@ BEGIN
 	TRUNCATE TABLE #ExpectedRowGroups;
 	TRUNCATE TABLE #ActualRowGroups;
 END
+
+GO

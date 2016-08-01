@@ -35,18 +35,18 @@ if EXISTS (select * from sys.objects where type = 'u' and name = 'EmptyNCI_Heap'
 create table dbo.EmptyNCI_Heap(
 	c1 int );
 
-create clustered columnstore index NCCI_EmptyNCI_Heap
-	on dbo.EmptyNCI_Heap;
+create nonclustered columnstore index CCI_EmptyNCI_Heap
+	on dbo.EmptyNCI_Heap (c1);
 
 -- Nonclustered Columnstore on Clustered Index
 if EXISTS (select * from sys.objects where type = 'u' and name = 'EmptyNCI_Clustered' and schema_id = SCHEMA_ID('dbo') )
 	drop table dbo.EmptyNCI_Clustered;
 
 create table dbo.EmptyNCI_Clustered(
-	c1 int );
+	c1 int not null primary key clustered );
 
-create clustered columnstore index NCI_EmptyNCI_Clustered
-	on dbo.EmptyNCI_Clustered;
+create nonclustered columnstore index NCI_EmptyNCI_Clustered
+	on dbo.EmptyNCI_Clustered (c1);
 
 -- **************************************************************************************
 -- Clustered Columnstore
@@ -60,7 +60,7 @@ create clustered columnstore index CCI_OneRowCCI
 	on dbo.OneRowCCI;
 
 insert into dbo.OneRowCCI
-	values (1);
+	values (1)
 
 -- Nonclustered Columnstore on HEAP
 if EXISTS (select * from sys.objects where type = 'u' and name = 'OneRowNCI_Heap' and schema_id = SCHEMA_ID('dbo') )
@@ -70,7 +70,8 @@ create table dbo.OneRowNCI_Heap(
 	c1 int );
 
 insert into dbo.OneRowNCI_Heap
-	values (1);
+	values (1)
+option( recompile );
 
 create nonclustered columnstore index NCI_OneRowNCI_Heap
 	on dbo.OneRowNCI_Heap(c1);
@@ -80,10 +81,73 @@ if EXISTS (select * from sys.objects where type = 'u' and name = 'OneRowNCI_Clus
 	drop table dbo.OneRowNCI_Clustered;
 
 create table dbo.OneRowNCI_Clustered(
-	c1 int );
+	c1 int not null primary key clustered );
 
 insert into dbo.OneRowNCI_Clustered
-	values (1);
+	values (1)
+option( recompile );
 
 create nonclustered columnstore index NCI_OneRowNCI_Clustered
 	on dbo.OneRowNCI_Clustered(c1);
+
+-- **************************************************************************************
+-- Clustered Columnstore table with an Empty Delta Store
+if EXISTS (select * from sys.objects where type = 'u' and name = 'EmptyDeltaStoreCCI' and schema_id = SCHEMA_ID('dbo') )
+	drop table dbo.EmptyDeltaStoreCCI;
+
+create table dbo.EmptyDeltaStoreCCI(
+	c1 int );
+
+create clustered columnstore index CCI_EmptyDeltaStoreCCI
+	on dbo.EmptyDeltaStoreCCI;
+
+insert into dbo.EmptyDeltaStoreCCI
+	values (1);
+
+delete from dbo.EmptyDeltaStoreCCI;
+
+alter index CCI_EmptyDeltaStoreCCI
+	on dbo.EmptyDeltaStoreCCI
+		Reorganize;
+
+-- **************************************************************************************
+-- Clustered Columnstore table with 2 Row Groups - 1 compressed with 1 Row and 1 Delta Store containing 1 row
+
+if EXISTS (select * from sys.objects where type = 'u' and name = 'RowGroupAndDeltaCCI' and schema_id = SCHEMA_ID('dbo') )
+	drop table dbo.RowGroupAndDeltaCCI;
+
+create table dbo.RowGroupAndDeltaCCI(
+	c1 int );
+
+create clustered columnstore index CCI_RowGroupAndDeltaCCI
+	on dbo.RowGroupAndDeltaCCI;
+
+insert into dbo.RowGroupAndDeltaCCI
+	values (1);
+
+alter table dbo.RowGroupAndDeltaCCI
+	rebuild;
+
+insert into dbo.RowGroupAndDeltaCCI
+	values (2);
+
+-- **************************************************************************************
+-- Clustered Columnstore table with 1 compressed Row Group containing 1 row that is deleted
+
+if EXISTS (select * from sys.objects where type = 'u' and name = 'OneDeletedRowGroupCCI' and schema_id = SCHEMA_ID('dbo') )
+	drop table dbo.OneDeletedRowGroupCCI;
+
+create table dbo.OneDeletedRowGroupCCI(
+	c1 int );
+
+create clustered columnstore index CCI_OneDeletedRowGroupCCI
+	on dbo.OneDeletedRowGroupCCI;
+
+insert into dbo.OneDeletedRowGroupCCI
+	values (1);
+
+alter table dbo.OneDeletedRowGroupCCI
+	rebuild;
+
+delete from dbo.OneDeletedRowGroupCCI
+	where c1 = 1;
