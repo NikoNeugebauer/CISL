@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -40,6 +40,9 @@ Changes in 1.3.0
 	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
 	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
 	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
 */
 
 -- Params --
@@ -181,12 +184,12 @@ select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_na
 union all
 select QuoteName(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + 
 	QuoteName(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as 'TableName',
-		ind.name as 'IndexName', 
+		ind.name COLLATE DATABASE_DEFAULT as 'IndexName', 
 		part.partition_number as 'Partition',
-		cols.name as ColumnName, 
+		cols.name COLLATE DATABASE_DEFAULT as ColumnName, 
 		dict.column_id as ColumnId,
 		dict.dictionary_id as 'DictionarytId',
-		tp.name as ColumnType,
+		tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 		case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 		part.rows as 'Rows Serving', 
 		entry_count as 'Entry Count', 
