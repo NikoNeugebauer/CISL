@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -65,7 +65,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -164,7 +164,7 @@ begin
 				case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 				quotename(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + quotename(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
-				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
+				seg.partition_id, seg.column_id, cols.name COLLATE DATABASE_DEFAULT as ColumnName, tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 				seg.segment_id, 
 				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
 			from tempdb.sys.column_store_segments seg
@@ -221,9 +221,9 @@ begin
 		count(*) as [Total Segments],
 		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
 		from cteSegmentAlignment cte
-		where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
+		where ((@showUnsupportedSegments = 0 and cte.ColumnType COLLATE DATABASE_DEFAULT not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier') ) 
 			  OR @showUnsupportedSegments = 1)
-			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
+			  and cte.ColumnName COLLATE DATABASE_DEFAULT = isnull(@columnName,cte.ColumnName COLLATE DATABASE_DEFAULT)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
 		group by Location, TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
