@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -32,6 +32,9 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
 	+ Added 7 new parameters for filtering out the Index Location (In-Memory or Disk-Based), Index Type (CC or NC), Row Group Trimming, Build Process Identification, Vertipaq Optimisations, Min & Max Creation DateTimes
+
+Changes in 1.3.1
+	- Fixed missing ORDER BY clause which was ordering the Row Groups by the object, partition and the row group number
 */
 
 
@@ -61,7 +64,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -159,6 +162,7 @@ BEGIN
 			and isnull(rg.trim_reason,255) = coalesce(@trimReason, rg.trim_reason,255)
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
+	order by [Table Name], rg.partition_number, rg.row_group_id
 END
 
 GO

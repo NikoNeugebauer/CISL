@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -54,7 +54,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
