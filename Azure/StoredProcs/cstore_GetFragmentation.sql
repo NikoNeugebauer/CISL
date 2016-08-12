@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -45,6 +45,7 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed wrong behaviour for the @tableName parameter
 	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -69,7 +70,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -112,7 +113,7 @@ begin
 		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
 	SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as 'TableName',
-			ind.name as 'IndexName',
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName',
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', 
