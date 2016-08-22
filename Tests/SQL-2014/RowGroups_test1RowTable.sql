@@ -63,6 +63,11 @@ BEGIN
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowCCI';
 
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
 	TRUNCATE TABLE #ActualRowGroups;
@@ -76,6 +81,11 @@ BEGIN
 
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowNCI_Heap';
+
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
@@ -91,6 +101,11 @@ BEGIN
 
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowNCI_Clustered';
+
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
