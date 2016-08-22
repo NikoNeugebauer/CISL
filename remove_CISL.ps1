@@ -27,7 +27,7 @@ function Remove-CISL(
     $installDBs,                  
 
     [parameter(Mandatory=$false)]
-    $excludeDBs = ("master", "model", "tempdb", "msdb", "SSISDB", "MDS", "ReportServer", "ReportServerTempDB", "DQS_MAIN", "DQS_PROJECTS", "DQS_STAGING_DATA")
+    $excludeDBs #= ("master", "model", "tempdb", "msdb", "SSISDB", "MDS", "ReportServer", "ReportServerTempDB", "DQS_MAIN", "DQS_PROJECTS", "DQS_STAGING_DATA")
 
     #[parameter(Mandatory=$false)]
     #[bool]$showDetails = $false,
