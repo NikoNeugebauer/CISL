@@ -1,4 +1,0 @@
-setup_stored_procs_2012.bat
-setup_stored_procs_2014.bat
-setup_stored_procs_2016.bat
-setup_stored_procs_azure.bat
