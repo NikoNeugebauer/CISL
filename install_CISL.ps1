@@ -18,8 +18,11 @@
 
 function Install-CISL(
     [parameter(Mandatory=$true)]
-    [String]$SQLServerInstance = ".\SQL14",
- 
+    [String]$SQLInstance = ".\SQL14",
+
+    [parameter(Mandatory=$false)][ValidateSet("script","dacpac")] 
+    [String]$installType = "script",  # You can install either a sql script or you can install pre-configured dacpacs (database snapshots)
+
     [parameter(Mandatory=$false)][ValidateSet(2012,2014,2016,"Azure")] 
     [String]$forceSqlVersion, # Forces SQL Server version. The values 2012, 2014, 2016 & Azure are supported
 
@@ -36,7 +39,10 @@ function Install-CISL(
     #[bool]$showDetails = $false,
 
     [parameter(Mandatory=$false)] # Setting this argument to true will allow the installation in the databases that already have Columnstore Indexes
-    [bool]$installForExistingCStoreOnly = $false
+    [bool]$installForExistingCStoreOnly = $false,
+
+    [parameter(Mandatory=$false)] # location of the SQLPackage.exe for installing DacPacs 
+    $sqlPackageLocation = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\sqlpackage.exe"
 )
 {
     # Writing the header
@@ -51,11 +57,11 @@ function Install-CISL(
 
     try{
         $SQLDB = "master";     # Use MASTER DB by default
-        $Server = New-Object ('Microsoft.SQLServer.Management.Smo.Server') $SQLServerInstance 
+        $Server = New-Object ('Microsoft.SQLServer.Management.Smo.Server') $SQLInstance 
     }
     catch [Exception]
     {
-        Write-Host "Failed to connect to the SQL Server Instance '$($SQLServerInstance)'" -ForegroundColor Red;
+        Write-Host "Failed to connect to the SQL Server Instance '$($SQLInstance)'" -ForegroundColor Red;
         Write-Host $_.Exception.ToString()
         return;
     }
@@ -66,12 +72,12 @@ function Install-CISL(
         $server.ConnectionContext.set_SecurePassword($cred.Password)
 
         try { $server.ConnectionContext.Connect() } 
-        catch { throw "Can't connect to $($SQLServerInstance) or access denied. Quitting." }
+        catch { throw "Can't connect to $($SQLInstance) or access denied. Quitting." }
     }
 
     # Verify if the connection was succesfull
     if( !$Server ){
-        Write-Host "Failed to connect to the SQL Server Instance '$($SQLServerInstance)'" -ForegroundColor Red;
+        Write-Host "Failed to connect to the SQL Server Instance '$($SQLInstance)'" -ForegroundColor Red;
         return;
     }
 
@@ -102,7 +108,7 @@ function Install-CISL(
     }
 
     # Write the SQL Server Version Identifier
-    Write-Host "Using SQL Server $($sqlVersion): `nInstalling CISL on the user databases of the instance '$SQLServerInstance':`n" -ForegroundColor Yellow;
+    Write-Host "Using SQL Server $($sqlVersion): `nInstalling CISL on the user databases of the instance '$SQLInstance':`n" -ForegroundColor Yellow;
 
     # Get SMO Databases Object 
     if( $installDBs ){
@@ -163,13 +169,28 @@ function Install-CISL(
                 else { $SQLPath = "SQL-$($sqlVersion)"; }
 
                 try{
-                    if ( !$cred ){ `
-                        Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_install_all_stored_procs.sql" `
-                                    -ServerInstance $SQLServerInstance -Database $db.Name -Verbose 
+                    if ( !$cred ){ 
+                        # Decide if you are deploying DACPAC or SCRIPT
+                        if( $installType -eq "dacpac" ){
+                            & $sqlPackageLocation "/a:Publish" "/TargetServerName:$($SQLInstance)" "/TargetDatabaseName:$($db.Name)" "/SourceFile:$($PSScriptRoot)\Releases\Dacpacs\CISL-$($CISLVersion)-$($sqlVersion).dacpac" "/p:DropObjectsNotInSource=False"
+                        }
+                        else{
+                            Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_install_all_stored_procs.sql" `
+                                        -ServerInstance $SQLInstance -Database $db.Name -Verbose 
+                        }
                     }
                     else{
-                        Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_install_all_stored_procs.sql" `
-                                    -ServerInstance "$($SQLServerInstance)" -Database $db.Name -Username $cred.UserName -Password $cred.GetNetworkCredential().password
+                        # Decide if you are deploying DACPAC or SCRIPT
+                        if( $installType -eq "dacpac" ){
+                            & $sqlPackageLocation "/a:Publish" "/TargetServerName:$($SQLInstance)" "/TargetDatabaseName:$($db.Name)" "/TargetUser:$($cred.UserName)" `
+                                            "/TargetPassword:$($cred.GetNetworkCredential().password)" `
+                                            "/SourceFile:$($PSScriptRoot)\Releases\Dacpacs\CISL-$($CISLVersion)-$($sqlVersion).dacpac" `
+                                            "/p:DropObjectsNotInSource=False"
+                        }
+                        else{
+                            Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_install_all_stored_procs.sql" `
+                                        -ServerInstance "$($SQLInstance)" -Database $db.Name -Username $cred.UserName -Password $cred.GetNetworkCredential().password
+                        }
                     }
                 
                     Write-Host "... Success!" -ForegroundColor Green
