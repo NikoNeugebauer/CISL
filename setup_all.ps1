@@ -16,42 +16,44 @@
 #    See the License for the specific lan guage governing permissions and
 #    limitations under the License.
 
+$scriptRootPath = Split-Path -Parent $PSCommandPath
+
 ###############################################################################
 # SQL Server 2012
-Get-Content SQL-2012\StoredProcs\cstore_GetAlignment.sql, SQL-2012\StoredProcs\cstore_GetDictionaries.sql, `
-           SQL-2012\StoredProcs\cstore_GetMemory.sql, SQL-2012\StoredProcs\cstore_GetRowGroups.sql,  `
-           SQL-2012\StoredProcs\cstore_GetRowGroupsDetails.sql  , SQL-2012\StoredProcs\cstore_GetSQLInfo.sql,  `
-           SQL-2012\StoredProcs\cstore_SuggestedTables.sql | `
-    Set-Content SQL-2012\StoredProcs\cstore_install_all_stored_procs.sql
+Get-Content $scriptRootPath\SQL-2012\StoredProcs\cstore_GetAlignment.sql, $scriptRootPath\SQL-2012\StoredProcs\cstore_GetDictionaries.sql, `
+           $scriptRootPath\SQL-2012\StoredProcs\cstore_GetMemory.sql, $scriptRootPath\SQL-2012\StoredProcs\cstore_GetRowGroups.sql,  `
+           $scriptRootPath\SQL-2012\StoredProcs\cstore_GetRowGroupsDetails.sql, $scriptRootPath\SQL-2012\StoredProcs\cstore_GetSQLInfo.sql,  `
+           $scriptRootPath\SQL-2012\StoredProcs\cstore_SuggestedTables.sql | `
+    Set-Content $scriptRootPath\SQL-2012\StoredProcs\cstore_install_all_stored_procs.sql
 
 
 ###############################################################################
 # SQL Server 2014
-Get-Content SQL-2014\StoredProcs\cstore_GetAlignment.sql, SQL-2014\StoredProcs\cstore_GetDictionaries.sql, `
-            SQL-2014\StoredProcs\cstore_GetFragmentation.sql, SQL-2014\StoredProcs\cstore_GetMemory.sql, `
-            SQL-2014\StoredProcs\cstore_GetRowGroups.sql, SQL-2014\StoredProcs\cstore_GetRowGroupsDetails.sql, `
-            SQL-2014\StoredProcs\cstore_GetSQLInfo.sql, SQL-2014\StoredProcs\cstore_SuggestedTables.sql, `
-            SQL-2014\StoredProcs\cstore_doMaintenance.sql |
-    Set-Content SQL-2014\StoredProcs\cstore_install_all_stored_procs.sql
+Get-Content $scriptRootPath\SQL-2014\StoredProcs\cstore_GetAlignment.sql, $scriptRootPath\SQL-2014\StoredProcs\cstore_GetDictionaries.sql, `
+            $scriptRootPath\SQL-2014\StoredProcs\cstore_GetFragmentation.sql, $scriptRootPath\SQL-2014\StoredProcs\cstore_GetMemory.sql, `
+            $scriptRootPath\SQL-2014\StoredProcs\cstore_GetRowGroups.sql, $scriptRootPath\SQL-2014\StoredProcs\cstore_GetRowGroupsDetails.sql, `
+            $scriptRootPath\SQL-2014\StoredProcs\cstore_GetSQLInfo.sql, $scriptRootPath\SQL-2014\StoredProcs\cstore_SuggestedTables.sql, `
+            $scriptRootPath\SQL-2014\StoredProcs\cstore_doMaintenance.sql |
+    Set-Content $scriptRootPath\SQL-2014\StoredProcs\cstore_install_all_stored_procs.sql
 
 # Unit Tests for SQL Server 2014
-Get-Content Tests\SQL-2014\*.sql | Set-Content Tests\sql-2014-tests.sql
+Get-Content $scriptRootPath\Tests\SQL-2014\*.sql | Set-Content $scriptRootPath\Tests\sql-2014-tests.sql
 
 ###############################################################################
 # SQL Server 2016
-Get-Content SQL-2016\StoredProcs\cstore_GetAlignment.sql, SQL-2016\StoredProcs\cstore_GetDictionaries.sql, `
-            SQL-2016\StoredProcs\cstore_GetFragmentation.sql, SQL-2016\StoredProcs\cstore_GetMemory.sql, `
-            SQL-2016\StoredProcs\cstore_GetRowGroups.sql, SQL-2016\StoredProcs\cstore_GetRowGroupsDetails.sql, `
-            SQL-2016\StoredProcs\cstore_GetSQLInfo.sql, SQL-2016\StoredProcs\cstore_SuggestedTables.sql, `
-            SQL-2016\StoredProcs\cstore_doMaintenance.sql |
-    Set-Content SQL-2016\StoredProcs\cstore_install_all_stored_procs.sql
+Get-Content $scriptRootPath\SQL-2016\StoredProcs\cstore_GetAlignment.sql, $scriptRootPath\SQL-2016\StoredProcs\cstore_GetDictionaries.sql, `
+            $scriptRootPath\SQL-2016\StoredProcs\cstore_GetFragmentation.sql, $scriptRootPath\SQL-2016\StoredProcs\cstore_GetMemory.sql, `
+            $scriptRootPath\SQL-2016\StoredProcs\cstore_GetRowGroups.sql, $scriptRootPath\SQL-2016\StoredProcs\cstore_GetRowGroupsDetails.sql, `
+            $scriptRootPath\SQL-2016\StoredProcs\cstore_GetSQLInfo.sql, $scriptRootPath\SQL-2016\StoredProcs\cstore_SuggestedTables.sql, `
+            $scriptRootPath\SQL-2016\StoredProcs\cstore_doMaintenance.sql |
+    Set-Content $scriptRootPath\SQL-2016\StoredProcs\cstore_install_all_stored_procs.sql
 
 ###############################################################################
 # Azure SQL Database
-Get-Content Azure\StoredProcs\cstore_GetAlignment.sql, Azure\StoredProcs\cstore_GetDictionaries.sql, `
-            Azure\StoredProcs\cstore_GetFragmentation.sql,  `
-            Azure\StoredProcs\cstore_GetRowGroups.sql, Azure\StoredProcs\cstore_GetRowGroupsDetails.sql, `
-            Azure\StoredProcs\cstore_SuggestedTables.sql, `
-            Azure\StoredProcs\cstore_doMaintenance.sql |
-    Set-Content Azure\StoredProcs\cstore_install_all_stored_procs.sql
+Get-Content $scriptRootPath\Azure\StoredProcs\cstore_GetAlignment.sql, $scriptRootPath\Azure\StoredProcs\cstore_GetDictionaries.sql, `
+            $scriptRootPath\Azure\StoredProcs\cstore_GetFragmentation.sql,  `
+            $scriptRootPath\Azure\StoredProcs\cstore_GetRowGroups.sql, $scriptRootPath\Azure\StoredProcs\cstore_GetRowGroupsDetails.sql, `
+            $scriptRootPath\Azure\StoredProcs\cstore_SuggestedTables.sql, `
+            $scriptRootPath\Azure\StoredProcs\cstore_doMaintenance.sql |
+    Set-Content $scriptRootPath\Azure\StoredProcs\cstore_install_all_stored_procs.sql
  
