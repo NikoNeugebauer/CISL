@@ -51,7 +51,7 @@ Changes in 1.3.0
 	+ Added Information about SQL Server 2014 SP2
 
 Changes in 1.3.1
-	+ Added Information about updated CU 8 for SQL Server 2014 SP1
+	+ Added Information about updated CU 8 for SQL Server 2014 SP1 & CU 1 for SQL Server 2014 SP2
 */
 
 -- Params --
@@ -138,7 +138,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP1', 4457, convert(datetime,'31-05-2016',105), 'CU 6A for SQL Server 2014 SP1' ),
 	( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' ),
 	( 'SP1', 4468, convert(datetime,'15-08-2016',105), 'CU 8 for SQL Server 2014 SP1' ),
-	( 'SP1', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' );
+	( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
+	( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' );
 
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
