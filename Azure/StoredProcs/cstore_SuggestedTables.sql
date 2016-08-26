@@ -45,6 +45,9 @@ Changes in 1.3.0
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
 	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -238,7 +241,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -359,7 +362,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, obj.object_id, obj.name, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from tempdb.sys.columns as col

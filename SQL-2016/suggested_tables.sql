@@ -41,13 +41,17 @@ Changes in 1.3.0
 	+ Added support for InMemory Tables
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
 */
 
 -- Params --
 declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
-		@tableName nvarchar(256) = null,							-- Allows to show data filtered down to the specified table name pattern
+		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
 		@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
@@ -230,7 +234,7 @@ select t.object_id as [ObjectId]
 			  )
 			 or @showReadyTablesOnly = 0)
 	group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-	having sum(p.rows) > @minRowsToConsider 
+	having sum(p.rows) >= @minRowsToConsider 
 			and
 			(((select sum(col.max_length) 
 				from sys.columns as col
@@ -333,7 +337,13 @@ select t.object_id as [ObjectId]
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
-		 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+		 		and ind.data_space_id = case isnull(@indexLocation,'Null') 
+														when 'In-Memory' then 0
+														when 'Disk-Based' then 1 
+														when 'Null' then ind.data_space_id
+														else 255 
+										end
+					--case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -349,7 +359,7 @@ select t.object_id as [ObjectId]
 			  )
 			 or @showReadyTablesOnly = 0)
 	group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-	having sum(p.rows) > @minRowsToConsider 
+	having sum(p.rows) >= @minRowsToConsider 
 			and
 			(((select sum(col.max_length) 
 				from sys.columns as col

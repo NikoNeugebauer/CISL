@@ -43,6 +43,10 @@ Changes in 1.3.0
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
 	+ Added new parameter for controlling the needed statistics update for Memory Optimised tables - @updateMemoryOptimisedStats with default value set on false
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now it will return none
 */
 
 -- Params --
@@ -220,7 +224,11 @@ select t.object_id as [ObjectId]
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
-		 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
+		 and t.is_memory_optimized = case isnull(@indexLocation,'Null') 
+												when 'In-Memory' then 1 
+												when 'Disk-Based' then 0 
+												when 'Null' then t.is_memory_optimized
+										else 255 end
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -250,7 +258,7 @@ select t.object_id as [ObjectId]
 			 or @showReadyTablesOnly = 0)
 	group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
 	having 
-			(sum(p.rows) > @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
+			(sum(p.rows) >= @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
 			and
 			(((select sum(col.max_length) 
 				from sys.columns as col
@@ -351,7 +359,11 @@ select t.object_id as [ObjectId]
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 		 and (@tableName is null or object_name( t.object_id, db_id('tempdb') ) like '%' + @tableName + '%')
 		 and (@schemaName is null or object_schema_name( t.object_id, db_id('tempdb') ) = @schemaName)
-		 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
+		 and t.is_memory_optimized = case isnull(@indexLocation,'Null') 
+												when 'In-Memory' then 1 
+												when 'Disk-Based' then 0 
+												when 'Null' then t.is_memory_optimized
+										else 255 end
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -380,7 +392,7 @@ select t.object_id as [ObjectId]
 			  )
 			 or @showReadyTablesOnly = 0)
 	group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-	having sum(p.rows) > @minRowsToConsider 
+	having sum(p.rows) >= @minRowsToConsider 
 			and
 			(((select sum(col.max_length) 
 				from tempdb.sys.columns as col

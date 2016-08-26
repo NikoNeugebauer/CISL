@@ -45,6 +45,10 @@ Changes in 1.3.0
 	+ Added support for InMemory Tables
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -244,7 +248,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -347,8 +351,13 @@ begin
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
-		 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-
+		 			--and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+		 	 and ind.data_space_id = case isnull(@indexLocation,'Null') 
+													when 'In-Memory' then 0
+													when 'Disk-Based' then 1 
+													when 'Null' then ind.data_space_id
+													else 255 
+									end
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
@@ -364,7 +373,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col

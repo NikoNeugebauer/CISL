@@ -44,6 +44,9 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added information about the converted table location (Disk-Based)
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -240,7 +243,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, t.is_tracked_by_cdc, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -368,7 +371,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, t.is_tracked_by_cdc, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from tempdb.sys.columns as col
