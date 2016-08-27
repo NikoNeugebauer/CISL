@@ -47,6 +47,8 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a cast bug, that would filter out some of the indexes, based on the casting of the hidden numbers (3rd number behind the comma)
+	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server version 'Disk-Based'.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -83,6 +85,7 @@ alter procedure dbo.cstore_SuggestedTables(
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+		@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
 		@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
@@ -254,7 +257,12 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
+				and 0 = case isnull(@indexLocation,'Null') 
+								when 'In-Memory' then 1 
+								when 'Disk-Based' then 0 
+								when 'Null' then 0
+						else 255 end
 	union all
 	select t.object_id as [ObjectId]
 		, 'Disk-Based'
@@ -382,7 +390,12 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
+				and 0 = case isnull(@indexLocation,'Null') 
+									when 'In-Memory' then 1 
+									when 'Disk-Based' then 0 
+									when 'Null' then 0
+							else 255 end
 
 
 	-- Show the found results
