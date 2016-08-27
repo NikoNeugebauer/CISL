@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -42,6 +42,9 @@ Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based, InMemory)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed bug with non-functioning @objectId parameter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -69,7 +72,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -152,7 +155,7 @@ begin
 				case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 				quotename(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + quotename(object_name(part.object_id,db_id('tempdb'))) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
-				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
+				seg.partition_id, seg.column_id, cols.name COLLATE DATABASE_DEFAULT as ColumnName, tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 				seg.segment_id, 
 				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
 			from tempdb.sys.column_store_segments seg
@@ -205,9 +208,9 @@ begin
 		count(*) as [Total Segments],
 		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
 		from cteSegmentAlignment cte
-		where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
+		where ((@showUnsupportedSegments = 0 and cte.ColumnType COLLATE DATABASE_DEFAULT not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier') ) 
 			  OR @showUnsupportedSegments = 1)
-			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
+			  and cte.ColumnName COLLATE DATABASE_DEFAULT = isnull(@columnName,cte.ColumnName COLLATE DATABASE_DEFAULT)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
 		group by TableName, Location, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
@@ -219,9 +222,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -263,6 +266,9 @@ Changes in 1.3.0
 	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
 	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
 	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -292,7 +298,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -373,12 +379,12 @@ begin
 
 	if @showDetails = 1
 	select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
-			ind.name as 'IndexName', 
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName', 
 			part.partition_number as 'Partition',
-			cols.name as ColumnName, 
+			cols.name COLLATE DATABASE_DEFAULT as ColumnName, 
 			dict.column_id as ColumnId,
 			dict.dictionary_id as 'DictionaryId',
-			tp.name as ColumnType,
+			tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 			part.rows as 'Rows Serving', 
 			entry_count as 'Entry Count', 
@@ -469,9 +475,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -508,6 +514,11 @@ Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based, InMemory)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed a bug for the trimmed row groups with just 1 row giving wrong information about a potential optimizable row group
+
+Changes in 1.3.1
+	- Fixed wrong behaviour for the @tableName parameter
+	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -538,7 +549,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -575,14 +586,14 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(@objectId,rg.object_id)
-			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
 	SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as 'TableName',
-			ind.name as 'IndexName',
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName',
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', --p.partition_number as 'Partition',
@@ -606,7 +617,8 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2016)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
 		group by p.object_id, obj.object_id, obj.name, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 		order by TableName;
@@ -617,7 +629,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -671,7 +683,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -781,9 +793,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -850,7 +862,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -1002,9 +1014,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1033,6 +1045,9 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added support for the SQL Server 2016 internals information on Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
 	+ Added 7 new parameters for filtering out the Index Location (In-Memory or Disk-Based), Index Type (CC or NC), Row Group Trimming, Build Process Identification, Vertipaq Optimisations, Min & Max Creation DateTimes
+
+Changes in 1.3.1
+	- Fixed missing ORDER BY clause which was ordering the Row Groups by the object, partition and the row group number
 */
 
 
@@ -1062,7 +1077,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1160,15 +1175,16 @@ BEGIN
 			and isnull(rg.trim_reason,255) = coalesce(@trimReason, rg.trim_reason,255)
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
+	order by [Table Name], rg.partition_number, rg.row_group_id
 END
 
 GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1203,6 +1219,11 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added information on RTM
+
+Changes in 1.3.1
+	+ Added information on CU 1 for SQL Server 2016 RTM
+	+ Added information on the new trace flags 9347, 9349, 9358, 9389 & 10204
+	+ Added information on the trace flag 4199 which affects batch mode sort operations in a complex parallel query 
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1232,7 +1253,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1289,7 +1310,21 @@ begin
 		( 'RC1', 1200, convert(datetime,'16-03-2016',105), 'RC 1 for SQL Server 2016' ),
 		( 'RC2', 1300, convert(datetime,'01-04-2016',105), 'RC 2 for SQL Server 2016' ),
 		( 'RC3', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' ),
-		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' );
+		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
+		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ) ;
+
+	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
+		values 
+		( 2149, 'RTM', 'FIX: All data goes to deltastores when you bulk load data into a clustered columnstore index under memory pressure', 'https://support.microsoft.com/en-nz/kb/3174073' ),
+		( 2149, 'RTM', 'FIX: Online index operations block DML operations when the database contains a clustered columnstore index', 'https://support.microsoft.com/en-nz/kb/3172960' ),
+		( 2149, 'RTM', 'FIX: Error 8624 occurs when you run a query against a nonclustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171544' ),
+		( 2149, 'RTM', 'Behavior changes when you add uniqueidentifier columns in a clustered Columnstore Index in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3173436' ),
+		( 2149, 'RTM', 'FIX: Incorrect number of rows in sys.partitions for a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172974' ),
+		( 2149, 'RTM', 'FIX: Error 5283 when you run DBCC CHECKDB on a database that contains non-clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3174088' ),
+		( 2149, 'RTM', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-nz/kb/3146123' ),
+		( 2149, 'RTM', 'A query that accesses data in a columnstore index causes the Database Engine to receive a floating point exception in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171759' ),
+		( 2149, 'RTM', 'Adds trace flag 9358 to disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555' ),
+		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' );
 
 	if @identifyCurrentVersion = 1
 	begin
@@ -1357,6 +1392,8 @@ begin
 
 	--------------------------------------------------------------------------------------------------------------------
 	-- Trace Flags part
+	drop table if exists #ActiveTraceFlags;
+
 	create table #ActiveTraceFlags(	
 		TraceFlag nvarchar(20) not null,
 		Status bit not null,
@@ -1365,6 +1402,8 @@ begin
 
 	insert into #ActiveTraceFlags
 		exec sp_executesql N'DBCC TRACESTATUS()';
+
+	drop table if exists #ColumnstoreTraceFlags;
 
 	create table #ColumnstoreTraceFlags(
 		TraceFlag int not null,
@@ -1378,7 +1417,13 @@ begin
 		(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
+		( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+		( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
+		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
+		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+		( 9389, 'Enables dynamic memory grant for batch mode operators', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
+		(10204, 'Disables merge/recompress during columnstore index reorganization.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(10207, 'Skips Corrupted Columnstore Segments (Fixed in CU8 for SQL Server 2014 RTM and CU1 for SQL Server 2014 SP1)', 'https://support.microsoft.com/en-us/kb/3067257', 1 );
 
 	select tf.TraceFlag, isnull(conf.Description,'Unrecognized') as Description, isnull(conf.URL,'-') as URL, SupportedStatus
@@ -1397,9 +1442,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1441,6 +1486,10 @@ Changes in 1.3.0
 	+ Added support for InMemory Tables
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1468,7 +1517,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1640,7 +1689,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -1743,8 +1792,13 @@ begin
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
-		 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-
+		 			--and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+		 	 and ind.data_space_id = case isnull(@indexLocation,'Null') 
+													when 'In-Memory' then 0
+													when 'Disk-Based' then 1 
+													when 'Null' then ind.data_space_id
+													else 255 
+									end
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
@@ -1760,7 +1814,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -1917,9 +1971,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1939,6 +1993,8 @@ Known Limitations:
 	- Segment Clustering is supported only for the Disk-Based Clustered Columnstore Indexes. 
 	- Segment Clustering is not supported on the partition level
 
+Changes in 1.3.1
+	+ Added awareness for the 10204 Trace Flag, which disables Merge/Recompress processes
 */
 
 declare @createLogTables bit = 1;
@@ -2096,8 +2152,7 @@ begin
 			from #ColumnstoreIndexes ci
 			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
-
-
+GO
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -2107,7 +2162,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -2199,7 +2254,7 @@ begin
 	end
 
 	-- ***********************************************************
-	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
+	-- Engine Recommendations
 	if( @useRecommendations = 1 )
 	begin
 		create table #ActiveTraceFlags(	
@@ -2218,8 +2273,14 @@ begin
 			SupportedStatus bit not null 
 		);
 
+		-- Enable Reorganize automatically if the Trace Flag 634 is enabled
 		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '634') )
 			select @executeReorganize = 1, @closeOpenDeltaStores = 1;
+
+		-- TF 10204: Disables merge/recompress during columnstore index reorganization.
+		-- In this case there is no reason to Reorganize the Index.
+		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '10204') )
+			select @executeReorganize = 0, @closeOpenDeltaStores = 0, @execute = 1;
 	end
 
 

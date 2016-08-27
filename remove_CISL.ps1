@@ -18,7 +18,7 @@
 
 function Remove-CISL(
     [parameter(Mandatory=$true)]
-    [String]$SQLServerInstance = ".\SQL14",
+    [String]$SQLInstance = ".\SQL14",
  
     [parameter(Mandatory=$false)] # Credentials to be used when connecting to SQL Server
     [pscredential]$cred,
@@ -45,11 +45,11 @@ function Remove-CISL(
 
     try{
         $SQLDB = "master";     # Use MASTER DB by default
-        $Server = New-Object ('Microsoft.SQLServer.Management.Smo.Server') $SQLServerInstance 
+        $Server = New-Object ('Microsoft.SQLServer.Management.Smo.Server') $SQLInstance 
     }
     catch [Exception]
     {
-        Write-Host "Failed to connect to the SQL Server Instance '$($SQLServerInstance)'" -ForegroundColor Red;
+        Write-Host "Failed to connect to the SQL Server Instance '$($SQLInstance)'" -ForegroundColor Red;
         Write-Host $_.Exception.ToString()
         return;
     }
@@ -60,12 +60,12 @@ function Remove-CISL(
         $server.ConnectionContext.set_SecurePassword($cred.Password)
 
         try { $server.ConnectionContext.Connect() } 
-        catch { throw "Can't connect to $($SQLServerInstance) or access denied. Quitting." }
+        catch { throw "Can't connect to $($SQLInstance) or access denied. Quitting." }
     }
 
     # Verify if the connection was succesfull
     if( !$Server ){
-        Write-Host "Failed to connect to the SQL Server Instance '$($SQLServerInstance)'" -ForegroundColor Red;
+        Write-Host "Failed to connect to the SQL Server Instance '$($SQLInstance)'" -ForegroundColor Red;
         return;
     }
 
@@ -96,7 +96,7 @@ function Remove-CISL(
     }
 
     # Write the SQL Server Version Identifier
-    Write-Host "Using SQL Server $($sqlVersion): `nRemoving CISL on the user databases of the instance '$SQLServerInstance':`n" -ForegroundColor Yellow;
+    Write-Host "Using SQL Server $($sqlVersion): `nRemoving CISL on the user databases of the instance '$SQLInstance':`n" -ForegroundColor Yellow;
 
     # Get SMO Databases Object 
     $dbArray = $Server.Databases; #[$SQLDB] 
@@ -164,11 +164,11 @@ function Remove-CISL(
                 try{
                     if ( !$cred ){ `
                         Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_cleanup.sql" `
-                                    -ServerInstance $SQLServerInstance -Database $db.Name -Verbose 
+                                    -ServerInstance $SQLInstance -Database $db.Name -Verbose 
                     }
                     else{
                         Invoke-Sqlcmd -InputFile "$($PSScriptRoot)\$($SQLPath)\StoredProcs\cstore_cleanup.sql" `
-                                    -ServerInstance "$($SQLServerInstance)" -Database $db.Name -Username $cred.UserName -Password $cred.GetNetworkCredential().password
+                                    -ServerInstance "$($SQLInstance)" -Database $db.Name -Username $cred.UserName -Password $cred.GetNetworkCredential().password
                     }
                 
                     Write-Host "... Success!" -ForegroundColor Green

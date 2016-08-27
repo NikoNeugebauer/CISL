@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -40,6 +40,9 @@ Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based, InMemory)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed bug with non-functioning @objectId parameter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -67,7 +70,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -146,7 +149,7 @@ begin
 		select  part.object_id,  
 				quotename(object_schema_name(part.object_id,db_id('tempdb'))) + '.' + quotename(object_name(part.object_id,db_id('tempdb'))) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
-				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
+				seg.partition_id, seg.column_id, cols.name COLLATE DATABASE_DEFAULT as ColumnName, tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 				seg.segment_id, 
 				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
 			from tempdb.sys.column_store_segments seg
@@ -197,9 +200,9 @@ begin
 		count(*) as [Total Segments],
 		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
 		from cteSegmentAlignment cte
-		where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
+		where ((@showUnsupportedSegments = 0 and cte.ColumnType COLLATE DATABASE_DEFAULT not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier') ) 
 			  OR @showUnsupportedSegments = 1)
-			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
+			  and cte.ColumnName COLLATE DATABASE_DEFAULT = isnull(@columnName,cte.ColumnName COLLATE DATABASE_DEFAULT)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
 		group by TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
@@ -209,9 +212,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -253,6 +256,9 @@ Changes in 1.3.0
 	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
 	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
 	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -282,7 +288,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -358,12 +364,12 @@ begin
 
 	if @showDetails = 1
 	SELECT QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_name(part.object_id)) as 'TableName',
-			ind.name as 'IndexName', 
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName', 
 			part.partition_number as 'Partition',
-			cols.name as ColumnName, 
+			cols.name COLLATE DATABASE_DEFAULT as ColumnName, 
 			dict.column_id as ColumnId,
 			dict.dictionary_id as 'SegmentId',
-			tp.name as ColumnType,
+			tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 			dict.column_id as 'ColumnId', 
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 			part.rows as 'Rows Serving', 
@@ -458,9 +464,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -496,6 +502,11 @@ Changes in 1.3.0
 	+ Added support for the Index Location (Disk-Based)
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed a bug for the trimmed row groups with just 1 row giving wrong information about a potential optimizable row group
+
+Changes in 1.3.1
+	- Fixed wrong behaviour for the @tableName parameter
+	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -526,7 +537,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -563,13 +574,14 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			and rg.object_id = isnull(@objectId,rg.object_id) 
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
 	SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as 'TableName',
-			ind.name as 'IndexName',
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName',
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',					
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', --p.partition_number as 'Partition',
@@ -593,7 +605,8 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		group by p.object_id, ind.data_space_id, obj.object_id, obj.name, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
@@ -604,7 +617,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -657,7 +670,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -768,9 +781,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -834,7 +847,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -933,9 +946,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -996,7 +1009,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1083,9 +1096,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1134,6 +1147,9 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added Information about updated CU 6A, CU 7 for SQL Server 2014 SP1 & CU 14 for SQL Server 2014 RTM
 	+ Added Information about SQL Server 2014 SP2
+
+Changes in 1.3.1
+	+ Added Information about updated CU 8 for SQL Server 2014 SP1 & CU 1 for SQL Server 2014 SP2
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1163,7 +1179,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1231,7 +1247,9 @@ begin
 		( 'SP1', 4449, convert(datetime,'19-04-2016',105), 'CU 6 for SQL Server 2014 SP1' ),
 		( 'SP1', 4457, convert(datetime,'31-05-2016',105), 'CU 6A for SQL Server 2014 SP1' ),
 		( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' ),
-		( 'SP1', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' );
+		( 'SP1', 4468, convert(datetime,'15-08-2016',105), 'CU 8 for SQL Server 2014 SP1' ),
+		( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
+		( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1386,9 +1404,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1431,6 +1449,10 @@ Changes in 1.3.0
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
 	+ Added new parameter for controlling the needed statistics update for Memory Optimised tables - @updateMemoryOptimisedStats with default value set on false
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
+	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1458,7 +1480,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1617,7 +1639,11 @@ begin
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
-			 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
+			 and t.is_memory_optimized = case isnull(@indexLocation,'Null') 
+														when 'In-Memory' then 1 
+														when 'Disk-Based' then 0 
+														when 'Null' then t.is_memory_optimized
+											   else 255 end
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
@@ -1646,7 +1672,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having (sum(p.rows) > @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
+		having (sum(p.rows) >= @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -1747,7 +1773,11 @@ begin
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
 			 and (@tableName is null or object_name( t.object_id, db_id('tempdb') ) like '%' + @tableName + '%')
 			 and (@schemaName is null or object_schema_name( t.object_id, db_id('tempdb') ) = @schemaName)
-			 and t.is_memory_optimized = case @indexLocation when 'In-Memory' then 1 when 'Disk-Based' then 0 else t.is_memory_optimized end
+			and t.is_memory_optimized = case isnull(@indexLocation,'Null') 
+												when 'In-Memory' then 1 
+												when 'Disk-Based' then 0 
+												when 'Null' then t.is_memory_optimized
+										else 255 end
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
@@ -1776,7 +1806,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from tempdb.sys.columns as col
@@ -1826,7 +1856,7 @@ begin
 					on temp.ObjectId = xtpMem.object_id
 			  where ind.index_id = 2 and temp.TableLocation = 'In-Memory';
 	end 
-
+		
 	delete from #TablesToColumnstore
 		where [Size in GB] < @minSizeToConsiderInGB
 			or [Row Count] < @minRowsToConsider;
@@ -1954,9 +1984,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2132,7 +2162,7 @@ begin
 			from #ColumnstoreIndexes ci
 			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
-
+GO
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -2142,7 +2172,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --

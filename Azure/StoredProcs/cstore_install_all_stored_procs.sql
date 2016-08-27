@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -164,7 +164,7 @@ begin
 				case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 				quotename(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + quotename(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as TableName,
 				case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
-				seg.partition_id, seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
+				seg.partition_id, seg.column_id, cols.name COLLATE DATABASE_DEFAULT as ColumnName, tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 				seg.segment_id, 
 				CONVERT(BIT, MAX(CASE WHEN filteredSeg.segment_id IS NOT NULL THEN 1 ELSE 0 END)) AS hasOverlappingSegment
 			from tempdb.sys.column_store_segments seg
@@ -221,9 +221,9 @@ begin
 		count(*) as [Total Segments],
 		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
 		from cteSegmentAlignment cte
-		where ((@showUnsupportedSegments = 0 and cte.ColumnType not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier'))
+		where ((@showUnsupportedSegments = 0 and cte.ColumnType COLLATE DATABASE_DEFAULT not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier') ) 
 			  OR @showUnsupportedSegments = 1)
-			  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
+			  and cte.ColumnName COLLATE DATABASE_DEFAULT = isnull(@columnName,cte.ColumnName COLLATE DATABASE_DEFAULT)
 			  and cte.column_id = isnull(@columnId,cte.column_id)
 		group by Location, TableName, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
@@ -235,9 +235,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -279,6 +279,10 @@ Changes in 1.3.0
 	* Changed the title of the return information for the column from the SegmentId to the DictionaryId
 	+ Added information on the Index Location (In-Memory or Disk-Based) and the respective filter
 	+ Added information on the type of the Index (Clustered or Nonclustered) and the respective filter
+
+Changes in 1.3.1
+	- Added support for Databases with collations different to TempDB
+
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -302,7 +306,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -432,12 +436,12 @@ begin
 	union all
 	select QuoteName(isnull(object_schema_name(part.object_id,db_id('tempdb')),'dbo')) + '.' + 
 		QuoteName(isnull(object_name(part.object_id,db_id('tempdb')),obj.name)) as 'TableName',
-			ind.name as 'IndexName', 
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName', 
 			part.partition_number as 'Partition',
-			cols.name as ColumnName, 
+			cols.name COLLATE DATABASE_DEFAULT as ColumnName, 
 			dict.column_id as ColumnId,
 			dict.dictionary_id as 'SegmentId',
-			tp.name as ColumnType,
+			tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
 			part.rows as 'Rows Serving', 
 			entry_count as 'Entry Count', 
@@ -487,9 +491,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -527,6 +531,11 @@ Changes in 1.3.0
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
 	- Fixed a bug for the trimmed row groups with just 1 row giving wrong information about a potential optimizable row group
+
+Changes in 1.3.1
+	- Fixed wrong behaviour for the @tableName parameter
+	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
+	- Added support for Databases with collations different to TempDB
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -551,7 +560,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -588,13 +597,13 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(@objectId,rg.object_id)
-			and rg.object_id = isnull(object_id(@tableName),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
 		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
 	SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name) as 'TableName',
-			ind.name as 'IndexName',
+			ind.name COLLATE DATABASE_DEFAULT as 'IndexName',
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			replace(ind.type_desc,' COLUMNSTORE','') as 'IndexType',
 			case @showPartitionStats when 1 then p.partition_number else 1 end as 'Partition', 
@@ -618,8 +627,8 @@ begin
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
 			and p.index_id in (1,2)
-			and rg.object_id = isnull(@objectId,rg.object_id)
-			and rg.object_id = isnull(object_id(@tableName,db_id('tempdb')),rg.object_id)
+			and p.data_compression in (3,4)
+			and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')			
 			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
 		group by p.object_id, obj.object_id, obj.name, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 		order by TableName;	
@@ -631,9 +640,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -692,7 +701,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -844,9 +853,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -899,7 +908,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1006,9 +1015,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1050,6 +1059,9 @@ Changes in 1.3.0
 	+ Added information about the converted table location (In-Memory or Disk-Based)
 	+ Added new parameter for filtering the table location - @indexLocation with possible values (In-Memory or Disk-Based)
 	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
+
+Changes in 1.3.1
+	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1071,7 +1083,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1243,7 +1255,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from sys.columns as col
@@ -1364,7 +1376,7 @@ begin
 				  )
 				 or @showReadyTablesOnly = 0)
 		group by t.object_id, obj.object_id, obj.name, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
-		having sum(p.rows) > @minRowsToConsider 
+		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
 					from tempdb.sys.columns as col
@@ -1519,9 +1531,9 @@ end
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1691,7 +1703,7 @@ begin
 			from #ColumnstoreIndexes ci
 			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
-
+GO
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -1701,7 +1713,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.0, July 2016
+	Version: 1.3.1, August 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -1766,7 +1778,7 @@ begin
 		set @loggingTableExists = 1;
 
 	-- ***********************************************************
-	-- Enable Reorganize automatically if the Trace Flag 634 is enabled
+	-- Enable Reorganize automatically if the Trace Flag 634 or 10204 is enabled
 	if( @useRecommendations = 1 )
 	begin
 		create table #ActiveTraceFlags(	
@@ -1787,6 +1799,11 @@ begin
 
 		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '634') )
 			select @executeReorganize = 1, @closeOpenDeltaStores = 1;
+
+		-- TF 10204: Disables merge/recompress during columnstore index reorganization.
+		-- In this case there is no reason to Reorganize the Index.
+		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '10204') )
+			select @executeReorganize = 0, @closeOpenDeltaStores = 0, @execute = 1; 
 	end
 
 
