@@ -179,7 +179,7 @@ begin
 			from #ColumnstoreIndexes ci
 			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
-
+GO
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )

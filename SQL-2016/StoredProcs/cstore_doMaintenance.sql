@@ -182,8 +182,7 @@ begin
 			from #ColumnstoreIndexes ci
 			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
 end
-
-
+GO
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -311,7 +310,7 @@ begin
 		-- TF 10204: Disables merge/recompress during columnstore index reorganization.
 		-- In this case there is no reason to Reorganize the Index.
 		if( exists (select TraceFlag from #ActiveTraceFlags where TraceFlag = '10204') )
-			select @executeReorganize = 0, @closeOpenDeltaStores = 0;
+			select @executeReorganize = 0, @closeOpenDeltaStores = 0, @execute = 1;
 	end
 
 
