@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - creates new tsqlt test classes for the CISL
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -44,9 +44,9 @@ EXEC tSQLt.NewTestClass 'Cleanup';
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - creates test tables
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -193,12 +193,40 @@ alter table dbo.OneDeletedRowGroupCCI
 	rebuild;
 
 delete from dbo.OneDeletedRowGroupCCI
-	where c1 = 1;/*
+	where c1 = 1;
+
+-- **************************************************************************************
+-- Suggested Tables scenario Test 1: 500.000 rows in a simple table with 1 integer column
+
+if EXISTS (select * from sys.objects where type = 'u' and name = 'SuggestedTables_Test1' and schema_id = SCHEMA_ID('dbo') )
+	drop table dbo.SuggestedTables_Test1;
+
+create table dbo.SuggestedTables_Test1(
+	c1 int identity(1,1) not null
+) WITH (DATA_COMPRESSION = PAGE);
+
+set nocount on;
+declare @i as int;
+declare @max as int;
+select @max = isnull(max(C1),0) from dbo.SuggestedTables_Test1;
+set @i = 1;
+
+begin tran
+while @i <= 500000
+begin
+	insert into dbo.SuggestedTables_Test1
+		default values
+
+	set @i+=1;
+end;
+commit;
+
+/*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -281,9 +309,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with an empty delta-store at the columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -334,9 +362,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -400,9 +428,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -463,9 +491,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -524,9 +552,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -591,9 +619,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -647,9 +675,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -714,9 +742,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -770,9 +798,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -826,9 +854,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -915,9 +943,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1004,9 +1032,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetFragmentation is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1085,9 +1113,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1150,9 +1178,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1212,12 +1240,101 @@ BEGIN
 END
 
 GO
+exec dbo.cstore_SuggestedTables @minRowsToConsider = 499999, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @minRowsToConsider = 500000, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @minRowsToConsider = 500001, @tableName = 'SuggestedTables_Test1'
+
+--------
+exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.005, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.006, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.007, @tableName = 'SuggestedTables_Test1'
+
+--------
+exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @schemaName = 'dbo', @tableName = 'SuggestedTables_Test1'
+
+--------
+exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Based', @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Base', @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @indexLocation = 'In-Memory', @tableName = 'SuggestedTables_Test1'
+--------
+exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 1, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 0, @tableName = 'SuggestedTables_Test1'
+
+--------
+exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 1, @tableName = 'SuggestedTables_Test1'
+
+exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 0, @tableName = 'SuggestedTables_Test1'
+
+
+
+-- showUnsupportedColumnsDetails
+-- columnstoreIndexTypeForTSQL
+-- updateMemoryOptimisedStats
+
+
+-- Min Rows
+-- Min Size in GB
+-- Schema Name
+-- Table Name
+-- Index Location 
+-- considerColumnsOver8K
+-- showReadyTablesOnly
+-- showUnsupportedColumnsDetails
+-- columnstoreIndexTypeForTSQL
+-- updateMemoryOptimisedStats
+
+-- Row Count
+-- Min RowGroups
+-- Cols Count
+-- Sum Length
+-- Unsupported
+-- LOBs
+-- Computed
+-- Clustered Index
+-- Nonclustered Index
+-- XML Indexes
+-- Spatial Indexes
+-- Primary Key
+-- Foreign Keys
+-- Unique Constraints
+-- Triggers
+-- RCSI
+-- Snapshot
+-- CDC
+-- CT
+-- InMemoryOLTP
+-- Replication
+-- FileStream
+-- FileTable
+
+
+
+	--@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
+	--@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
+	--@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
+	--@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+	--@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
+	--@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
+	--@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
+	--@showUnsupportedColumnsDetails bit = 0,						-- Shows a list of all Unsupported from the listed tables
+	--@showTSQLCommandsBeta bit = 0,								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
+	--@columnstoreIndexTypeForTSQL varchar(20) = 'Clustered',		-- Allows to define the type of Columnstore Index to be created eith possible values of 'Clustered' and 'Nonclustered'
+	--@updateMemoryOptimisedStats bit = 0							-- Allows statistics update on the InMemory tables, since they are stalled within SQL Server 2014
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the columnstore table containing 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1277,6 +1394,11 @@ BEGIN
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowCCI';
 
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
 	TRUNCATE TABLE #ActualRowGroups;
@@ -1290,6 +1412,11 @@ BEGIN
 
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowNCI_Heap';
+
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
 
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
@@ -1306,6 +1433,11 @@ BEGIN
 	insert into #ActualRowGroups
 		exec dbo.cstore_GetRowGroups @tableName = 'OneRowNCI_Clustered';
 
+	update #ExpectedRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+	update #ActualRowGroups
+		set Scans = NULL, Updates = NULL, LastScan = NULL;
+
 	exec tSQLt.AssertEqualsTable '#ExpectedRowGroups', '#ActualRowGroups';
 	TRUNCATE TABLE #ExpectedRowGroups;
 	TRUNCATE TABLE #ActualRowGroups;
@@ -1315,9 +1447,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1389,9 +1521,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1484,9 +1616,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1556,9 +1688,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1630,9 +1762,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1747,9 +1879,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with an empty delta-store at the columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1821,9 +1953,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with an empty columnstore table 
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1895,9 +2027,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1970,9 +2102,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.3.1, July 2016
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2089,10 +2221,848 @@ END
 GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
-	Columnstore Tests - Executes all configured tests
-	Version: 1.3.0, July 2016
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
 
-	Copyright 2015 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- Insert expected result for 499999 rows
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 499999, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 500000 rows
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 500000, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 500001 rows - the results should be empty :) 
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 500001, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.005 GB
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.005, @tableName = 'SuggestedTables_Test1';
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.006 GB
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.006, @tableName = 'SuggestedTables_Test1';
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.007 GB - the results should be empty
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.007, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'DB' Schema - the results should be empty
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'DBO' Schema
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbo', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Based', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Base' Index Location (Wrong Name)
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Base', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'In-Memory' Index Location (Wrong Location)
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'In-Memory', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 1, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 0, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 1, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 0, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_considerColumnsOver8K' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_considerColumnsOver8K] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_considerColumnsOver8K] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+		-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 1, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @considerColumnsOver8K = 0, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_indexLocation' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_indexLocation] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_indexLocation] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Based', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Base' Index Location (Wrong Name)
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'Disk-Base', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'In-Memory' Index Location (Wrong Location)
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @indexLocation = 'In-Memory', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_minRowsToConsider' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_minRowsToConsider] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_minRowsToConsider] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- Insert expected result for 499999 rows
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 499999, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 500000 rows
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 500000, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 500001 rows - the results should be empty :) 
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minRowsToConsider = 500001, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_minSizeToConsiderInGB' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_minSizeToConsiderInGB] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_minSizeToConsiderInGB] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.005 GB
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.005, @tableName = 'SuggestedTables_Test1';
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.006 GB
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.006, @tableName = 'SuggestedTables_Test1';
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for 0.007 GB - the results should be empty
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @minSizeToConsiderInGB = 0.007, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_schemaName' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_schemaName] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_schemaName] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- Insert expected result for the 'DB' Schema - the results should be empty
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'DBO' Schema
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbo', @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'testSimple500KTable_showReadyTablesOnly' and schema_id = SCHEMA_ID('SuggestedTables') )
+	exec ('create procedure [SuggestedTables].[testSimple500KTable_showReadyTablesOnly] as select 1');
+GO
+
+ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_showReadyTablesOnly] AS
+BEGIN
+	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
+	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
+		drop table #ActualSuggestedTables;
+
+	create table #ActualSuggestedTables(
+		[Compatible With] varchar(50) NOT NULL,
+		[TableLocation] varchar(15) NOT NULL,
+		[TableName] nvarchar(1000) NOT NULL,
+		[Row Count] bigint NOT NULL,
+		[Min RowGroups] smallint NOT NULL,
+		[Size in GB] decimal(16,3) NOT NULL,
+		[Cols Count] smallint NOT NULL,
+		[String Cols] smallint NOT NULL,
+		[Sum Length] int NOT NULL,
+		[Unsupported] smallint NOT NULL,
+		[LOBs] smallint NOT NULL,
+		[Computed] smallint NOT NULL,
+		[Clustered Index] tinyint NOT NULL,
+		[Nonclustered Indexes] smallint NOT NULL,
+		[XML Indexes] smallint NOT NULL,
+		[Spatial Indexes] smallint NOT NULL,
+		[Primary Key] tinyint NOT NULL,
+		[Foreign Keys] smallint NOT NULL,
+		[Unique Constraints] smallint NOT NULL,
+		[Triggers] smallint NOT NULL,
+		[RCSI] tinyint NOT NULL,
+		[Snapshot] tinyint NOT NULL,
+		[CDC] tinyint NOT NULL,
+		[CT] tinyint NOT NULL,
+		[InMemoryOLTP] tinyint NOT NULL,
+		[Replication] tinyint NOT NULL,
+		[FileStream] tinyint NOT NULL,
+		[FileTable] tinyint NOT NULL
+	);
+
+	select top (0) *
+		into #ExpectedSuggestedTables
+		from #ActualSuggestedTables;	
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 1, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+	-- ******************************************************************************************************
+	-- Insert expected result for the 'Disk-Based' Index Location
+	insert into #ExpectedSuggestedTables
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	
+	insert into #ActualSuggestedTables
+		exec dbo.cstore_SuggestedTables @showReadyTablesOnly = 0, @tableName = 'SuggestedTables_Test1'
+
+	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
+	TRUNCATE TABLE #ExpectedSuggestedTables;
+	TRUNCATE TABLE #ActualSuggestedTables;
+
+
+END
+
+GO
+/*
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Columnstore Tests - Executes all configured tests
+	Version: 1.3.1, August 2016
+
+	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
