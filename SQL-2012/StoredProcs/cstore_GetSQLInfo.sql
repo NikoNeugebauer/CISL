@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -58,6 +58,9 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added information about CU 12 & CU 13 for SQL Server 2012 SP 2
 	+ Added information about CU 3 & CU 4 for SQL Server 2012 SP 3
+
+Changes in 1.4.0
+	+ Added information about CU 14 for SQL Server 2012 SP 2 & CU 5 for SQL Server 2012 SP3
 */
 
 
@@ -95,7 +98,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -184,11 +187,13 @@ begin
 		( 'SP2', 5646, convert(datetime,'22-03-2016',105), 'CU 11 for SQL Server 2012 SP2' ),
 		( 'SP2', 5649, convert(datetime,'17-05-2016',105), 'CU 12 for SQL Server 2012 SP2' ),
 		( 'SP2', 5644, convert(datetime,'18-07-2016',105), 'CU 13 for SQL Server 2012 SP2' ),
+		( 'SP2', 5657, convert(datetime,'20-09-2016',105), 'CU 14 for SQL Server 2012 SP2' ),
 		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
 		( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
 		( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' ),
 		( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' ),
-		( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' );
+		( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' ),
+		( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' );
 
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
