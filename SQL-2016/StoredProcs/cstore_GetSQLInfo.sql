@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -43,6 +43,9 @@ Changes in 1.3.1
 	+ Added information on CU 1 for SQL Server 2016 RTM
 	+ Added information on the new trace flags 9347, 9349, 9358, 9389 & 10204
 	+ Added information on the trace flag 4199 which affects batch mode sort operations in a complex parallel query 
+
+Changes in 1.4.0
+	+ Added information on CU 2 for SQL Server 2016 RTM
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -72,7 +75,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -130,7 +133,8 @@ begin
 		( 'RC2', 1300, convert(datetime,'01-04-2016',105), 'RC 2 for SQL Server 2016' ),
 		( 'RC3', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' ),
 		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
-		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ) ;
+		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
+		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ) ;
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -143,7 +147,9 @@ begin
 		( 2149, 'RTM', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-nz/kb/3146123' ),
 		( 2149, 'RTM', 'A query that accesses data in a columnstore index causes the Database Engine to receive a floating point exception in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171759' ),
 		( 2149, 'RTM', 'Adds trace flag 9358 to disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555' ),
-		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' );
+		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' ),
+		( 2164, 'RTM', 'Updating while compression is in progress can lead to nonclustered columnstore index corruption in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3188950' ),
+		( 2164, 'RTM', 'Query returns incorrect results from nonclustered columnstore index under snapshot isolation level in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189372' );
 
 	if @identifyCurrentVersion = 1
 	begin
