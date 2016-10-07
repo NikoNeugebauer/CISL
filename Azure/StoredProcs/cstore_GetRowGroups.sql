@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -62,7 +62,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --

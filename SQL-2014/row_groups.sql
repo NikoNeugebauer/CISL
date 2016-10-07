@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -36,6 +36,9 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added new parameter for filtering a specific partition
 	+ Added new column for the Index Location (Disk-Based)
+
+Changes in 1.4.0
+	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 */
 
 -- Params --
@@ -92,13 +95,13 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 		left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 			on rg.object_id = stat.object_id and ind.index_id = stat.index_id
+			   and isnull(stat.database_id,db_id()) = db_id()
 	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-			and isnull(stat.database_id,db_id()) = db_id()
+			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)			
 			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB

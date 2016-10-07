@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -38,6 +38,9 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added new parameter for filtering a specific partition
+
+Changes in 1.4.0
+	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -65,7 +68,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -106,13 +109,13 @@ begin
 				on ind.object_id = part.object_id 
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on part.object_id = stat.object_id and ind.index_id = stat.index_id
+				  and isnull(stat.database_id,db_id()) = db_id()			  
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			  and part.data_compression_desc in ('COLUMNSTORE') 
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 			  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			  and part.object_id = isnull(@objectId, part.object_id)
-			  and isnull(stat.database_id,db_id()) = db_id()			  
 			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB

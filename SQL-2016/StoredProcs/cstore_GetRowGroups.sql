@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -42,6 +42,9 @@ Changes in 1.3.0
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed bug with partition information not being shown correctly
 	+ Added new parameter for filtering a specific partition
+
+Changes in 1.4.0
+	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -70,7 +73,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -129,6 +132,7 @@ begin
 					on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 				left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 					on rg.object_id = stat.object_id and ind.index_id = stat.index_id
+					   and isnull(stat.database_id,db_id()) = db_id()
 			where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 				  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
