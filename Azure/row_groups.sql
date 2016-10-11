@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -36,10 +36,15 @@ Changes in 1.3.0
 	- Fixed bug with partition information not being shown correctly
 	+ Added new parameter for filtering a specific partition
 	- Added a couple of bug fixes for the Azure SQLDatabase changes related to Temp Tables
+
+Changes in 1.4.0
+	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
+	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
 */
 
 -- Params --
 declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
+		@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
 		@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
@@ -67,6 +72,7 @@ set nocount on;
 with partitionedInfo as (
 	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 			case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+			case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			part.partition_number as Partition, 
 			case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
@@ -98,6 +104,8 @@ with partitionedInfo as (
 			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
 			max(stat.last_user_scan) as 'LastScan'
 			from sys.indexes ind
+				inner join sys.objects obj
+					on ind.object_id = obj.object_id
 				left join sys.column_store_row_groups rg
 					on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 				left join sys.partitions part with(READUNCOMMITTED)
@@ -111,7 +119,8 @@ with partitionedInfo as (
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 				  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 				  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-			group by ind.object_id, ind.type, rg.partition_number, ind.data_space_id,
+				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
 			having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
 					  (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
@@ -123,6 +132,7 @@ with partitionedInfo as (
 	union all
 	select quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo')) + '.' + quotename(obj.name),
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
 		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 		part.partition_number as Partition,
 		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
@@ -170,7 +180,8 @@ with partitionedInfo as (
 				and (@tableName is null or obj.name like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 		--		and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
-		group by ind.object_id, obj.object_id, obj.name, ind.type, rg.partition_number,
+				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+		group by ind.object_id, obj.object_id, obj.type_desc, obj.name, ind.type, rg.partition_number,
 				ind.data_space_id,
 				part.partition_number
 		having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
@@ -181,12 +192,15 @@ with partitionedInfo as (
 					as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
 	)
-	select TableName, Type, Location, (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
+	select TableName, 
+		Type, 
+		ObjectType,
+		Location, (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
 		max([Compression Type]) as [Compression Type], sum([Bulk Load RG]) as [Bulk Load RG], sum([Open DS]) as [Open DS], sum([Closed DS]) as [Closed DS], 
 		sum(Tombstones) as Tombstones, sum(Compressed) as Compressed, sum(Total) as Total, 
 		sum([Deleted Rows (M)]) as [Deleted Rows (M)], sum([Active Rows (M)]) as [Active Rows (M)], sum([Total Rows (M)]) as [Total Rows (M)], 
 		sum([Size in GB]) as [Size in GB], sum(Scans) as Scans, sum(Updates) as Updates, max(LastScan) as LastScan
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
-		group by TableName, Type, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
+		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
 		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end);

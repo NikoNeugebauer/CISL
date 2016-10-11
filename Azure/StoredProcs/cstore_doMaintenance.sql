@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -23,6 +23,8 @@ Known Limitations:
 	- Segment Clustering is supported only for the Disk-Based Clustered Columnstore Indexes. 
 	- Segment Clustering is not supported on the partition level
 
+Changes in 1.4.0
+	+ Added support for the Indexed Views with Nonclustered Columnstore Indexes
 */
 
 declare @createLogTables bit = 1;
@@ -145,6 +147,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[ObjectType] varchar(20),
 		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
@@ -163,7 +166,7 @@ begin
 		[LastScan] DateTime
 	);
 
-	insert into #ColumnstoreIndexes (TableName, Type, Location, Partition, [Compression Type], 
+	insert into #ColumnstoreIndexes (TableName, Type, ObjectType, Location, Partition, [Compression Type], 
 									 BulkLoadRGs, [Open DeltaStores], [Closed DeltaStores], [Tombstones], [Compressed RowGroups], [Total RowGroups], 
 									[Deleted Rows], [Active Rows], [Total Rows], [Size in GB], Scans, Updates, LastScan)
 		exec dbo.cstore_GetRowGroups @indexType = 'CC', @showPartitionDetails = 1;
@@ -183,7 +186,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -313,6 +316,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[ObjectType] varchar(20),
 		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
