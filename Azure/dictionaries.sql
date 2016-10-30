@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -43,6 +43,9 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.4.0
+	- Fixed a bug for Memory-Optimised Tables not showing the total number of rows
 */
 
 -- Params --
@@ -91,7 +94,9 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
 				  and rg.state = 3 ) as 'RowGroups',
 		count(csd.column_id) as 'Dictionaries', 
 		sum(csd.entry_count) as 'EntriesCount',
-		min(p.rows) as 'Rows Serving',
+		(select sum(isnull(rg.total_rows,0) - isnull(rg.deleted_rows,0)) from sys.column_store_row_groups rg
+			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
+				  and rg.state = 3 ) as 'Rows Serving',
 		cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
 		cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
 		cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
@@ -145,7 +150,9 @@ select QuoteName(object_schema_name(part.object_id)) + '.' + QuoteName(object_na
 		dict.dictionary_id as 'DictionaryId',
 		tp.name as ColumnType,
 		case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
-		part.rows as 'Rows Serving', 
+		(select sum(isnull(rg.total_rows,0) - isnull(rg.deleted_rows,0)) from sys.column_store_row_groups rg
+				where rg.object_id = part.object_id and rg.partition_number = part.partition_number
+					  and rg.state = 3 ) as 'Rows Serving', 
 		entry_count as 'Entry Count', 
 		cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 	from sys.column_store_dictionaries dict
