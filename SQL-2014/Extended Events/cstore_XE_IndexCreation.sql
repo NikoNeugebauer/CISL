@@ -1,7 +1,7 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Extended Events Setup Script for Index Creation events 'clustered_columnstore_index_rebuild', 'column_store_index_build_low_memory', 'column_store_index_build_throttle', 'column_store_index_build_process_segment'
-	Version: 1.4.0, September 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -18,6 +18,16 @@
     limitations under the License.
 */
 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
+declare @errorMessage nvarchar(512);
+
+-- Ensure that we are running SQL Server 2014
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'12'
+begin
+	set @errorMessage = (N'You are not running a SQL Server 2014. Your SQL Server version is ' + @SQLServerVersion);
+	Throw 51000, @errorMessage, 1;
+end
 
 /* Stop Session if it already exists */
 IF EXISTS(SELECT *

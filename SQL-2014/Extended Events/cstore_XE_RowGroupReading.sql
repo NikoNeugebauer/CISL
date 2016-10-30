@@ -1,7 +1,7 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
-	Extended Events Setup Script for Row Group processing event 'column_store_segment_eliminate'
-	Version: 1.4.0, September 2016
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
+	Extended Events Setup Script for Row Group processing event 'column_store_rowgroup_read_issued', 'column_store_rowgroup_readahead_issued'
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -18,25 +18,49 @@
     limitations under the License.
 */
 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
+declare @errorMessage nvarchar(512);
 
-IF NOT EXISTS
-    (SELECT * FROM sys.dm_xe_sessions
+-- Ensure that we are running SQL Server 2014
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'12'
+begin
+	set @errorMessage = (N'You are not running a SQL Server 2014. Your SQL Server version is ' + @SQLServerVersion);
+	Throw 51000, @errorMessage, 1;
+end
+
+
+/* Stop Session if it already exists */
+IF EXISTS(SELECT *
+				FROM sys.server_event_sessions sess
+				INNER JOIN sys.dm_xe_sessions actSess
+					on sess.NAME = actSess.NAME
+				WHERE sess.NAME = 'cstore_XE_RowGroupReading')
+BEGIN
+	ALTER EVENT SESSION cstore_XE_RowGroupReading
+		ON SERVER 
+			STATE = STOP;
+END
+
+/* Drop the definition of the currently configured XE session */
+IF EXISTS
+    (SELECT * FROM sys.server_event_sessions sess
         WHERE name = 'cstore_XE_RowGroupReading')
 BEGIN
-	--ALTER EVENT SESSION cstore_XE_RowGroupReading
-	--		ON SERVER STATE = STOP;
 
- --   DROP EVENT SESSION cstore_XE_RowGroupReading
- --       ON SERVER;
-
-	CREATE EVENT SESSION [cstore_XE_RowGroupReading] ON SERVER 
-		ADD EVENT sqlserver.column_store_rowgroup_read_issued(
-			ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username)),
-		ADD EVENT sqlserver.column_store_rowgroup_readahead_issued(
-			ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username))
-		ADD TARGET package0.ring_buffer(SET max_memory=(51200))
-		WITH (MAX_MEMORY=51200 KB)
+    DROP EVENT SESSION cstore_XE_RowGroupReading
+        ON SERVER;
+	
 END
+
+CREATE EVENT SESSION [cstore_XE_RowGroupReading] ON SERVER 
+	ADD EVENT sqlserver.column_store_rowgroup_read_issued(
+		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username)),
+	ADD EVENT sqlserver.column_store_rowgroup_readahead_issued(
+		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username))
+	ADD TARGET package0.ring_buffer(SET max_memory=(51200))
+	WITH (MAX_MEMORY=51200 KB)
+
 GO
 
 
