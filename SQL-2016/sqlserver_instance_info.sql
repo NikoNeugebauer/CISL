@@ -41,7 +41,9 @@ Changes in 1.3.1
 	+ Added information on the trace flag 4199 which affects batch mode sort operations in a complex parallel query 
 
 Changes in 1.4.0
-	+ Added information on CU 2 for SQL Server 2016 RTM
+	+ Added information on CU 2 for SQL Server 2016 RTM & On-Demand fix for CU 2 for SQL Server 2016
+	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
+	+ Added information on the new trace flags 9354
 */
 
 -- Params --
@@ -118,7 +120,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'RC3', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' ),
 	( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
 	( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
-	( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' );
+	( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
+	( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -133,7 +136,12 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 2149, 'RTM', 'Adds trace flag 9358 to disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555' ),
 	( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' ),
 	( 2164, 'RTM', 'Updating while compression is in progress can lead to nonclustered columnstore index corruption in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3188950' ),
-	( 2164, 'RTM', 'Query returns incorrect results from nonclustered columnstore index under snapshot isolation level in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189372' );
+	( 2164, 'RTM', 'Query returns incorrect results from nonclustered columnstore index under snapshot isolation level in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189372' ),
+	( 2170, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
+	( 2170, 'RTM', 'FIX: Intermittent non-yielding conditions, performance problems and intermittent connectivity failures in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189855' ),
+	( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
+	( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' );
+
 
 if @identifyCurrentVersion = 1
 begin
@@ -184,15 +192,18 @@ begin
 
 end
 
-select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
+select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 	from #SQLColumnstoreImprovements imps
 		inner join #SQLBranches branch
 			on imps.SQLBranch = branch.SQLBranch
 		inner join #SQLVersions vers
 			on imps.BuildVersion = vers.SQLVersion
 	where BuildVersion > @SQLServerBuild 
-		and branch.SQLBranch = ServerProperty('ProductLevel')
-		and branch.MinVersion < BuildVersion;
+		and branch.SQLBranch >= ServerProperty('ProductLevel')
+		and branch.MinVersion < BuildVersion
+	group by Description, URL, SQLVersionDescription
+	having min(imps.BuildVersion) = (select min(imps2.BuildVersion)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion > @SQLServerBuild group by imps2.Description)
+	order by BuildVersion;
 
 drop table #SQLColumnstoreImprovements;
 drop table #SQLBranches;
@@ -231,6 +242,7 @@ insert into #ColumnstoreTraceFlags (TraceFlag, Description, URL, SupportedStatus
 	( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 	( 9389, 'Enables dynamic memory grant for batch mode operators', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 	( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
+	( 9354, 'Disables Aggregate Pushdown', '', 0 ),
 	(10204, 'Disables merge/recompress during columnstore index reorganization.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 	(10207, 'Skips Corrupted Columnstore Segments (Fixed in CU8 for SQL Server 2014 RTM and CU1 for SQL Server 2014 SP1)', 'https://support.microsoft.com/en-us/kb/3067257', 1 );
 
