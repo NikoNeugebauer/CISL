@@ -1,5 +1,5 @@
 CISL - Columnstore Indexes Script Library
-Copyright 2015 Niko Neugebauer 
+Copyright 2015-2016 Niko Neugebauer 
 
 These scripts library is developed to be used on Microsoft SQL Server(TM), 
 relational database management system developed by Microsoft copropation
@@ -8,7 +8,7 @@ This product incorporates portions of the 'Columnstore' blogpost series
 by Niko Neugebauer (http://www.nikoport.com/columnstore/)
 
 ---
-Microsoft, SQL Server are either registered trademarks or trademarks of 
+Microsoft, SQL Server, Azure & Azure SQLDatabase are either registered trademarks or trademarks of 
 Microsoft Corporation in the United States and/or other countries.
 
 Licensed under the Apache License v2.0
