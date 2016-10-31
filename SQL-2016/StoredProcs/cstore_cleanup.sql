@@ -1,7 +1,7 @@
 /*
     Columnstore Indexes Scripts Library for SQL Server 2016: 
     Cleanup - This script removes from the current database all CISL Stored Procedures that were previously installed there
-    Version: 1.3.1, August 2016
+    Version: 1.4.0, October 2016
 
     Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
