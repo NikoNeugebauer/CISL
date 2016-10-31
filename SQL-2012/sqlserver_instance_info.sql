@@ -57,12 +57,14 @@ Changes in 1.3.0
 
 Changes in 1.4.0
 	+ Added information about CU 14 for SQL Server 2012 SP 2 & CU 5 for SQL Server 2012 SP3
+	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
+	- Fixed Bug with Duplicate SQL Server versions (CUs & SPs) appearing in the list of the newer versions
 */
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
 		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
-		@showNewerVersions bit = 0;					-- Enables showing the SQL Server versions that are posterior the current version
+		@showNewerVersions bit = 1;					-- Enables showing the SQL Server versions that are posterior the current version
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -220,11 +222,6 @@ begin
 			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
 					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
 					from #SQLVersions
-					where  @SQLServerBuild <  SQLVersion
-			UNION ALL
-			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
-					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
 
 		select * 
@@ -238,15 +235,18 @@ begin
 end
 
 -- Select all known bugfixes that are applied to the newer versions of SQL Server
-select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
+select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 	from #SQLColumnstoreImprovements imps
 		inner join #SQLBranches branch
 			on imps.SQLBranch = branch.SQLBranch
 		inner join #SQLVersions vers
 			on imps.BuildVersion = vers.SQLVersion
 	where BuildVersion > @SQLServerBuild 
-		and branch.SQLBranch = ServerProperty('ProductLevel')
-		and branch.MinVersion < BuildVersion;
+		and branch.SQLBranch >= ServerProperty('ProductLevel')
+		and branch.MinVersion < BuildVersion
+	group by Description, URL, SQLVersionDescription
+	having min(imps.BuildVersion) = (select min(imps2.BuildVersion)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion > @SQLServerBuild group by imps2.Description)
+	order by BuildVersion;
 
 -- Drop used temporary tables
 drop table #SQLColumnstoreImprovements;
