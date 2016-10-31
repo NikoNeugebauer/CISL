@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -72,7 +72,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -222,7 +222,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -269,6 +269,9 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.4.0
+	- Fixed a bug for Memory-Optimised Tables not showing the total number of rows
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -298,7 +301,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -335,7 +338,9 @@ begin
 				  and rg.state = 3 ) as 'RowGroups',
 		count(csd.column_id) as 'Dictionaries', 
 		sum(csd.entry_count) as 'EntriesCount',
-		min(p.rows) as 'Rows Serving',
+		(select sum(isnull(rg.total_rows,0) - isnull(rg.deleted_rows,0)) from sys.column_store_row_groups rg
+			where rg.object_id = i.object_id and rg.partition_number = p.partition_number
+				  and rg.state = 3 ) as 'Rows Serving',
 		cast( SUM(csd.on_disk_size)/(1024.0*1024.0) as Decimal(8,3)) as 'Total Size in MB',
 		cast( MAX(case dictionary_id when 0 then csd.on_disk_size else 0 end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Global Size in MB',
 		cast( MAX(case dictionary_id when 0 then 0 else csd.on_disk_size end)/(1024.0*1024.0) as Decimal(8,3)) as 'Max Local Size in MB'
@@ -386,7 +391,9 @@ begin
 			dict.dictionary_id as 'DictionaryId',
 			tp.name COLLATE DATABASE_DEFAULT as ColumnType,
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
-			part.rows as 'Rows Serving', 
+			(select sum(isnull(rg.total_rows,0) - isnull(rg.deleted_rows,0)) from sys.column_store_row_groups rg
+				where rg.object_id = part.object_id and rg.partition_number = part.partition_number
+					  and rg.state = 3 ) as 'Rows Serving', 
 			entry_count as 'Entry Count', 
 			cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 		from sys.column_store_dictionaries dict
@@ -431,7 +438,9 @@ begin
 			dict.dictionary_id as 'DictionaryId',
 			tp.name as ColumnType,
 			case dictionary_id when 0 then 'Global' else 'Local' end as 'Type', 
-			part.rows as 'Rows Serving', 
+			(select sum(isnull(rg.total_rows,0) - isnull(rg.deleted_rows,0)) from sys.column_store_row_groups rg
+				where rg.object_id = part.object_id and rg.partition_number = part.partition_number
+					  and rg.state = 3 ) as 'Rows Serving',
 			entry_count as 'Entry Count', 
 			cast( on_disk_size / 1024. / 1024. as Decimal(8,2)) 'SizeInMb'
 		from tempdb.sys.column_store_dictionaries dict
@@ -475,7 +484,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -549,7 +558,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -629,7 +638,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -683,7 +692,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -793,7 +802,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -834,6 +843,11 @@ Changes in 1.3.0
 	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
 	- Fixed bug with partition information not being shown correctly
 	+ Added new parameter for filtering a specific partition
+
+Changes in 1.4.0
+	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
+	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
+	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -862,12 +876,13 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
+	@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
 	@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 	@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 	@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
@@ -884,6 +899,7 @@ begin
 	with partitionedInfo as (
 	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 			case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+			case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
 			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 			part.partition_number as Partition, 
 			case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
@@ -915,12 +931,15 @@ begin
 			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
 			max(stat.last_user_scan) as 'LastScan'
 			from sys.indexes ind
+				inner join sys.objects obj
+					on ind.object_id = obj.object_id
 				left join sys.column_store_row_groups rg
 					on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 				left join sys.partitions part with(READUNCOMMITTED)
 					on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 				left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 					on rg.object_id = stat.object_id and ind.index_id = stat.index_id
+					   and isnull(stat.database_id,db_id()) = db_id()
 			where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 				  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
@@ -928,7 +947,8 @@ begin
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 				  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
 				  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-			group by ind.object_id, ind.type, rg.partition_number, ind.data_space_id,
+				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
 			having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
 					  (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
@@ -940,6 +960,7 @@ begin
 	union all
 	select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
+		case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
 		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
 		part.partition_number as Partition,
 		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
@@ -971,6 +992,8 @@ begin
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
 		max(stat.last_user_scan) as 'LastScan'
 		from tempdb.sys.indexes ind
+			inner join sys.objects obj
+				on ind.object_id = obj.object_id
 			left join tempdb.sys.column_store_row_groups rg
 				on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 			left join tempdb.sys.partitions part with(READUNCOMMITTED)
@@ -985,7 +1008,8 @@ begin
 				and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 				and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
-		group by ind.object_id, ind.type, rg.partition_number,
+				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+		group by ind.object_id, ind.type, obj.type_desc, rg.partition_number,
 				ind.data_space_id,
 				part.partition_number
 		having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
@@ -996,14 +1020,17 @@ begin
 					as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
 	)
-	select TableName, Type, Location, (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
+	select TableName, 
+		Type, 
+		ObjectType,
+		Location, (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
 		max([Compression Type]) as [Compression Type], sum([Bulk Load RG]) as [Bulk Load RG], sum([Open DS]) as [Open DS], sum([Closed DS]) as [Closed DS], 
 		sum(Tombstones) as Tombstones, sum(Compressed) as Compressed, sum(Total) as Total, 
 		sum([Deleted Rows (M)]) as [Deleted Rows (M)], sum([Active Rows (M)]) as [Active Rows (M)], sum([Total Rows (M)]) as [Total Rows (M)], 
 		sum([Size in GB]) as [Size in GB], sum(Scans) as Scans, sum(Updates) as Updates, max(LastScan) as LastScan
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
-		group by TableName, Type, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
+		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
 		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end);
 
 
@@ -1014,7 +1041,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1077,7 +1104,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1182,7 +1209,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1224,6 +1251,11 @@ Changes in 1.3.1
 	+ Added information on CU 1 for SQL Server 2016 RTM
 	+ Added information on the new trace flags 9347, 9349, 9358, 9389 & 10204
 	+ Added information on the trace flag 4199 which affects batch mode sort operations in a complex parallel query 
+
+Changes in 1.4.0
+	+ Added information on CU 2 for SQL Server 2016 RTM & On-Demand fix for CU 2 for SQL Server 2016
+	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
+	+ Added information on the new trace flags 9354
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1253,7 +1285,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1311,7 +1343,9 @@ begin
 		( 'RC2', 1300, convert(datetime,'01-04-2016',105), 'RC 2 for SQL Server 2016' ),
 		( 'RC3', 1400, convert(datetime,'15-04-2016',105), 'RC 3 for SQL Server 2016' ),
 		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
-		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ) ;
+		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
+		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
+		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1324,7 +1358,13 @@ begin
 		( 2149, 'RTM', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-nz/kb/3146123' ),
 		( 2149, 'RTM', 'A query that accesses data in a columnstore index causes the Database Engine to receive a floating point exception in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171759' ),
 		( 2149, 'RTM', 'Adds trace flag 9358 to disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555' ),
-		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' );
+		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787' ),
+		( 2164, 'RTM', 'Updating while compression is in progress can lead to nonclustered columnstore index corruption in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3188950' ),
+		( 2164, 'RTM', 'Query returns incorrect results from nonclustered columnstore index under snapshot isolation level in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189372' ),
+		( 2170, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
+		( 2170, 'RTM', 'FIX: Intermittent non-yielding conditions, performance problems and intermittent connectivity failures in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189855' ),
+		( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
+		( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' );
 
 	if @identifyCurrentVersion = 1
 	begin
@@ -1376,15 +1416,18 @@ begin
 
 	end
 
-	select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
+	select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
 				on imps.SQLBranch = branch.SQLBranch
 			inner join #SQLVersions vers
 				on imps.BuildVersion = vers.SQLVersion
 		where BuildVersion > @SQLServerBuild 
-			and branch.SQLBranch = ServerProperty('ProductLevel')
-			and branch.MinVersion < BuildVersion;
+			and branch.SQLBranch >= ServerProperty('ProductLevel')
+			and branch.MinVersion < BuildVersion
+		group by Description, URL, SQLVersionDescription
+		having min(imps.BuildVersion) = (select min(imps2.BuildVersion)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion > @SQLServerBuild group by imps2.Description)
+		order by BuildVersion;
 
 	drop table #SQLColumnstoreImprovements;
 	drop table #SQLBranches;
@@ -1422,6 +1465,7 @@ begin
 		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 		( 9389, 'Enables dynamic memory grant for batch mode operators', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
+		( 9354, 'Disables Aggregate Pushdown', '', 0 ),
 		( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
 		(10204, 'Disables merge/recompress during columnstore index reorganization.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(10207, 'Skips Corrupted Columnstore Segments (Fixed in CU8 for SQL Server 2014 RTM and CU1 for SQL Server 2014 SP1)', 'https://support.microsoft.com/en-us/kb/3067257', 1 );
@@ -1442,7 +1486,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1517,7 +1561,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1971,7 +2015,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1995,6 +2039,9 @@ Known Limitations:
 
 Changes in 1.3.1
 	+ Added awareness for the 10204 Trace Flag, which disables Merge/Recompress processes
+
+Changes in 1.4.0
+	+ Added support for the Indexed Views with Nonclustered Columnstore Indexes
 */
 
 declare @createLogTables bit = 1;
@@ -2124,6 +2171,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[ObjectType] varchar(20),
 		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),
@@ -2142,7 +2190,7 @@ begin
 		[LastScan] DateTime
 	);
 
-	insert into #ColumnstoreIndexes (TableName, Type, Location, Partition, [Compression Type], 
+	insert into #ColumnstoreIndexes (TableName, Type, ObjectType, Location, Partition, [Compression Type], 
 									 BulkLoadRGs, [Open DeltaStores], [Closed DeltaStores], [Tombstones], [Compressed RowGroups], [Total RowGroups], 
 									[Deleted Rows], [Active Rows], [Total Rows], [Size in GB], Scans, Updates, LastScan)
 		exec dbo.cstore_GetRowGroups @indexType = 'CC', @showPartitionDetails = 1;
@@ -2162,7 +2210,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -2322,6 +2370,7 @@ begin
 		[id] int identity(1,1),
 		[TableName] nvarchar(256),
 		[Type] varchar(20),
+		[ObjectType] varchar(20),
 		[Location] varchar(15),
 		[Partition] int,
 		[Compression Type] varchar(50),

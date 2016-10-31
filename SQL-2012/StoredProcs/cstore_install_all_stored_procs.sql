@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -70,7 +70,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -214,7 +214,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -291,7 +291,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -469,7 +469,7 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.3.1, August 2016
+    Version: 1.4.0, October 2016
 
     Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -527,7 +527,7 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.3.1, August 2016
+    Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -638,7 +638,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -675,6 +675,9 @@ Changes in 1.2.0
 
 Changes in 1.3.0
 	+ Added new parameter for filtering a specific partition
+
+Changes in 1.4.0
+	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -702,7 +705,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -743,13 +746,13 @@ begin
 				on ind.object_id = part.object_id 
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on part.object_id = stat.object_id and ind.index_id = stat.index_id
+				  and isnull(stat.database_id,db_id()) = db_id()			  
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			  and part.data_compression_desc in ('COLUMNSTORE') 
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 			  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
 			  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 			  and part.object_id = isnull(@objectId, part.object_id)
-			  and isnull(stat.database_id,db_id()) = db_id()			  
 			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
@@ -798,7 +801,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -856,7 +859,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -933,7 +936,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -990,6 +993,10 @@ Changes in 1.2.0
 Changes in 1.3.0
 	+ Added information about CU 12 & CU 13 for SQL Server 2012 SP 2
 	+ Added information about CU 3 & CU 4 for SQL Server 2012 SP 3
+
+Changes in 1.4.0
+	+ Added information about CU 14 for SQL Server 2012 SP 2 & CU 5 for SQL Server 2012 SP3
+	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
 */
 
 
@@ -1027,7 +1034,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1116,11 +1123,13 @@ begin
 		( 'SP2', 5646, convert(datetime,'22-03-2016',105), 'CU 11 for SQL Server 2012 SP2' ),
 		( 'SP2', 5649, convert(datetime,'17-05-2016',105), 'CU 12 for SQL Server 2012 SP2' ),
 		( 'SP2', 5644, convert(datetime,'18-07-2016',105), 'CU 13 for SQL Server 2012 SP2' ),
+		( 'SP2', 5657, convert(datetime,'20-09-2016',105), 'CU 14 for SQL Server 2012 SP2' ),
 		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
 		( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
 		( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' ),
 		( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' ),
-		( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' );
+		( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' ),
+		( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' );
 
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
@@ -1187,15 +1196,18 @@ begin
 	end
 
 	-- Select all known bugfixes that are applied to the newer versions of SQL Server
-	select imps.BuildVersion, vers.SQLVersionDescription, imps.Description, imps.URL
+	select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
 				on imps.SQLBranch = branch.SQLBranch
 			inner join #SQLVersions vers
 				on imps.BuildVersion = vers.SQLVersion
 		where BuildVersion > @SQLServerBuild 
-			and branch.SQLBranch = ServerProperty('ProductLevel')
-			and branch.MinVersion < BuildVersion;
+			and branch.SQLBranch >= ServerProperty('ProductLevel')
+			and branch.MinVersion < BuildVersion
+		group by Description, URL, SQLVersionDescription
+		having min(imps.BuildVersion) = (select min(imps2.BuildVersion)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion > @SQLServerBuild group by imps2.Description)
+		order by BuildVersion;
 
 	-- Drop used temporary tables
 	drop table #SQLColumnstoreImprovements;
@@ -1240,7 +1252,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1316,7 +1328,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
