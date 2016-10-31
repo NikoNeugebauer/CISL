@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - creates test tables
-	Version: 1.3.1, August 2016
+	Version: 1.4.0, October 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -151,3 +151,30 @@ alter table dbo.OneDeletedRowGroupCCI
 
 delete from dbo.OneDeletedRowGroupCCI
 	where c1 = 1;
+
+-- **************************************************************************************
+-- Suggested Tables scenario Test 1: 500.000 rows in a simple table with 1 integer column
+
+if EXISTS (select * from sys.objects where type = 'u' and name = 'SuggestedTables_Test1' and schema_id = SCHEMA_ID('dbo') )
+	drop table dbo.SuggestedTables_Test1;
+
+create table dbo.SuggestedTables_Test1(
+	c1 int identity(1,1) not null
+) WITH (DATA_COMPRESSION = PAGE);
+
+set nocount on;
+declare @i as int;
+declare @max as int;
+select @max = isnull(max(C1),0) from dbo.SuggestedTables_Test1;
+set @i = 1;
+
+begin tran
+while @i <= 500000
+begin
+	insert into dbo.SuggestedTables_Test1
+		default values
+
+	set @i+=1;
+end;
+commit;
+
