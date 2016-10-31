@@ -59,6 +59,6 @@ CREATE EVENT SESSION [cstore_XE_Memory] ON SERVER
 	ADD EVENT sqlserver.column_store_object_pool_miss(
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.session_id,sqlserver.sql_text,sqlserver.username))
 	ADD TARGET package0.ring_buffer(SET max_memory=(51200))
-	WITH (MAX_MEMORY=51200 KB)
+	WITH (MAX_MEMORY=51200 KB);
 
-
+GO

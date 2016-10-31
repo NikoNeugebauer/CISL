@@ -69,12 +69,6 @@ CREATE EVENT SESSION [cstore_XE_BatchMode] ON SERVER
 	ADD EVENT sqlserver.query_execution_batch_spill_started(
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.session_id,sqlserver.sql_text,sqlserver.username))
 	ADD TARGET package0.ring_buffer(SET max_memory=(51200))
-	WITH (MAX_MEMORY=51200 KB)
+	WITH (MAX_MEMORY=51200 KB);
 
-/*
-query_execution_batch_filter — NEW,
-query_execution_batch_hash_aggregation_finished,
-query_execution_batch_hash_children_reversed,
-query_execution_batch_hash_join_spilled,
-query_execution_batch_spill_started — NEW
-*/
+GO

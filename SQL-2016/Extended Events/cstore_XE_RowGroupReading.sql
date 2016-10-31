@@ -70,8 +70,10 @@ CREATE EVENT SESSION [cstore_XE_RowGroupReading] ON SERVER
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username)),
 	ADD EVENT sqlserver.query_execution_column_store_segment_scan_started(
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.sql_text,sqlserver.username))
-
 	ADD TARGET package0.ring_buffer(SET max_memory=(51200))
-	WITH (MAX_MEMORY=51200 KB)
+	WITH (MAX_MEMORY=51200 KB);
+
+GO
+
 
 
