@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -49,6 +49,9 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
+
+Changes in 1.4.1
+	+ Suggestion capability improvements
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -456,7 +459,7 @@ begin
 					from #TablesToColumnstore t
 					inner join sys.objects so
 						on t.ObjectId = so.parent_object_id
-					where UPPER(type) in ('PK','F','UQ')
+					where UPPER(type) in ('PK')
 						and t.TableLocation <> 'In-Memory'
 				union all
 				select t.TableName, 'drop trigger ' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + ';' as [TSQL Command], type,
@@ -482,7 +485,7 @@ begin
 						(select 1 from #TablesToColumnstore t1
 							inner join sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK','F','UQ')
+							where UPPER(so1.type) in ('PK')
 								and quotename(ind.name) <> quotename(so1.name)
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
@@ -496,7 +499,7 @@ begin
 						(select 1 from #TablesToColumnstore t1
 							inner join sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK','F','UQ')
+							where UPPER(so1.type) in ('PK')
 								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId 
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
