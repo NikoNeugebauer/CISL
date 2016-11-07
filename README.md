@@ -1,4 +1,19 @@
 # Columnstore Indexes Scripts Library (CISL)
+[![licence badge]][licence]
+[![stars badge]][stars]
+[![forks badge]][forks]
+[![issues badge]][issues]
+
+[licence badge]:https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[stars badge]:https://img.shields.io/github/stars/NikoNeugebauer/CISL.svg
+[forks badge]:https://img.shields.io/github/forks/NikoNeugebauer/CISL.svg
+[issues badge]:https://img.shields.io/github/issues/NikoNeugebauer/CISL.svg
+
+[licence]:https://github.com/NikoNeugebauer/CISL/blob/master/LICENSE
+[stars]:https://github.com/NikoNeugebauer/CISL/stargazers
+[forks]:https://github.com/NikoNeugebauer/CISL/network
+[issues]:https://github.com/NikoNeugebauer/CISL/issues
+
 Welcome to CISL - Microsoft SQL Server Columnstore Indexes Scripts Library
 
 A columnstore index is a technology for storing, retrieving and managing data by using a columnar data format, called a columnstore. More information you can find here: https://msdn.microsoft.com/en-us/library/gg492088.aspx
