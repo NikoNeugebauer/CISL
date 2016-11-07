@@ -1,5 +1,5 @@
 # Columnstore Indexes Scripts Library (CISL)
-![licence badge]][licence]
+[![licence badge]][licence]
 [![stars badge]][stars]
 [![forks badge]][forks]
 [![issues badge]][issues]
