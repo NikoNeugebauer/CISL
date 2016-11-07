@@ -1,4 +1,4 @@
-# Contributing to the SQL Server Kit
+# Contributing to the CISL (Columnstore Indexes Scripts Library)
 First of all, welcome! We're excited that you'd like to contribute. How would you like to help?
 
 * [I'd like to report a bug or request an enhancement](#how-to-report-bugs-or-request-enhancements)
