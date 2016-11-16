@@ -45,6 +45,9 @@ Changes in 1.3.1
 	- Fixed wrong behaviour for the @tableName parameter
 	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -60,9 +63,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF NOT EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 OR cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 

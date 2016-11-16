@@ -47,6 +47,9 @@ Changes in 1.4.0
 	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
 	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -61,9 +64,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF NOT EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 OR cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 

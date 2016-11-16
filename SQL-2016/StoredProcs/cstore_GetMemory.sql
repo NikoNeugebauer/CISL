@@ -27,6 +27,9 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -41,9 +44,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF NOT EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 OR cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
