@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 

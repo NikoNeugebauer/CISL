@@ -82,7 +82,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --

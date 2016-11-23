@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -45,6 +45,9 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -58,12 +61,11 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
-
 --------------------------------------------------------------------------------------------------------------------
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
 	exec ('create procedure dbo.cstore_GetAlignment as select 1');
@@ -72,7 +74,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -222,7 +224,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -272,6 +274,9 @@ Changes in 1.3.1
 
 Changes in 1.4.0
 	- Fixed a bug for Memory-Optimised Tables not showing the total number of rows
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -287,9 +292,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -301,7 +306,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -484,7 +489,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -528,6 +533,9 @@ Changes in 1.3.1
 	- Fixed wrong behaviour for the @tableName parameter
 	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -543,9 +551,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -558,7 +566,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -638,7 +646,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -664,6 +672,9 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -678,9 +689,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -692,7 +703,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -802,7 +813,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -848,6 +859,9 @@ Changes in 1.4.0
 	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
 	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
 	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -862,9 +876,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -876,7 +890,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -1041,7 +1055,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1075,6 +1089,9 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Fixed missing ORDER BY clause which was ordering the Row Groups by the object, partition and the row group number
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 
@@ -1090,9 +1107,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -1104,7 +1121,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1209,7 +1226,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1256,6 +1273,9 @@ Changes in 1.4.0
 	+ Added information on CU 2 for SQL Server 2016 RTM & On-Demand fix for CU 2 for SQL Server 2016
 	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
 	+ Added information on the new trace flags 9354
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1271,9 +1291,9 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -1285,7 +1305,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1486,7 +1506,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1534,6 +1554,10 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
+
+Changes in 1.4.1
+	+ Suggestion capability improvements
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1548,11 +1572,13 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
+
+
 --------------------------------------------------------------------------------------------------------------------
 if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
 	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
@@ -1561,7 +1587,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1941,7 +1967,7 @@ begin
 					from #TablesToColumnstore t
 					inner join sys.objects so
 						on t.ObjectId = so.parent_object_id
-					where UPPER(type) in ('PK','F','UQ')
+					where UPPER(type) in ('PK')
 						and t.TableLocation <> 'In-Memory'
 				union all
 				select t.TableName, 'drop trigger ' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + ';' as [TSQL Command], type,
@@ -1967,7 +1993,7 @@ begin
 						(select 1 from #TablesToColumnstore t1
 							inner join sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK','F','UQ')
+							where UPPER(so1.type) in ('PK')
 								and quotename(ind.name) <> quotename(so1.name)
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
@@ -1981,7 +2007,7 @@ begin
 						(select 1 from #TablesToColumnstore t1
 							inner join sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK','F','UQ')
+							where UPPER(so1.type) in ('PK')
 								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId 
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
@@ -2015,7 +2041,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -2042,6 +2068,9 @@ Changes in 1.3.1
 
 Changes in 1.4.0
 	+ Added support for the Indexed Views with Nonclustered Columnstore Indexes
+
+Changes in 1.4.1
+	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 declare @createLogTables bit = 1;
@@ -2057,12 +2086,11 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
-if SERVERPROPERTY('EngineEdition') <> 3 
+IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
 begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
-
 
 -- ------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Verification of the required Stored Procedures from CISL
@@ -2210,7 +2238,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.0, October 2016
+	Version: 1.4.1, November 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --

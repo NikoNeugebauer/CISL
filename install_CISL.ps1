@@ -1,6 +1,6 @@
 ﻿#	CISL - Columnstore Indexes Scripts Library for SQL Server
 #	Powershell Script to install the CISL in the user databases
-#	Version: 1.3.1, August 2016
+#	Version: 1.4.1, November 2016
 #
 #	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 #
@@ -15,6 +15,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific lan guage governing permissions and
 #    limitations under the License.
+
 
 function Install-CISL(
     [parameter(Mandatory=$true)]
@@ -47,7 +48,7 @@ function Install-CISL(
 {
     # Writing the header
     Write-Host "CISL - Columnstore Indexes Scripts Library for SQL Server: " -ForegroundColor Green
-    Write-Host "Version: 1.3.1, August 2016" -ForegroundColor Green
+    Write-Host "Version: 1.4.1, November 2016" -ForegroundColor Green
     Write-Host "(c) 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)" -ForegroundColor Green
     Write-Host "----------------------------------------------------------------------------------------------------"
     
