@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
 	Version: 1.4.1, November 2016
 
@@ -22,25 +22,6 @@
 Known Issues & Limitations: 
 	- no support for Multi-Dimensional Segment Clustering in this version
 
-Changes in 1.0.2
-	+ Added schema information and quotes for the table name
-
-Changes in 1.0.4
-	+ Added new parameter for filtering on the schema - @schemaName
-
-Changes in 1.2.0
-	+ Included support for the temporary tables with Columnstore Indexes (global & local)
-
-Changes in 1.3.0
-	+ Added support InMemory Columnstore Indexes
-	+ Added support for the Index Location (Disk-Based, InMemory)
-	+ Added new parameter for filtering the indexes, based on their location (Disk-Based or In-Memory) - @indexLocation
-
-Changes in 1.3.1
-	- Added support for Databases with collations different to TempDB
-
-Changes in 1.4.1
-	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 */
 
 -- Params --
@@ -58,18 +39,13 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server 2016
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'13'
+-- Ensure that we are running SQL Server vNext
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2016. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
-IF EXISTS (SELECT 1 WHERE SERVERPROPERTY('EngineEdition') <> 3 AND cast(SERVERPROPERTY('ProductLevel') as nvarchar(128)) NOT LIKE 'SP%')
-begin
-	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
-	Throw 51000, @errorMessage, 1;
-end
 
 
 
