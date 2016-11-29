@@ -1,6 +1,6 @@
 ﻿#	CISL - Columnstore Indexes Scripts Library for SQL Server
 #	Powershell Script to extract the DACPACs
-#	Version: 1.3.1, August 2016
+#	Version: 1.4.1, November 2016
 #
 #	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 #
@@ -16,7 +16,7 @@
 #    See the License for the specific lan guage governing permissions and
 #    limitations under the License.
 
-$CISLVersion = "131"
+$CISLVersion = "141"
 $sqlPackageLocation = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\sqlpackage.exe"
 $dacpacLocation = "Z:\MEOCloud\CISL GitHub\CISL\Releases\DacPacs\"
 $sql2012 = ".\SQL12"
@@ -38,7 +38,7 @@ If ( !(Test-Path $dacpacLocation) ){
 
 
 # Extract the Azure SQLDB
-& $sqlPackageLocation "/a:Extract" "/ssn:$($sqlAzure)" "/SourceUser:$($sqlAzureUser)" "/SourcePassword:$($sqlAzurePass)" "/sdn:Columnstore" "/tf:$($dacpacLocation)CISL-$($CISLVersion)-Azure.dacpac" "/of:True" 
+& $sqlPackageLocation "/a:Extract" "/ssn:$($sqlAzure)" "/SourceUser:$($sqlAzureUser)" "/SourcePassword:$($sqlAzurePass)" "/sdn:CISL" "/tf:$($dacpacLocation)CISL-$($CISLVersion)-Azure.dacpac" "/of:True" 
 
 # Extract the SQL Server 2012 DB
 & $sqlPackageLocation "/a:Extract" "/ssn:$($sql2012)" "/sdn:CISL" "/tf:$($dacpacLocation)CISL-$($CISLVersion)-2012.dacpac" "/of:True" 
