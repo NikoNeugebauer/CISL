@@ -51,6 +51,7 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+	+ Added information on the Service Pack 1 for SQL Server 2016 and CU3 for SQL Server 2016 RTM
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -159,7 +160,10 @@ begin
 		( 2170, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
 		( 2170, 'RTM', 'FIX: Intermittent non-yielding conditions, performance problems and intermittent connectivity failures in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3189855' ),
 		( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-		( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' );
+		( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' ),
+		( 2186, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
+		( 4001, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
+		( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' );
 
 	if @identifyCurrentVersion = 1
 	begin
