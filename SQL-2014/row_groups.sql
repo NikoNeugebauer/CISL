@@ -100,8 +100,8 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)			
+			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)			
 			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB

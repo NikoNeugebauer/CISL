@@ -52,6 +52,9 @@ Changes in 1.4.0
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 	+ Added information on the Service Pack 1 for SQL Server 2016 and CU3 for SQL Server 2016 RTM
+
+Changes in 1.4.2
+	* Fixed missing information on the most recent SQL Server 2016 updates
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -121,7 +124,7 @@ begin
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
-		values ('CTP', 200 ), ( 'RC0', 1100 ), ( 'RC1', 1200 ), ( 'RC2', 1300 ), ( 'RC3', 1400 ), ( 'RTM', 1601 );
+		values ('CTP', 200 ), ( 'RC0', 1100 ), ( 'RC1', 1200 ), ( 'RC2', 1300 ), ( 'RC3', 1400 ), ( 'RTM', 1601 ), ( 'SP1', 4001 );
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
@@ -141,7 +144,9 @@ begin
 		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
 		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
 		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
-		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' );
+		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' ),
+		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' );
+
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
