@@ -101,7 +101,8 @@ select TableName,
 																										-- Resets to -1 when when @showObjectTypeDetails & @showColumnDetails are not set 
 				from sys.column_store_row_groups rg
 							where rg.object_id = mem.object_id
-								and rg.state = 3 ) as Decimal(8,2)) as '% of Total Column Structures',
+								and rg.state = 3
+								AND rg.delta_store_hobt_id is NULL ) as Decimal(8,2)) as '% of Total Column Structures',
 		cast( sum( pages_kb ) / 1024. as Decimal(8,3) ) as 'SizeInMB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',

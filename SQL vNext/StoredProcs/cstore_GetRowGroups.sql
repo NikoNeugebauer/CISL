@@ -111,8 +111,8 @@ begin
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+				  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+				  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number

@@ -106,7 +106,8 @@ select TableName,
 					 + max(case @showObjectTypeDetails & @showColumnDetails when 1 then (case ObjectType when 1 then 0 else NULL end) else NULL end)	
 																										-- Resets to -1 when when @showObjectTypeDetails & @showColumnDetails are not set 
 				from sys.column_store_row_groups rg
-							where rg.object_id = mem.object_id) as Decimal(8,2)) as '% of Total',
+							where rg.object_id = mem.object_id
+								AND rg.delta_store_hobt_id is NULL) as Decimal(8,2)) as '% of Total',
 		cast( sum( pages_kb ) / 1024. as Decimal(8,3) ) as 'SizeInMB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
