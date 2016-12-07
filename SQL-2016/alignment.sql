@@ -172,6 +172,7 @@ with cteSegmentAlignment as (
 		where (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(part.object_id,db_id('tempdb')) = @schemaName)
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+
 		group by part.object_id, ind.data_space_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 
 )

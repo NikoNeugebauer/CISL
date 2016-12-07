@@ -151,6 +151,11 @@ begin
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 				and (@objectId is null or part.object_id = @objectId)
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+				--AND exists (select *
+				--		from sys.column_store_row_groups rg
+				--		where seg.segment_id = rg.row_group_id 
+				--			AND part.object_id = rg.object_id
+				--			AND rg.state = 3)
 			group by part.object_id, ind.data_space_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 		UNION ALL
 		select  part.object_id,  

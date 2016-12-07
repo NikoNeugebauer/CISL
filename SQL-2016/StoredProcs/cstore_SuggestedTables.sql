@@ -492,6 +492,7 @@ begin
 								and quotename(ind.name) <> quotename(so1.name)
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
+						and ind.is_primary_key <> 1
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
 					10 as [Sort Order]
@@ -506,6 +507,7 @@ begin
 								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId 
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
+						and ind.is_primary_key <> 1
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 					10 as [Sort Order]
@@ -529,7 +531,7 @@ begin
 			 
 	end
 
-	drop table #TablesToColumnstore; 
+	drop table if exists #TablesToColumnstore; 
 end
 
 GO

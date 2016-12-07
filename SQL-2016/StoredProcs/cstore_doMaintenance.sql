@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
 	Version: 1.4.1, November 2016
 
@@ -181,7 +181,7 @@ begin
 	insert into #ColumnstoreIndexes (TableName, Type, ObjectType, Location, Partition, [Compression Type], 
 									 BulkLoadRGs, [Open DeltaStores], [Closed DeltaStores], [Tombstones], [Compressed RowGroups], [Total RowGroups], 
 									[Deleted Rows], [Active Rows], [Total Rows], [Size in GB], Scans, Updates, LastScan)
-		exec dbo.cstore_GetRowGroups @indexType = 'CC', @showPartitionDetails = 1;
+		exec dbo.cstore_GetRowGroups @showPartitionDetails = 1;
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
 		select TableName, Partition, NULL 
