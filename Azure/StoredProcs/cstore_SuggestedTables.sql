@@ -255,7 +255,7 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) + isnull(sum(memory_allocated_for_table_kb),0) / 1024. / 1024 * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
 	union all
 	select t.object_id as [ObjectId]
 		, 'Disk-Based'
@@ -376,7 +376,8 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB);
+				(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB);
+
 
 	-- Show the found results
 	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 

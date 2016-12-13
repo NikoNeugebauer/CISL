@@ -99,6 +99,7 @@ alter procedure dbo.cstore_SuggestedTables(
 -- end of --
 ) as 
 begin
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	declare 
@@ -265,7 +266,7 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) + isnull(sum(memory_allocated_for_table_kb),0) / 1024. / 1024 * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
 	union all
 	select t.object_id as [ObjectId]
 		, 'Disk-Based'
@@ -390,7 +391,8 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB);
+			(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
+	OPTION (FORCE ORDER);
 
 	-- Show the found results
 	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
@@ -532,6 +534,8 @@ begin
 	end
 
 	drop table if exists #TablesToColumnstore; 
+
+	SET ANSI_WARNINGS ON;
 end
 
 GO

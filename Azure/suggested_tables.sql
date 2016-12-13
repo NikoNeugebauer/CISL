@@ -363,7 +363,8 @@ select t.object_id as [ObjectId]
 			  OR
 			 @considerColumnsOver8K = 1 )
 			and 
-			(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB);
+			(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB);
+
 
 -- Show the found results
 select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
