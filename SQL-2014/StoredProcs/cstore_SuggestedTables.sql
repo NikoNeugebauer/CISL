@@ -145,7 +145,7 @@ begin
 
 	insert into #TablesToColumnstore
 	select t.object_id as [ObjectId]
-		, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
+		, case max(ind.data_space_id) when 0 then 'In-Memory' else 'Disk-Based' end 
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
 		, max(p.rows) as 'Row Count'
@@ -268,7 +268,7 @@ begin
 					and t.is_filetable = 0
 				  )
 				 or @showReadyTablesOnly = 0)
-		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+		group by t.object_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
 		having (sum(p.rows) >= @minRowsToConsider or (sum(p.rows) = 0 and is_memory_optimized = 1) )
 				and
 				(((select sum(col.max_length) 
