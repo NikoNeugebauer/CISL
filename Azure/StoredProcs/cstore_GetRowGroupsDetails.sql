@@ -58,7 +58,7 @@ GO
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
 	Version: 1.4.1, November 2016
 */
-alter procedure dbo.cstore_GetRowGroupsDetails(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
     @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema

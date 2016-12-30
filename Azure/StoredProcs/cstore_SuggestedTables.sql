@@ -69,16 +69,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.4.1, November 2016
 */
-alter procedure dbo.cstore_SuggestedTables(
+CREATE OR ALTER PROCEDURE dbo.cstore_SuggestedTables(
 -- Params --
 	@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion

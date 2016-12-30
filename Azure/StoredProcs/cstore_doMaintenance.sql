@@ -179,16 +179,12 @@ end
 GO
 
 -- **************************************************************************************************************************
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_doMaintenance as select 1');
-GO
-
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
 	Version: 1.4.1, November 2016
 */
-alter procedure [dbo].[cstore_doMaintenance](
+CREATE OR ALTER PROCEDURE [dbo].[cstore_doMaintenance](
 -- Params --
 	@execute bit = 0,								-- Controls if the maintenace is executed or not
 	@orderSegments bit = 0,							-- Controls whether Segment Clustering is being applied or not

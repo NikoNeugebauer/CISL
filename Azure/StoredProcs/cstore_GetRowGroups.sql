@@ -62,16 +62,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_GetRowGroups as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
 	Version: 1.4.1, November 2016
 */
-alter procedure dbo.cstore_GetRowGroups(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroups(
 -- Params --
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
