@@ -55,6 +55,9 @@ Changes in 1.3.1
 Changes in 1.4.0
 	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
 	- Added information on the CU 9 for SQL Server 2014 SP1 & CU 2 for SQL Server 2014 SP2
+
+Changes in 1.4.2
+	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
 */
 
 -- Params --
@@ -142,9 +145,11 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' ),
 	( 'SP1', 4468, convert(datetime,'15-08-2016',105), 'CU 8 for SQL Server 2014 SP1' ),
 	( 'SP1', 4474, convert(datetime,'18-10-2016',105), 'CU 9 for SQL Server 2014 SP1' ),
+	( 'SP1', 4491, convert(datetime,'18-12-2016',105), 'CU 10 for SQL Server 2014 SP1' ),
 	( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
 	( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' ),
-	( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' );
+	( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' ),
+	( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' );
 
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
@@ -195,9 +200,15 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 4459, 'SP1', 'FIX: DBCC CHECKTABLE returns an incorrect result after the clustered columnstore index is rebuilt in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3168712' ),
 	( 4459, 'SP1', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 ', 'https://support.microsoft.com/en-us/kb/3146123' ),
 	( 4474, 'SP1', 'FIX: Access violation when you run a query that uses clustered columnstore index with trace flag 2389, 2390, or 4139', 'https://support.microsoft.com/en-us/kb/3189645' ),
+	( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
+	( 4491, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067968' ),
+	( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
 	( 5522, 'SP2', 'FIX: Access violation when you run a query that uses clustered columnstore index with trace flag 2389, 2390, or 4139', 'https://support.microsoft.com/en-us/kb/3189645' ),
 	( 5522, 'SP2', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-	( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ); 
+	( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ),
+	( 5537, 'SP2', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
+	( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' );	
+
 
 if @identifyCurrentVersion = 1
 begin
