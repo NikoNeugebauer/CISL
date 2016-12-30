@@ -90,6 +90,7 @@ alter procedure dbo.cstore_GetRowGroupsDetails(
 -- end of --
 	) as
 BEGIN
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)) as [Table Name],
@@ -166,6 +167,9 @@ BEGIN
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 	order by [Table Name], rg.partition_number, rg.row_group_id
+	OPTION (FORCE ORDER);
+
+	SET ANSI_WARNINGS ON;
 END
 
 GO
