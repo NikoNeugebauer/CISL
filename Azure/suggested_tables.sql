@@ -48,6 +48,10 @@ Changes in 1.3.1
 
 Changes in 1.4.1
 	+ Suggestion capability improvements
+
+Changes in 1.4.2
+	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
+	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
 */
 
 -- Params --

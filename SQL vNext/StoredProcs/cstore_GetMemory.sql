@@ -18,6 +18,9 @@
 Known Limitations:
 	- No support for the InMemory Objects
 
+Changes in 1.4.2
+	- Fixed bug on including Delta-Stores information into the count of the compressed Row Group
+
 */
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 

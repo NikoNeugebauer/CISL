@@ -29,6 +29,10 @@ Changes in 1.0.4
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.4.2
+	- Fixed bug on including Delta-Stores information into the count of the compressed Row Group
+
 */
 
 -- Params --

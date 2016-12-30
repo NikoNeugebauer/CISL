@@ -63,7 +63,7 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 		sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 		sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
-		count(*) as 'Total',
+		count(rg.object_id) as 'Total',
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 				(select isnull(sum(intpart.rows),0)
 					from sys.internal_partitions intpart
@@ -124,7 +124,7 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 		sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 		sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
-		count(*) as 'Total',	
+		count(rg.object_id) as 'Total',	
 	cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 				(select isnull(sum(intpart.rows),0)
 					from tempdb.sys.internal_partitions intpart

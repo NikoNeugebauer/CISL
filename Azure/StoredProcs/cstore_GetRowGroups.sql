@@ -45,6 +45,9 @@ Changes in 1.3.0
 Changes in 1.4.0
 	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
 	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
+
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -98,7 +101,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',
+			count(rg.object_id) as 'Total',
 			cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from sys.internal_partitions intpart
@@ -158,7 +161,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',	
+			count(rg.object_id) as 'Total',	
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart

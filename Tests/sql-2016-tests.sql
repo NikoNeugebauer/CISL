@@ -1822,7 +1822,7 @@ BEGIN
 	insert into #ExpectedRowGroupsDetails
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
-		select '[dbo].[EmptyDeltaStoreCCI]', 'Disk-Based', 1, 0, 1, 'OPEN', 0, NULL, 0.0 /*Size in MB*/,
+		select '[dbo].[EmptyDeltaStoreCCI]', 'Disk-Based', 1, 0, 1, 'OPEN', 0, 0, 0.016 /*Size in MB*/,
 				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
@@ -1968,9 +1968,10 @@ BEGIN
 	-- Insert expected result
 	insert into #ExpectedRowGroupsDetails
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
-							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
+							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], 
+							--[Scans], [Updates],  [LastScan])
 		select '[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 1, 0.0 /*Size in MB*/,
-				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
+				6, 'RESIDUAL_ROW_GROUP', 2, 'INDEX_BUILD', 1, 1, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
 		exec dbo.cstore_GetRowGroupsDetails @tableName = 'OneDeletedRowGroupCCI';
@@ -2044,9 +2045,9 @@ BEGIN
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
 		select '[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 0, 0.0 /*Size in MB*/,
-				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate()
+				6, 'RESIDUAL_ROW_GROUP', 2, 'INDEX_BUILD', 1, 1, NULL, GetDate()
 		union all
-		select '[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 1, 'OPEN', 1, NULL, 0.0 /*Size in MB*/,
+		select '[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 1, 'OPEN', 1, 0, 0.016 /*Size in MB*/,
 				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
@@ -2067,7 +2068,7 @@ BEGIN
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
 		select '[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 0, 0.0 /*Size in MB*/,
-				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
+				6, 'RESIDUAL_ROW_GROUP', 2, 'INDEX_BUILD', 1, 1, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
 		exec dbo.cstore_GetRowGroupsDetails @tableName = 'OneRowNCI_Heap';
@@ -2088,7 +2089,7 @@ BEGIN
 						-- (TableName, Type, Location, Partition, [Compression Type], [BulkLoadRGs], [Open DeltaStores], [Closed DeltaStores],
 							--		[Compressed RowGroups], [Total RowGroups], [Deleted Rows], [Active Rows], [Total Rows], [Size in GB], [Scans], [Updates],  [LastScan])
 		select '[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 0, 3, 'COMPRESSED', 1, 0, 0.0 /*Size in MB*/,
-				NULL, NULL, NULL, NULL, NULL, NULL, NULL, GetDate();
+				6, 'RESIDUAL_ROW_GROUP', 2, 'INDEX_BUILD', 1, 1, NULL, GetDate();
 
 	insert into #ActualRowGroupsDetails
 		exec dbo.cstore_GetRowGroupsDetails @tableName = 'OneRowNCI_Clustered';

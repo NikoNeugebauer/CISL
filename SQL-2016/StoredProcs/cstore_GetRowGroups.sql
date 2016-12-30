@@ -50,6 +50,9 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -69,6 +72,8 @@ begin
 	set @errorMessage = (N'Your SQL Server 2016 Edition is not an Enterprise or a Developer Edition or your are not running Service Pack 1 or later for SQL Server 2016. Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
+
+
 
 --------------------------------------------------------------------------------------------------------------------
 if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
@@ -96,6 +101,7 @@ alter procedure dbo.cstore_GetRowGroups(
 -- end of --
 	) as
 begin
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	with partitionedInfo as (
@@ -110,7 +116,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',
+			count(rg.object_id) as 'Total',
 			cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from sys.internal_partitions intpart
@@ -171,7 +177,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',	
+			count(rg.object_id) as 'Total',	
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart
@@ -233,10 +239,10 @@ begin
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
 		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
-		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end);
+		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end)
+		option (force order);
 
-
-
+	SET ANSI_WARNINGS ON;
 end
 
 GO

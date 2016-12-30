@@ -106,6 +106,7 @@ begin
 				INNER JOIN tempdb.sys.partitions part
 				   ON seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id
 		) as Res
+		OPTION (FORCE ORDER);
 
 	ALTER TABLE #column_store_segments
 	ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);

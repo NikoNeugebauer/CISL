@@ -23,6 +23,10 @@ Changes in 1.0.4
 	+ Added new parameter for filtering on the schema - @schemaName
 	* Changed the output from '% of Total' to '% of Total Column Structures' for better clarity
 	- Fixed error where the delta-stores were counted as one of the objects to be inside Columnstore Object Pool
+
+Changes in 1.4.2
+	- Fixed bug on including Delta-Stores information into the count of the compressed Row Group
+
 */
 
 -- Params --
