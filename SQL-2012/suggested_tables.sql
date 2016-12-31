@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -20,7 +20,7 @@
 
 /*
 Known Issues & Limitations: 
-	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- @showTSQLCommandsBeta parameter is in alpha Version: 1.4.2, December 2016 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 	- CLR support is not included or tested
 	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 	- Data Precision is not being taken into account
@@ -44,7 +44,7 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a cast bug, that would filter out some of the indexes, based on the casting of the hidden numbers (3rd number behind the comma)
-	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server version 'Disk-Based'.
+	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.4.2, December 2016 'Disk-Based'.
 */
 
 -- Params --
@@ -59,14 +59,14 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@showTSQLCommandsBeta bit = 0;								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
 -- end of --
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion: 1.4.2, December 2016 nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
+if substring(@SQLServerVersion: 1.4.2, December 2016,1,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion: 1.4.2, December 2016);
 	Throw 51000, @errorMessage, 1;
 end
 

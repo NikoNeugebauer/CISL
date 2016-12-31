@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -24,7 +24,7 @@ Known Issues & Limitations:
 Modifications:
 
 Changes in 1.2.0
-	- Fixed bug with conversion to bigint for row_count
+	- Fixed bug with conVersion: 1.4.2, December 2016 to bigint for row_count
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
 Changes in 1.3.0
@@ -45,14 +45,14 @@ declare @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered dow
 		@maxCreatedDateTime Datetime = NULL				-- The lateste create datetime for Row Group to be included
 -- end of --
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion: 1.4.2, December 2016 nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
  --Ensure that we are running SQL Server 2012
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
+if substring(@SQLServerVersion: 1.4.2, December 2016,1,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion: 1.4.2, December 2016);
 	Throw 51000, @errorMessage, 1;
 end
 

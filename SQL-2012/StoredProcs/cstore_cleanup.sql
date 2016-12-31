@@ -1,11 +1,11 @@
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     Cleanup - This script removes from the current database all CISL Stored Procedures that were previously installed there
-    Version: 1.4.1, November 2016
+    Version: 1.4.2, December 2016
 
     Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-    Licensed under the Apache License, Version 2.0 (the "License");
+    Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
