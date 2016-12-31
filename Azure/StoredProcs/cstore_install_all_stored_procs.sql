@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -58,16 +58,12 @@ end
 
 
 --------------------------------------------------------------------------------------------------------------------
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_GetAlignment as select 1');
-GO
-
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_GetAlignment(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
@@ -235,7 +231,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -301,16 +297,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_GetDictionaries as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_GetDictionaries(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetDictionaries(
 -- Params --
 	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
@@ -497,7 +489,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -558,17 +550,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_GetFragmentation as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_GetFragmentation (
+CREATE OR ALTER PROCEDURE dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
@@ -646,7 +633,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -690,6 +677,9 @@ Changes in 1.3.0
 Changes in 1.4.0
 	- Added support for the Indexed Views with Nonclustered Columnstore Indexes
 	- Added new parameter for filtering the Columnstore Object Type with possible values 'Table' & 'Indexed View'
+
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -704,16 +694,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_GetRowGroups as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_GetRowGroups(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroups(
 -- Params --
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
@@ -743,7 +729,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',
+			count(rg.object_id) as 'Total',
 			cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from sys.internal_partitions intpart
@@ -779,8 +765,8 @@ begin
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+				  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+				  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
@@ -803,7 +789,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',	
+			count(rg.object_id) as 'Total',	
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart
@@ -839,7 +825,7 @@ begin
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@tableName is null or obj.name like '%' + @tableName + '%')
+				and (@tableName is null or ind.name like '%' + @tableName + '%')
 				and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 		--		and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
 				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
@@ -873,7 +859,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -928,9 +914,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_GetRowGroupsDetails(
+CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
     @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
@@ -1035,7 +1021,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1085,6 +1071,10 @@ Changes in 1.3.1
 
 Changes in 1.4.1
 	+ Suggestion capability improvements
+
+Changes in 1.4.2
+	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
+	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1099,16 +1089,12 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
-GO
-
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure dbo.cstore_SuggestedTables(
+CREATE OR ALTER PROCEDURE dbo.cstore_SuggestedTables(
 -- Params --
 	@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
@@ -1289,7 +1275,7 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) + isnull(sum(memory_allocated_for_table_kb),0) / 1024. / 1024 * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
 	union all
 	select t.object_id as [ObjectId]
 		, 'Disk-Based'
@@ -1410,7 +1396,8 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB);
+				(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB);
+
 
 	-- Show the found results
 	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
@@ -1554,7 +1541,7 @@ end
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1732,16 +1719,12 @@ end
 GO
 
 -- **************************************************************************************************************************
-IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
-	exec ('create procedure dbo.cstore_doMaintenance as select 1');
-GO
-
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
-alter procedure [dbo].[cstore_doMaintenance](
+CREATE OR ALTER PROCEDURE [dbo].[cstore_doMaintenance](
 -- Params --
 	@execute bit = 0,								-- Controls if the maintenace is executed or not
 	@orderSegments bit = 0,							-- Controls whether Segment Clustering is being applied or not

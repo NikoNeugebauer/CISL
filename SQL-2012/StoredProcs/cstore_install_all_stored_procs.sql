@@ -1,11 +1,11 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -20,7 +20,7 @@
 
 /*
 Known Issues & Limitations: 
-	- no support for Multi-Dimensional Segment Clustering in this version
+	- no support for Multi-Dimensional Segment Clustering in this Version: 1.4.2, December 2016
 
 Changes in 1.0.2
 	+ Added schema information and quotes for the table name
@@ -31,7 +31,7 @@ Changes in 1.0.4
 Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
@@ -44,14 +44,14 @@ Changes in 1.3.1
 	- Added support for Databases with collations different to TempDB
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -70,7 +70,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -214,11 +214,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -247,8 +247,8 @@ Changes in 1.0.4
 Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
-	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 version)
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
+	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 Version: 1.4.2, December 2016)
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
@@ -265,7 +265,7 @@ Changes in 1.3.1
 */
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
@@ -273,7 +273,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -291,7 +291,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -469,11 +469,11 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.4.1, November 2016
+    Version: 1.4.2, December 2016
 
     Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-    Licensed under the Apache License, Version 2.0 (the "License");
+    Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
@@ -495,11 +495,11 @@ Changes in 1.0.4
 Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 */
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
              @SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
              @SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
@@ -507,7 +507,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-       set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+       set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
        Throw 51000, @errorMessage, 1;
 end
 
@@ -527,7 +527,7 @@ GO
 /*
     Columnstore Indexes Scripts Library for SQL Server 2012: 
     MemoryInfo - Shows the content of the Columnstore Object Pool
-    Version: 1.4.1, November 2016
+    Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -638,11 +638,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -666,10 +666,10 @@ Changes in 1.1.0
 	- Fixed error with a semicolon inside the parameters of the stored procedure
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 
 Changes in 1.2.0
-	- Fixed bug with conversion to bigint for row_count
+	- Fixed bug with conVersion: 1.4.2, December 2016 to bigint for row_count
 	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
@@ -678,16 +678,19 @@ Changes in 1.3.0
 
 Changes in 1.4.0
 	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
+	
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
  --Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -705,7 +708,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -725,16 +728,16 @@ begin
 
 	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
-		part.data_compression_desc as 'Compression Type',
+		(case @showPartitionDetails when 1 then ISNULL(part.partition_number,1) else 1 end) as 'Partition',
+		ISNULL(part.data_compression_desc,'COLUMNSTORE') as 'Compression Type',
 		0 as 'Bulk Load RG',
 		0 as 'Open DS',
 		0 as 'Closed DS',
 		count(distinct segment_id) as 'Compressed',
 		count(distinct segment_id) as 'Total',
 		cast( sum(isnull(0,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(cast(row_count as bigint)-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(cast(row_count as bigint),0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint)-0,0))/(case count(distinct column_id) when 0 then 1 else count(distinct column_id) end)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint),0))/(case count(distinct column_id) when 0 then 1 else count(distinct column_id) end)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
@@ -742,18 +745,22 @@ begin
 		from sys.column_store_segments rg		
 			left join sys.partitions part with(READUNCOMMITTED)
 				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
-			inner join sys.indexes ind
+			right join sys.indexes ind
 				on ind.object_id = part.object_id 
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on part.object_id = stat.object_id and ind.index_id = stat.index_id
 				  and isnull(stat.database_id,db_id()) = db_id()			  
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-			  and part.data_compression_desc in ('COLUMNSTORE') 
-			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
-			  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
-			  and part.object_id = isnull(@objectId, part.object_id)
-			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
+			  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
+			  and ((part.object_id is NOT NULL 
+				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
+				  and part.object_id = isnull(@objectId, part.object_id)
+				  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
+				  )
+				  OR
+				  part.object_id is NULL )
+				
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
@@ -784,8 +791,8 @@ begin
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			  and part.data_compression_desc in ('COLUMNSTORE') 
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			  and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			  and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 			  and part.object_id = isnull(@objectId, part.object_id)
 			  and isnull(stat.database_id, db_id('tempdb')) = db_id('tempdb')			  
 			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
@@ -793,7 +800,7 @@ begin
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
 		order by TableName,
-				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
+				(case @showPartitionDetails when 1 then ISNULL(part.partition_number,1) else 1 end);
 
 end
 
@@ -801,11 +808,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -823,10 +830,10 @@ Changes in 1.1.0
 	- Fixed error with a semicolon inside the parameters of the stored procedure
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 
 Changes in 1.2.0
-	- Fixed bug with conversion to bigint for row_count
+	- Fixed bug with conVersion: 1.4.2, December 2016 to bigint for row_count
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
 Changes in 1.3.0
@@ -834,14 +841,14 @@ Changes in 1.3.0
 	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
  --Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -859,7 +866,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -935,12 +942,12 @@ END
 GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
-	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	SQL Server Instance Information - Provides with the list of the known SQL Server Version: 1.4.2, December 2016s that have bugfixes or improvements over your current Version: 1.4.2, December 2016 + lists currently enabled trace flags on the instance & session
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -955,20 +962,20 @@ GO
 
 /*
 	Known Issues & Limitations: 
-		- Custom non-standard (non-CU & non-SP) versions are not targeted yet
+		- Custom non-standard (non-CU & non-SP) Version: 1.4.2, December 2016s are not targeted yet
 		- Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) are not eliminated from the list yet
 */
 
 /*
 Changes in 1.0.1
 	+ Added drops for the existing temp tables: #SQLColumnstoreImprovements, #SQLBranches, #SQLVersions
-	+ Added new parameter for Enables showing the SQL Server versions that are posterior the current version
+	+ Added new parameter for Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 	* Added more source code description in the comments
-	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early versions
+	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early Version: 1.4.2, December 2016s
 	+ Added information about CU8 for SQL Server 2012 SP 2
 
 Changes in 1.0.2
-	+ Added column with the CU Version for the Bugfixes output
+	+ Added column with the CU Version: 1.4.2, December 2016 for the Bugfixes output
 	* Updated temporary tables in order to avoid error messages
 
 Changes in 1.0.3
@@ -980,7 +987,7 @@ Changes in 1.0.4
 
 Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 
 Changes in 1.1.1
 	+ Added information about CU10 for SQL Server 2012 SP 2
@@ -1002,12 +1009,12 @@ Changes in 1.4.0
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
-		@showNewerVersions bit = 0;					-- Enables showing the SQL Server versions that are posterior the current version
+		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
+		@showNewerVersions bit = 0;					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
@@ -1015,7 +1022,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -1033,18 +1040,18 @@ GO
 
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
-	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	SQL Server Instance Information - Provides with the list of the known SQL Server Version: 1.4.2, December 2016s that have bugfixes or improvements over your current Version: 1.4.2, December 2016 + lists currently enabled trace flags on the instance & session
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
 	@showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance version
-	@showNewerVersions bit = 0 					-- Enables showing the SQL Server versions that are posterior the current version
+	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
+	@showNewerVersions bit = 0 					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 -- end of --
 ) as 
 begin
-	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 
 	declare	@SQLServerBuild smallint = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
@@ -1165,22 +1172,22 @@ begin
 			where SQLBranch = ServerProperty('ProductLevel')
 				and SQLVersion = cast(@SQLServerBuild as int);
 
-		-- Get information about current SQL Server Version
+		-- Get information about current SQL Server Version: 1.4.2, December 2016
 		if( exists (select 1
 						from #SQLVersions
 						where SQLVersion = cast(@SQLServerBuild as int) ) )
-			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
+			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 				from #SQLVersions
 				where SQLVersion = cast(@SQLServerBuild as int);
 		else
-			select 'You are Running a Non RTM/SP/CU standard version:' as MessageText, '-' as SQLVersionDescription, 
-				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+			select 'You are Running a Non RTM/SP/CU standard Version: 1.4.2, December 2016:' as MessageText, '-' as SQLVersionDescription, 
+				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
 		
-		-- Select information about all newer SQL Server versions that are known
+		-- Select information about all newer SQL Server Version: 1.4.2, December 2016s that are known
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
+				select 'Available Newer Version: 1.4.2, December 2016s:' as MessageText, '' as SQLVersionDescription, 
 					'' as SQLBranch, NULL as BuildVersion
 				UNION ALL
 				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
@@ -1197,7 +1204,7 @@ begin
 		
 	end
 
-	-- Select all known bugfixes that are applied to the newer versions of SQL Server
+	-- Select all known bugfixes that are applied to the newer Version: 1.4.2, December 2016s of SQL Server
 	select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
@@ -1254,11 +1261,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -1273,7 +1280,7 @@ GO
 
 /*
 Known Issues & Limitations: 
-	- @showTSQLCommandsBeta parameter is in alpha version and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- @showTSQLCommandsBeta parameter is in alpha Version: 1.4.2, December 2016 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 	- CLR support is not included or tested
 	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 	- Data Precision is not being taken into account
@@ -1288,7 +1295,7 @@ Changes in 1.0.4
 
 Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
 
 Changes in 1.2.0
 	- Fixed displaying wrong number of rows for the found suggested tables
@@ -1301,17 +1308,17 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a cast bug, that would filter out some of the indexes, based on the casting of the hidden numbers (3rd number behind the comma)
-	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server version 'Disk-Based'.
+	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.4.2, December 2016 'Disk-Based'.
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -1330,7 +1337,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --

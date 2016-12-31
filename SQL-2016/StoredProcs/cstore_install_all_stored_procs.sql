@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -74,7 +74,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -106,6 +106,7 @@ begin
 				INNER JOIN tempdb.sys.partitions part
 				   ON seg.hobt_id = part.hobt_id and seg.partition_id = part.partition_id
 		) as Res
+		OPTION (FORCE ORDER);
 
 	ALTER TABLE #column_store_segments
 	ADD UNIQUE (hobt_id, partition_id, column_id, min_data_id, segment_id);
@@ -151,6 +152,11 @@ begin
 				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
 				and (@objectId is null or part.object_id = @objectId)
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+				--AND exists (select *
+				--		from sys.column_store_row_groups rg
+				--		where seg.segment_id = rg.row_group_id 
+				--			AND part.object_id = rg.object_id
+				--			AND rg.state = 3)
 			group by part.object_id, ind.data_space_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 		UNION ALL
 		select  part.object_id,  
@@ -224,7 +230,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -306,7 +312,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -489,7 +495,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -566,7 +572,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -638,7 +644,8 @@ begin
 			and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
 			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
 		group by p.object_id, obj.object_id, obj.name, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
-		order by TableName;
+		order by TableName
+		OPTION ( FORCE ORDER);
 
 end
 
@@ -646,7 +653,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -675,6 +682,10 @@ Changes in 1.1.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.4.2
+	- Fixed bug on including Delta-Stores information into the count of the compressed Row Group
+
 */
 --------------------------------------------------------------------------------------------------------------------
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -703,7 +714,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -763,7 +774,9 @@ begin
 						 + max(case @showObjectTypeDetails & @showColumnDetails when 1 then (case ObjectType when 1 then 0 else NULL end) else NULL end)	
 																											-- Resets to -1 when when @showObjectTypeDetails & @showColumnDetails are not set 
 					from sys.column_store_row_groups rg
-								where rg.object_id = mem.object_id) as Decimal(8,2)) as '% of Total',
+								where rg.object_id = mem.object_id
+										AND rg.delta_store_hobt_id is NULL) as Decimal(8,2)
+									) as '% of Total',
 			cast( sum( pages_kb ) / 1024. as Decimal(8,3) ) as 'SizeInMB',
 			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
@@ -813,7 +826,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -862,6 +875,9 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -882,6 +898,8 @@ begin
 	Throw 51000, @errorMessage, 1;
 end
 
+
+
 --------------------------------------------------------------------------------------------------------------------
 if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
 	exec ('create procedure dbo.cstore_GetRowGroups as select 1');
@@ -890,7 +908,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -908,6 +926,7 @@ alter procedure dbo.cstore_GetRowGroups(
 -- end of --
 	) as
 begin
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	with partitionedInfo as (
@@ -922,7 +941,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',
+			count(rg.object_id) as 'Total',
 			cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from sys.internal_partitions intpart
@@ -959,8 +978,8 @@ begin
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+				  and (@tableName is null or object_name (obj.object_id) like '%' + @tableName + '%')
+				  and (@schemaName is null or object_schema_name(obj.object_id) = @schemaName)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
@@ -983,7 +1002,7 @@ begin
 			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
 			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(*) as 'Total',	
+			count(rg.object_id) as 'Total',	
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart
@@ -1019,8 +1038,8 @@ begin
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-				and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
+				and (@tableName is null or object_name (obj.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+				and (@schemaName is null or object_schema_name(obj.object_id, db_id('tempdb')) = @schemaName)
 				and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
 				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 		group by ind.object_id, ind.type, obj.type_desc, rg.partition_number,
@@ -1045,17 +1064,17 @@ begin
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
 		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
-		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end);
+		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end)
+		option (force order);
 
-
-
+	SET ANSI_WARNINGS ON;
 end
 
 GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1121,7 +1140,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1144,6 +1163,7 @@ alter procedure dbo.cstore_GetRowGroupsDetails(
 -- end of --
 	) as
 BEGIN
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)) as [Table Name],
@@ -1220,13 +1240,16 @@ BEGIN
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 	order by [Table Name], rg.partition_number, rg.row_group_id
+	OPTION (FORCE ORDER);
+
+	SET ANSI_WARNINGS ON;
 END
 
 GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1277,6 +1300,9 @@ Changes in 1.4.0
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 	+ Added information on the Service Pack 1 for SQL Server 2016 and CU3 for SQL Server 2016 RTM
+
+Changes in 1.4.2
+	* Fixed missing information on the most recent SQL Server 2016 updates
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1306,7 +1332,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1346,7 +1372,7 @@ begin
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
-		values ('CTP', 200 ), ( 'RC0', 1100 ), ( 'RC1', 1200 ), ( 'RC2', 1300 ), ( 'RC3', 1400 ), ( 'RTM', 1601 );
+		values ('CTP', 200 ), ( 'RC0', 1100 ), ( 'RC1', 1200 ), ( 'RC2', 1300 ), ( 'RC3', 1400 ), ( 'RTM', 1601 ), ( 'SP1', 4001 );
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
@@ -1366,7 +1392,9 @@ begin
 		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
 		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
 		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
-		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' );
+		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' ),
+		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' );
+
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1510,7 +1538,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1562,6 +1590,10 @@ Changes in 1.3.1
 Changes in 1.4.1
 	+ Suggestion capability improvements
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.4.2
+	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
+	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1591,7 +1623,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1608,6 +1640,7 @@ alter procedure dbo.cstore_SuggestedTables(
 -- end of --
 ) as 
 begin
+	SET ANSI_WARNINGS OFF;
 	set nocount on;
 
 	declare 
@@ -1774,7 +1807,7 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) + isnull(sum(memory_allocated_for_table_kb),0) / 1024. / 1024 * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB)
+				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
 	union all
 	select t.object_id as [ObjectId]
 		, 'Disk-Based'
@@ -1899,7 +1932,8 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(sum(a.total_pages) * 8.0 / 1024. / 1024 >= @minSizeToConsiderInGB);
+			(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
+	OPTION (FORCE ORDER);
 
 	-- Show the found results
 	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
@@ -2001,6 +2035,7 @@ begin
 								and quotename(ind.name) <> quotename(so1.name)
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
+						and ind.is_primary_key <> 1
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
 					10 as [Sort Order]
@@ -2015,6 +2050,7 @@ begin
 								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId 
 								and t1.TableLocation <> 'In-Memory')
 						and t.TableLocation <> 'In-Memory'
+						and ind.is_primary_key <> 1
 				union all 
 				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
 					10 as [Sort Order]
@@ -2038,14 +2074,16 @@ begin
 			 
 	end
 
-	drop table #TablesToColumnstore; 
+	drop table if exists #TablesToColumnstore; 
+
+	SET ANSI_WARNINGS ON;
 end
 
 GO
 /*
-	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -2225,7 +2263,7 @@ begin
 	insert into #ColumnstoreIndexes (TableName, Type, ObjectType, Location, Partition, [Compression Type], 
 									 BulkLoadRGs, [Open DeltaStores], [Closed DeltaStores], [Tombstones], [Compressed RowGroups], [Total RowGroups], 
 									[Deleted Rows], [Active Rows], [Total Rows], [Size in GB], Scans, Updates, LastScan)
-		exec dbo.cstore_GetRowGroups @indexType = 'CC', @showPartitionDetails = 1;
+		exec dbo.cstore_GetRowGroups @showPartitionDetails = 1;
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
 		select TableName, Partition, NULL 
@@ -2242,7 +2280,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --

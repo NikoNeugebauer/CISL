@@ -1,7 +1,7 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -70,7 +70,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
@@ -212,7 +212,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -288,7 +288,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -464,7 +464,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -537,7 +537,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
@@ -617,7 +617,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -640,6 +640,10 @@ Changes in 1.1.0
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
 	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL version can be easily determined.
+
+Changes in 1.4.2
+	- Fixed bug on including Delta-Stores information into the count of the compressed Row Group
+
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -670,7 +674,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -782,7 +786,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -824,6 +828,9 @@ Changes in 1.3.0
 
 Changes in 1.4.0
 	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
+
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -851,7 +858,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -950,7 +957,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1013,7 +1020,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
@@ -1100,7 +1107,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1157,6 +1164,9 @@ Changes in 1.3.1
 Changes in 1.4.0
 	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
 	- Added information on the CU 9 for SQL Server 2014 SP1 & CU 2 for SQL Server 2014 SP2
+
+Changes in 1.4.2
+	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1186,7 +1196,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1256,9 +1266,11 @@ begin
 		( 'SP1', 4459, convert(datetime,'20-06-2016',105), 'CU 7 for SQL Server 2014 SP1' ),
 		( 'SP1', 4468, convert(datetime,'15-08-2016',105), 'CU 8 for SQL Server 2014 SP1' ),
 		( 'SP1', 4474, convert(datetime,'18-10-2016',105), 'CU 9 for SQL Server 2014 SP1' ),
+		( 'SP1', 4491, convert(datetime,'18-12-2016',105), 'CU 10 for SQL Server 2014 SP1' ),
 		( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
 		( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' ),
-		( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' );
+		( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' ),
+		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1308,9 +1320,14 @@ begin
 		( 4459, 'SP1', 'FIX: DBCC CHECKTABLE returns an incorrect result after the clustered columnstore index is rebuilt in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3168712' ),
 		( 4459, 'SP1', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 ', 'https://support.microsoft.com/en-us/kb/3146123' ),
 		( 4474, 'SP1', 'FIX: Access violation when you run a query that uses clustered columnstore index with trace flag 2389, 2390, or 4139', 'https://support.microsoft.com/en-us/kb/3189645' ),
+		( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
+		( 4491, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067968' ),
+		( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
 		( 5522, 'SP2', 'FIX: Access violation when you run a query that uses clustered columnstore index with trace flag 2389, 2390, or 4139', 'https://support.microsoft.com/en-us/kb/3189645' ),
 		( 5522, 'SP2', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-		( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ); 
+		( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ),
+		( 5537, 'SP2', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
+		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' );	
 
 
 	if @identifyCurrentVersion = 1
@@ -1420,7 +1437,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -1469,6 +1486,10 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a bug when @indexLocation was a non-correct value it would include all results. Now a wrong value will return no results.
+
+Changes in 1.4.2
+	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
+	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1496,7 +1517,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -2000,7 +2021,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -2188,7 +2209,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
