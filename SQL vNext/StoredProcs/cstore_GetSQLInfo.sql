@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -49,7 +49,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.1, November 2016
+	Version: 1.4.2, December 2016
 */
 create or alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
