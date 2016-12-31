@@ -16,7 +16,7 @@
 #    See the License for the specific lan guage governing permissions and
 #    limitations under the License.
 
-$CISLVersion = "142"
+$CISLVersion = "141"
 $sqlPackageLocation = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\sqlpackage.exe"
 $dacpacLocation = "Z:\MEOCloud\CISL GitHub\CISL\Releases\DacPacs\"
 $sql2012 = ".\SQL12"
