@@ -1,6 +1,6 @@
 ﻿#	CISL - Columnstore Indexes Scripts Library for SQL Server
 #	Powershell Script to setup the Stored Procedures & Tests for the CISL
-#	Version: 1.4.1, November 2016
+#	Version: 1.4.2, December 2016
 #
 #	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 #
@@ -56,6 +56,9 @@ Get-Content $scriptRootPath\SQL-2016\StoredProcs\cstore_GetAlignment.sql, $scrip
             $scriptRootPath\SQL-2016\StoredProcs\cstore_doMaintenance.sql |
     Set-Content $scriptRootPath\SQL-2016\StoredProcs\cstore_install_all_stored_procs.sql
 
+# Unit Tests for SQL Server 2016
+Get-Content $scriptRootPath\Tests\SQL-2016\*.sql | Set-Content $scriptRootPath\Tests\sql-2016-tests.sql
+
 # Extended Events for SQL Server 2016
 Get-Content -Path "$($scriptRootPath)\SQL-2016\Extended Events\*.*" -Include *.sql -Exclude setup_all_extended_events.sql | Set-Content "$($scriptRootPath)\SQL-2016\Extended Events\setup_all_extended_events.sql"
 
@@ -82,9 +85,15 @@ Get-Content $scriptRootPath\Azure\StoredProcs\cstore_GetAlignment.sql, $scriptRo
 
 Get-Content -Path "$($scriptRootPath)\Azure\Extended Events\*.*" -Include *.sql -Exclude setup_all_extended_events.sql | Set-Content "$($scriptRootPath)\Azure\Extended Events\setup_all_extended_events.sql"
 
-$cred = Get-Credential;
+$cred = Get-Credential -errorAction SilentlyContinue;
 
-Install-CISL -SQLInstance .\SQL12
-Install-CISL -SQLInstance .\SQL14
-Install-CISL -SQLInstance .\SQL16
-Install-CISL -SQLInstance "columnstore.database.windows.net" -cred $cred 
+$InstallCISLExists = Get-Command Install-CISL -errorAction SilentlyContinue;
+if( $InstallCISLExists )
+{
+    Install-CISL -SQLInstance .\SQL12
+    Install-CISL -SQLInstance .\SQL14
+    Install-CISL -SQLInstance .\SQL16
+}
+if ( $cred ){
+    Install-CISL -SQLInstance "columnstore.database.windows.net" -cred $cred 
+}
