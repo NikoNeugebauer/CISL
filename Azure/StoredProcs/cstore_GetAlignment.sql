@@ -58,12 +58,16 @@ end
 
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetAlignment as select 1');
+GO
+
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetAlignment(
+ALTER PROCEDURE dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table

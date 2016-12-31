@@ -49,7 +49,7 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
 	exec ('create procedure dbo.cstore_GetRowGroupsDetails as select 1');
 GO
 
@@ -58,7 +58,7 @@ GO
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
+ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
     @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema

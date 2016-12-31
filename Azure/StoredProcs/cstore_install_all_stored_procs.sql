@@ -58,12 +58,16 @@ end
 
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetAlignment' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetAlignment as select 1');
+GO
+
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetAlignment(
+ALTER PROCEDURE dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
@@ -297,12 +301,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetDictionaries as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetDictionaries(
+ALTER PROCEDURE dbo.cstore_GetDictionaries(
 -- Params --
 	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)
@@ -550,12 +558,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetFragmentation as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetFragmentation (
+ALTER PROCEDURE dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
@@ -694,12 +706,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroups' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetRowGroups as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroups(
+ALTER PROCEDURE dbo.cstore_GetRowGroups(
 -- Params --
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
@@ -907,7 +923,7 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
-if NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetRowGroupsDetails' and schema_id = SCHEMA_ID('dbo') )
 	exec ('create procedure dbo.cstore_GetRowGroupsDetails as select 1');
 GO
 
@@ -916,7 +932,7 @@ GO
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
+ALTER PROCEDURE dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
     @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
@@ -1089,12 +1105,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_SuggestedTables' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_SuggestedTables as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_SuggestedTables(
+ALTER PROCEDURE dbo.cstore_SuggestedTables(
 -- Params --
 	@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
@@ -1719,12 +1739,16 @@ end
 GO
 
 -- **************************************************************************************************************************
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_doMaintenance as select 1');
+GO
+
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE [dbo].[cstore_doMaintenance](
+ALTER PROCEDURE [dbo].[cstore_doMaintenance](
 -- Params --
 	@execute bit = 0,								-- Controls if the maintenace is executed or not
 	@orderSegments bit = 0,							-- Controls whether Segment Clustering is being applied or not

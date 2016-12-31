@@ -67,12 +67,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetDictionaries' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetDictionaries as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetDictionaries(
+ALTER PROCEDURE dbo.cstore_GetDictionaries(
 -- Params --
 	@showDetails bit = 1,								-- Enables showing the details of all Dictionaries
 	@showWarningsOnly bit = 0,							-- Enables to filter out the dictionaries based on the Dictionary Size (@warningDictionarySizeInMB) and Entry Count (@warningEntryCount)

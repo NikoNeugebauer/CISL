@@ -62,12 +62,16 @@ begin
 end
 
 --------------------------------------------------------------------------------------------------------------------
+IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_GetFragmentation' and schema_id = SCHEMA_ID('dbo') )
+	exec ('create procedure dbo.cstore_GetFragmentation as select 1');
+GO
+
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
 	Version: 1.4.2, December 2016
 */
-CREATE OR ALTER PROCEDURE dbo.cstore_GetFragmentation (
+ALTER PROCEDURE dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
