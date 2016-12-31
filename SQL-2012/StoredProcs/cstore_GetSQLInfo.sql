@@ -26,7 +26,7 @@
 
 /*
 Changes in 1.0.1
-	+ Added drops for the existing temp tables: #SQLColumnstoreImprovements, #SQLBranches, #SQLVersion: 1.4.2, December 2016s
+	+ Added drops for the existing temp tables: #SQLColumnstoreImprovements, #SQLBranches, #SQLVersions
 	+ Added new parameter for Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early Version: 1.4.2, December 2016s
@@ -67,20 +67,20 @@ Changes in 1.4.0
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-		@identifyCurrentVersion: 1.4.2, December 2016 bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
-		@showNewerVersion: 1.4.2, December 2016s bit = 0;					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
+		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
+		@showNewerVersions bit = 0;					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion: 1.4.2, December 2016 nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
-if substring(@SQLServerVersion: 1.4.2, December 2016,1,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016)-1) <> N'11'
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion: 1.4.2, December 2016);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -104,27 +104,27 @@ GO
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
 	@showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-	@identifyCurrentVersion: 1.4.2, December 2016 bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
-	@showNewerVersion: 1.4.2, December 2016s bit = 0 					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
+	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
+	@showNewerVersions bit = 0 					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
 -- end of --
 ) as 
 begin
-	declare @SQLServerVersion: 1.4.2, December 2016 nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
 			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 
-	declare	@SQLServerBuild smallint = substring(@SQLServerVersion: 1.4.2, December 2016,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,5)+1,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,8)-CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,5)-1);
+	declare	@SQLServerBuild smallint = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 	--------------------------------------------------------------------------------------------------------------------
-	set @SQLServerBuild = substring(@SQLServerVersion: 1.4.2, December 2016,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,5)+1,CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,8)-CHARINDEX('.',@SQLServerVersion: 1.4.2, December 2016,5)-1);
+	set @SQLServerBuild = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 
 	if OBJECT_ID('tempdb..#SQLColumnstoreImprovements', 'U') IS NOT NULL
 		drop table #SQLColumnstoreImprovements;
 	if OBJECT_ID('tempdb..#SQLBranches', 'U') IS NOT NULL
 		drop table #SQLBranches;
-	if OBJECT_ID('tempdb..#SQLVersion: 1.4.2, December 2016s', 'U') IS NOT NULL
-		drop table #SQLVersion: 1.4.2, December 2016s;
+	if OBJECT_ID('tempdb..#SQLVersions', 'U') IS NOT NULL
+		drop table #SQLVersions;
 
 	create table #SQLColumnstoreImprovements(
-		BuildVersion: 1.4.2, December 2016 smallint not null,
+		BuildVersion smallint not null,
 		SQLBranch char(3) not null,
 		Description nvarchar(500) not null,
 		URL nvarchar(1000)
@@ -132,18 +132,18 @@ begin
 
 	create table #SQLBranches(
 		SQLBranch char(3) not null Primary Key,
-		MinVersion: 1.4.2, December 2016 smallint not null );
+		MinVersion smallint not null );
 
-	create table #SQLVersion: 1.4.2, December 2016s(
+	create table #SQLVersions(
 		SQLBranch char(3) not null,
-		SQLVersion: 1.4.2, December 2016 smallint not null Primary Key,
+		SQLVersion smallint not null Primary Key,
 		ReleaseDate datetime not null,	
-		SQLVersion: 1.4.2, December 2016Description nvarchar(100) );
+		SQLVersionDescription nvarchar(100) );
 
-	insert into #SQLBranches (SQLBranch, MinVersion: 1.4.2, December 2016)
+	insert into #SQLBranches (SQLBranch, MinVersion)
 		values ('RTM', 2100 ), ('SP1', 3000), ('SP2', 5058), ('SP3', 6020);
 
-	insert #SQLVersion: 1.4.2, December 2016s( SQLBranch, SQLVersion: 1.4.2, December 2016, ReleaseDate, SQLVersion: 1.4.2, December 2016Description )
+	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
 		( 'RTM', 2000, convert(datetime,'06-03-2012',105), 'SQL Server 2012 RTM' ),
 		( 'RTM', 2316, convert(datetime,'12-04-2012',105), 'CU 1 for SQL Server 2012 RTM' ),
@@ -199,7 +199,7 @@ begin
 		( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' );
 
 
-	insert into #SQLColumnstoreImprovements (BuildVersion: 1.4.2, December 2016, SQLBranch, Description, URL )
+	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
 		( 2325, 'RTM', 'FIX: An access violation occurs intermittently when you run a query against a table that has a columnstore index in SQL Server 2012', 'https://support.microsoft.com/en-us/kb/2711683' ),
 		( 2332, 'RTM', 'FIX: Incorrect results when you run a parallel query that uses a columnstore index in SQL Server 2012', 'https://support.microsoft.com/en-us/kb/2703193' ),
@@ -212,74 +212,74 @@ begin
 		( 5548, 'SP2', 'FIX: Some columns in sys.column_store_segments view show NULL value when the table has non-dbo schema in SQL Server', 'https://support.microsoft.com/en-us/kb/2989704' );	
 
 
-	if @identifyCurrentVersion: 1.4.2, December 2016 = 1
+	if @identifyCurrentVersion = 1
 	begin
-		if OBJECT_ID('tempdb..#TempVersion: 1.4.2, December 2016Results') IS NOT NULL
-			drop table #TempVersion: 1.4.2, December 2016Results;
+		if OBJECT_ID('tempdb..#TempVersionResults') IS NOT NULL
+			drop table #TempVersionResults;
 
-		create table #TempVersion: 1.4.2, December 2016Results(
+		create table #TempVersionResults(
 			MessageText nvarchar(512) NOT NULL,		
-			SQLVersion: 1.4.2, December 2016Description nvarchar(200) NOT NULL,
+			SQLVersionDescription nvarchar(200) NOT NULL,
 			SQLBranch char(3) not null,
-			SQLVersion: 1.4.2, December 2016 smallint NULL );
+			SQLVersion smallint NULL );
 
 		-- Identify the number of days that has passed since the installed release
 		declare @daysSinceLastRelease int = NULL;
 		select @daysSinceLastRelease = datediff(dd,max(ReleaseDate),getdate())
-			from #SQLVersion: 1.4.2, December 2016s
+			from #SQLVersions
 			where SQLBranch = ServerProperty('ProductLevel')
-				and SQLVersion: 1.4.2, December 2016 = cast(@SQLServerBuild as int);
+				and SQLVersion = cast(@SQLServerBuild as int);
 
 		-- Get information about current SQL Server Version: 1.4.2, December 2016
 		if( exists (select 1
-						from #SQLVersion: 1.4.2, December 2016s
-						where SQLVersion: 1.4.2, December 2016 = cast(@SQLServerBuild as int) ) )
-			select 'You are Running:' as MessageText, SQLVersion: 1.4.2, December 2016Description, SQLBranch, SQLVersion: 1.4.2, December 2016 as BuildVersion: 1.4.2, December 2016, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
-				from #SQLVersion: 1.4.2, December 2016s
-				where SQLVersion: 1.4.2, December 2016 = cast(@SQLServerBuild as int);
+						from #SQLVersions
+						where SQLVersion = cast(@SQLServerBuild as int) ) )
+			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
+				from #SQLVersions
+				where SQLVersion = cast(@SQLServerBuild as int);
 		else
-			select 'You are Running a Non RTM/SP/CU standard Version: 1.4.2, December 2016:' as MessageText, '-' as SQLVersion: 1.4.2, December 2016Description, 
-				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion: 1.4.2, December 2016, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+			select 'You are Running a Non RTM/SP/CU standard Version: 1.4.2, December 2016:' as MessageText, '-' as SQLVersionDescription, 
+				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
 		
 		-- Select information about all newer SQL Server Version: 1.4.2, December 2016s that are known
-		if @showNewerVersion: 1.4.2, December 2016s = 1
+		if @showNewerVersions = 1
 		begin 
-			insert into #TempVersion: 1.4.2, December 2016Results
-				select 'Available Newer Version: 1.4.2, December 2016s:' as MessageText, '' as SQLVersion: 1.4.2, December 2016Description, 
-					'' as SQLBranch, NULL as BuildVersion: 1.4.2, December 2016
+			insert into #TempVersionResults
+				select 'Available Newer Version: 1.4.2, December 2016s:' as MessageText, '' as SQLVersionDescription, 
+					'' as SQLBranch, NULL as BuildVersion
 				UNION ALL
-				select '' as MessageText, SQLVersion: 1.4.2, December 2016Description as SQLVersion: 1.4.2, December 2016Description, 
-						SQLBranch as SQLVersion: 1.4.2, December 2016Description, SQLVersion: 1.4.2, December 2016 as BuildVersion: 1.4.2, December 2016
-						from #SQLVersion: 1.4.2, December 2016s
-						where  @SQLServerBuild <  SQLVersion: 1.4.2, December 2016;
+				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
+						SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+						from #SQLVersions
+						where  @SQLServerBuild <  SQLVersion;
 
 			select * 
-				from #TempVersion: 1.4.2, December 2016Results;
+				from #TempVersionResults;
 
-			drop table #TempVersion: 1.4.2, December 2016Results;
+			drop table #TempVersionResults;
 		end 
 
 		
 	end
 
 	-- Select all known bugfixes that are applied to the newer Version: 1.4.2, December 2016s of SQL Server
-	select min(imps.BuildVersion: 1.4.2, December 2016) as BuildVersion: 1.4.2, December 2016, min(vers.SQLVersion: 1.4.2, December 2016Description) as SQLVersion: 1.4.2, December 2016Description, imps.Description, imps.URL
+	select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
 				on imps.SQLBranch = branch.SQLBranch
-			inner join #SQLVersion: 1.4.2, December 2016s vers
-				on imps.BuildVersion: 1.4.2, December 2016 = vers.SQLVersion: 1.4.2, December 2016
-		where BuildVersion: 1.4.2, December 2016 > @SQLServerBuild 
+			inner join #SQLVersions vers
+				on imps.BuildVersion = vers.SQLVersion
+		where BuildVersion > @SQLServerBuild 
 			and branch.SQLBranch >= ServerProperty('ProductLevel')
-			and branch.MinVersion: 1.4.2, December 2016 < BuildVersion: 1.4.2, December 2016
-		group by Description, URL, SQLVersion: 1.4.2, December 2016Description
-		having min(imps.BuildVersion: 1.4.2, December 2016) = (select min(imps2.BuildVersion: 1.4.2, December 2016)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion: 1.4.2, December 2016 > @SQLServerBuild group by imps2.Description)
-		order by BuildVersion: 1.4.2, December 2016;
+			and branch.MinVersion < BuildVersion
+		group by Description, URL, SQLVersionDescription
+		having min(imps.BuildVersion) = (select min(imps2.BuildVersion)	from #SQLColumnstoreImprovements imps2 where imps.Description = imps2.Description and imps2.BuildVersion > @SQLServerBuild group by imps2.Description)
+		order by BuildVersion;
 
 	-- Drop used temporary tables
 	drop table #SQLColumnstoreImprovements;
 	drop table #SQLBranches;
-	drop table #SQLVersion: 1.4.2, December 2016s;
+	drop table #SQLVersions;
 
 	--------------------------------------------------------------------------------------------------------------------
 	-- Trace Flags part
