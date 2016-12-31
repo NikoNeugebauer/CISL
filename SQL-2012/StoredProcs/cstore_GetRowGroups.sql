@@ -41,6 +41,9 @@ Changes in 1.3.0
 
 Changes in 1.4.0
 	- Fixed an extremely rare bug with the sys.dm_db_index_usage_stats DMV, where it contains queries for the local databases object made from other databases only
+	
+Changes in 1.4.2
+	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -88,16 +91,16 @@ begin
 
 	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
 		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-		(case @showPartitionDetails when 1 then part.partition_number else 1 end) as 'Partition',
-		part.data_compression_desc as 'Compression Type',
+		(case @showPartitionDetails when 1 then ISNULL(part.partition_number,1) else 1 end) as 'Partition',
+		ISNULL(part.data_compression_desc,'COLUMNSTORE') as 'Compression Type',
 		0 as 'Bulk Load RG',
 		0 as 'Open DS',
 		0 as 'Closed DS',
 		count(distinct segment_id) as 'Compressed',
 		count(distinct segment_id) as 'Total',
 		cast( sum(isnull(0,0))/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( sum(isnull(cast(row_count as bigint)-0,0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(cast(row_count as bigint),0))/count(distinct column_id)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint)-0,0))/(case count(distinct column_id) when 0 then 1 else count(distinct column_id) end)/1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( sum(isnull(cast(row_count as bigint),0))/(case count(distinct column_id) when 0 then 1 else count(distinct column_id) end)/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
 		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
@@ -105,18 +108,22 @@ begin
 		from sys.column_store_segments rg		
 			left join sys.partitions part with(READUNCOMMITTED)
 				on rg.hobt_id = part.hobt_id and isnull(rg.partition_id,1) = part.partition_id
-			inner join sys.indexes ind
+			right join sys.indexes ind
 				on ind.object_id = part.object_id 
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on part.object_id = stat.object_id and ind.index_id = stat.index_id
 				  and isnull(stat.database_id,db_id()) = db_id()			  
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-			  and part.data_compression_desc in ('COLUMNSTORE') 
-			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
-			  and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
-			  and part.object_id = isnull(@objectId, part.object_id)
-			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
+			  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
+			  and ((part.object_id is NOT NULL 
+				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
+				  and part.object_id = isnull(@objectId, part.object_id)
+				  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
+				  )
+				  OR
+				  part.object_id is NULL )
+				
 		group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
@@ -147,8 +154,8 @@ begin
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			  and part.data_compression_desc in ('COLUMNSTORE') 
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			  and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			  and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			  and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
+			  and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
 			  and part.object_id = isnull(@objectId, part.object_id)
 			  and isnull(stat.database_id, db_id('tempdb')) = db_id('tempdb')			  
 			  and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
@@ -156,7 +163,7 @@ begin
 		having cast( sum(isnull(on_disk_size,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(cast(row_count as bigint),0)) >= @minTotalRows
 		order by TableName,
-				(case @showPartitionDetails when 1 then part.partition_number else 1 end);
+				(case @showPartitionDetails when 1 then ISNULL(part.partition_number,1) else 1 end);
 
 end
 
