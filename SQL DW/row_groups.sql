@@ -19,15 +19,6 @@
 */
 
 -- Params --
---declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
---		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
---		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
---		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
---		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
---		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
---		@showPartitionDetails bit = 0					-- Allows to show details of each of the available partitions
--- end of --
-
 declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 		@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
 		@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
@@ -36,8 +27,9 @@ declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes 
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
-		@showPartitionDetails bit = 1,					-- Allows to show details of each of the available partitions
-		@partitionId int = 3							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
+		@showPartitionDetails bit = 0,					-- Allows to show details of each of the available partitions
+		@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
+-- end of --
 
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductLevel') as NVARCHAR(128)), 
