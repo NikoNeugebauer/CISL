@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, January 2017
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -48,6 +48,9 @@ Changes in 1.4.0
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
 	+ Added information on the Service Pack 1 for SQL Server 2016 and CU3 for SQL Server 2016 RTM
+
+Changes in 1.5.0
+	+ Added information on the CU1 for SQL Server 2016 SP1 and CU3 for SQL Server 2016 RTM
 */
 
 -- Params --
@@ -128,7 +131,9 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
 	( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' ),
 	( 'RTM', 2186, convert(datetime,'17-11-2016',105), 'CU 3 for SQL Server 2016' ),
-	( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' );
+	( 'RTM', 2193, convert(datetime,'18-01-2017',105), 'CU 4 for SQL Server 2016' ),
+	( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
+	( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -149,9 +154,19 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 	( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' ),
 	( 2186, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
+	( 2193, 'RTM', 'FIX: "Non-yielding Scheduler" condition when you parallel-load data into a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205411/fix-non-yielding-scheduler-condition-when-you-parallel-load-data-into-a-columnstore-index-in-sql-server-2016' ),
+	( 2193, 'RTM', 'FIX: Cannot insert data into a table that uses a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211602/fix-cannot-insert-data-into-a-table-that-uses-a-clustered-columnstore-index-in-sql-server-2016' ),
+	( 2193, 'RTM', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' ),
+	( 2193, 'RTM', 'FIX: An assertion occurs when you bulk insert data into a table from multiple connections in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205964/fix-an-assertion-occurs-when-you-bulk-insert-data-into-a-table-from-multiple-connections-in-sql-server-2016' ),
+	( 2193, 'RTM', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server', 'https://support.microsoft.com/en-us/help/3201416/fix-out-of-memory-errors-when-you-execute-dbcc-checkdb-on-database-that-contains-columnstore-indexes-in-sql-server-2014' ),
+	( 2193, 'RTM', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
 	( 4001, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-	( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' );
-
+	( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' ),
+	( 4411, 'SP1', 'FIX: The “sys.dm_db_column_store_row_group_physical_stats” query runs slowly on SQL Server 2016', 'https://support.microsoft.com/en-us/help/3210747/fix-the-sys.dm-db-column-store-row-group-physical-stats-query-runs-slowly-on-sql-server-2016' ),
+	( 4411, 'SP1', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
+	( 4411, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' );
+	
+	
 if @identifyCurrentVersion = 1
 begin
 	if OBJECT_ID('tempdb..#TempVersionResults') IS NOT NULL
