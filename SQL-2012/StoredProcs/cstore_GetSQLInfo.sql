@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
-	SQL Server Instance Information - Provides with the list of the known SQL Server Version: 1.4.2, December 2016s that have bugfixes or improvements over your current Version: 1.4.2, December 2016 + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	SQL Server Instance Information - Provides with the list of the known SQL Server Versions that have bugfixes or improvements over your current Version + lists currently enabled trace flags on the instance & session
+	Version
 
 	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -20,20 +20,20 @@
 
 /*
 	Known Issues & Limitations: 
-		- Custom non-standard (non-CU & non-SP) Version: 1.4.2, December 2016s are not targeted yet
+		- Custom non-standard (non-CU & non-SP) Versions are not targeted yet
 		- Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) are not eliminated from the list yet
 */
 
 /*
 Changes in 1.0.1
 	+ Added drops for the existing temp tables: #SQLColumnstoreImprovements, #SQLBranches, #SQLVersions
-	+ Added new parameter for Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
+	+ Added new parameter for Enables showing the SQL Server Versions that are posterior the current Version
 	* Added more source code description in the comments
-	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early Version: 1.4.2, December 2016s
+	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early Versions
 	+ Added information about CU8 for SQL Server 2012 SP 2
 
 Changes in 1.0.2
-	+ Added column with the CU Version: 1.4.2, December 2016 for the Bugfixes output
+	+ Added column with the CU Version for the Bugfixes output
 	* Updated temporary tables in order to avoid error messages
 
 Changes in 1.0.3
@@ -45,7 +45,7 @@ Changes in 1.0.4
 
 Changes in 1.1.0
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version can be easily determined.
 
 Changes in 1.1.1
 	+ Added information about CU10 for SQL Server 2012 SP 2
@@ -62,17 +62,20 @@ Changes in 1.3.0
 Changes in 1.4.0
 	+ Added information about CU 14 for SQL Server 2012 SP 2 & CU 5 for SQL Server 2012 SP3
 	- Fixed Bug with Duplicate Fixes & Improvements (CU12 for SP1 & CU2 for SP2, for example) not being eliminated from the list
+
+Changes in 1.5.0
+	+ Added information on the CU 16 for SQL Server 2012 SP2 and CU 7 for SQL Server 2012 SP3
 */
 
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
-		@showNewerVersions bit = 0;					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
+		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version
+		@showNewerVersions bit = 0;					-- Enables showing the SQL Server Versions that are posterior the current Version
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
@@ -80,7 +83,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -98,18 +101,18 @@ GO
 
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
-	SQL Server Instance Information - Provides with the list of the known SQL Server Version: 1.4.2, December 2016s that have bugfixes or improvements over your current Version: 1.4.2, December 2016 + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	SQL Server Instance Information - Provides with the list of the known SQL Server Versions that have bugfixes or improvements over your current Version + lists currently enabled trace flags on the instance & session
+	Version
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
 	@showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
-	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version: 1.4.2, December 2016
-	@showNewerVersions bit = 0 					-- Enables showing the SQL Server Version: 1.4.2, December 2016s that are posterior the current Version: 1.4.2, December 2016
+	@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version
+	@showNewerVersions bit = 0 					-- Enables showing the SQL Server Versions that are posterior the current Version
 -- end of --
 ) as 
 begin
-	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 
 	declare	@SQLServerBuild smallint = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
@@ -190,14 +193,15 @@ begin
 		( 'SP2', 5644, convert(datetime,'18-07-2016',105), 'CU 13 for SQL Server 2012 SP2' ),
 		( 'SP2', 5657, convert(datetime,'20-09-2016',105), 'CU 14 for SQL Server 2012 SP2' ),
 		( 'SP2', 5676, convert(datetime,'17-11-2016',105), 'CU 15 for SQL Server 2012 SP2' ),
+		( 'SP2', 5678, convert(datetime,'18-01-2017',105), 'CU 16 for SQL Server 2012 SP2' ),
 		( 'SP3', 6020, convert(datetime,'23-11-2015',105), 'SQL Server 2012 SP3' ),
 		( 'SP3', 6518, convert(datetime,'19-01-2016',105), 'CU 1 for SQL Server 2012 SP3' ),
 		( 'SP3', 6523, convert(datetime,'22-03-2016',105), 'CU 2 for SQL Server 2012 SP3' ),
 		( 'SP3', 6537, convert(datetime,'17-05-2016',105), 'CU 3 for SQL Server 2012 SP3' ),
 		( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' ),
 		( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' ),
-		( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' );
-
+		( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' ),
+		( 'SP3', 6579, convert(datetime,'18-01-2017',105), 'CU 7 for SQL Server 2012 SP3' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -230,22 +234,22 @@ begin
 			where SQLBranch = ServerProperty('ProductLevel')
 				and SQLVersion = cast(@SQLServerBuild as int);
 
-		-- Get information about current SQL Server Version: 1.4.2, December 2016
+		-- Get information about current SQL Server Version
 		if( exists (select 1
 						from #SQLVersions
 						where SQLVersion = cast(@SQLServerBuild as int) ) )
-			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
+			select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 				from #SQLVersions
 				where SQLVersion = cast(@SQLServerBuild as int);
 		else
-			select 'You are Running a Non RTM/SP/CU standard Version: 1.4.2, December 2016:' as MessageText, '-' as SQLVersionDescription, 
-				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+			select 'You are Running a Non RTM/SP/CU standard Version:' as MessageText, '-' as SQLVersionDescription, 
+				ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
 		
-		-- Select information about all newer SQL Server Version: 1.4.2, December 2016s that are known
+		-- Select information about all newer SQL Server Versions that are known
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Version: 1.4.2, December 2016s:' as MessageText, '' as SQLVersionDescription, 
+				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
 					'' as SQLBranch, NULL as BuildVersion
 				UNION ALL
 				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
@@ -262,7 +266,7 @@ begin
 		
 	end
 
-	-- Select all known bugfixes that are applied to the newer Version: 1.4.2, December 2016s of SQL Server
+	-- Select all known bugfixes that are applied to the newer Versions of SQL Server
 	select min(imps.BuildVersion) as BuildVersion, min(vers.SQLVersionDescription) as SQLVersionDescription, imps.Description, imps.URL
 		from #SQLColumnstoreImprovements imps
 			inner join #SQLBranches branch
