@@ -24,9 +24,9 @@
 */
 
 /*
-Changes in 1.0.4
-	+ Added information about each release date and the number of days since the installed released was published	
-	+ Added information on CTP 3.1 & CTP 3.2
+Changes in 1.5.0
+	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4 for the SQL Server vNext (2017 situation)	
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 
 */
 
@@ -91,27 +91,13 @@ begin
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-		( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' );
+		( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
+		( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
+		( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
+		( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
+		( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' );
 
-
-	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
-		values 
-		( 2149, 'RTM', 'FIX: All data goes to deltastores when you bulk load data into a clustered columnstore index under memory pressure', 'https://support.microsoft.com/en-nz/kb/3174073' ),
-		( 2149, 'RTM', 'FIX: Online index operations block DML operations when the database contains a clustered columnstore index', 'https://support.microsoft.com/en-nz/kb/3172960' ),
-		( 2149, 'RTM', 'FIX: Error 8624 occurs when you run a query against a nonclustered columnstore index in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3171544' ),
-		( 2149, 'RTM', 'Behavior changes when you add uniqueidentifier columns in a clustered Columnstore Index in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3173436' ),
-		( 2149, 'RTM', 'FIX: Incorrect number of rows in sys.partitions for a columnstore index in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3172974' ),
-		( 2149, 'RTM', 'FIX: Error 5283 when you run DBCC CHECKDB on a database that contains non-clustered columnstore index in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3174088' ),
-		( 2149, 'RTM', 'Query plan generation improvement for some columnstore queries in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-nz/kb/3146123' ),
-		( 2149, 'RTM', 'A query that accesses data in a columnstore index causes the Database Engine to receive a floating point exception in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3171759' ),
-		( 2149, 'RTM', 'Adds trace flag 9358 to disable batch mode sort operations in a complex parallel query in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3171555' ),
-		( 2149, 'RTM', 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3172787' ),
-		( 2164, 'RTM', 'Updating while compression is in progress can lead to nonclustered columnstore index corruption in SQL Server vNext', 'https://support.microsoft.com/en-us/kb/3188950' ),
-		( 2164, 'RTM', 'Query returns incorrect results from nonclustered columnstore index under snapshot isolation level in SQL Server vNext', 'https://support.microsoft.com/en-us/kb/3189372' ),
-		( 2170, 'RTM', 'FIX: SQL Server vNext crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
-		( 2170, 'RTM', 'FIX: Intermittent non-yielding conditions, performance problems and intermittent connectivity failures in SQL Server vNext', 'https://support.microsoft.com/en-us/kb/3189855' ),
-		( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-		( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server vNext', 'https://support.microsoft.com/en-us/kb/3197952' );
+		
 
 	if @identifyCurrentVersion = 1
 	begin
@@ -122,7 +108,8 @@ begin
 			MessageText nvarchar(512) NOT NULL,		
 			SQLVersionDescription nvarchar(200) NOT NULL,
 			SQLBranch char(3) not null,
-			SQLVersion smallint NULL );
+			SQLVersion smallint NULL,
+			ReleaseDate date NULL );
 
 		-- Identify the number of days that has passed since the installed release
 		declare @daysSinceLastRelease int = NULL;
@@ -147,11 +134,15 @@ begin
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-					'' as SQLBranch, NULL as BuildVersion
+				select 'Available Newer Versions:' as MessageText
+					, '' as SQLVersionDescription
+					, '' as SQLBranch, NULL as BuildVersion
+					, NULL as ReleaseDate
 				UNION ALL
-				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-						SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+				select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+						, SQLBranch as SQLVersionDescription
+						, SQLVersion as BuildVersion
+						, ReleaseDate as ReleaseDate
 						from #SQLVersions
 						where  @SQLServerBuild <  SQLVersion;
 

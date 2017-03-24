@@ -65,13 +65,14 @@ Changes in 1.4.1
 
 Changes in 1.5.0
 	+ Added information on the CU 16 for SQL Server 2012 SP2 and CU 7 for SQL Server 2012 SP3
-
+	+ Added information on the CU 8 for SQL Server 2012 SP3
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
 -- Params --
 declare @showUnrecognizedTraceFlags bit = 1,		-- Enables showing active trace flags, even if they are not columnstore indexes related
 		@identifyCurrentVersion bit = 1,			-- Enables identification of the currently used SQL Server Instance Version
-		@showNewerVersions bit = 1;					-- Enables showing the SQL Server Versions that are posterior the current Version
+		@showNewerVersions bit = 0;					-- Enables showing the SQL Server Versions that are posterior the current Version
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -179,7 +180,8 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP3', 6540, convert(datetime,'18-07-2016',105), 'CU 4 for SQL Server 2012 SP3' ),
 	( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' ),
 	( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' ),
-	( 'SP3', 6579, convert(datetime,'18-01-2017',105), 'CU 7 for SQL Server 2012 SP3' );
+	( 'SP3', 6579, convert(datetime,'18-01-2017',105), 'CU 7 for SQL Server 2012 SP3' ),
+	( 'SP3', 6594, convert(datetime,'21-03-2017',105), 'CU 8 for SQL Server 2012 SP3' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -203,7 +205,8 @@ begin
 		MessageText nvarchar(512) NOT NULL,		
 		SQLVersionDescription nvarchar(200) NOT NULL,
 		SQLBranch char(3) not null,
-		SQLVersion smallint NULL );
+		SQLVersion smallint NULL,
+		ReleaseDate date NULL );
 
 	-- Identify the number of days that has passed since the installed release
 	declare @daysSinceLastRelease int = NULL;
@@ -227,11 +230,15 @@ begin
 	if @showNewerVersions = 1
 	begin 
 		insert into #TempVersionResults
-			select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-				'' as SQLBranch, NULL as BuildVersion
+			select 'Available Newer Versions:' as MessageText
+				, '' as SQLVersionDescription
+				, '' as SQLBranch, NULL as BuildVersion
+				, NULL as ReleaseDate
 			UNION ALL
-			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+			select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+					, SQLBranch as SQLVersionDescription
+					, SQLVersion as BuildVersion
+					, ReleaseDate as ReleaseDate
 					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
 

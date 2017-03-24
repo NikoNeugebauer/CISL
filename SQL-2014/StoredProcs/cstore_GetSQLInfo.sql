@@ -61,6 +61,10 @@ Changes in 1.4.0
 
 Changes in 1.4.2
 	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
+
+Changes in 1.5.0
+	- Added information on the CU 11 for SQL Server 2014 SP1 & CU 4 for SQL Server 2014 SP2
+	- Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -161,10 +165,12 @@ begin
 		( 'SP1', 4468, convert(datetime,'15-08-2016',105), 'CU 8 for SQL Server 2014 SP1' ),
 		( 'SP1', 4474, convert(datetime,'18-10-2016',105), 'CU 9 for SQL Server 2014 SP1' ),
 		( 'SP1', 4491, convert(datetime,'18-12-2016',105), 'CU 10 for SQL Server 2014 SP1' ),
+		( 'SP1', 4502, convert(datetime,'21-02-2017',105), 'CU 11 for SQL Server 2014 SP1' ),
 		( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
 		( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' ),
 		( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' ),
-		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' );
+		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' ),
+		( 'SP2', 5540, convert(datetime,'21-02-2017',105), 'CU 4 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -221,7 +227,8 @@ begin
 		( 5522, 'SP2', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 		( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ),
 		( 5537, 'SP2', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
-		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' );	
+		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' ),
+		( 5540, 'SP2', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3067968' );
 
 
 	if @identifyCurrentVersion = 1
@@ -233,7 +240,9 @@ begin
 			MessageText nvarchar(512) NOT NULL,		
 			SQLVersionDescription nvarchar(200) NOT NULL,
 			SQLBranch char(3) not null,
-			SQLVersion smallint NULL );
+			SQLVersion smallint NULL,
+			ReleaseDate Date NULL );
+
 	
 		-- Identify the number of days that has passed since the installed release
 		declare @daysSinceLastRelease int = NULL;
@@ -258,11 +267,15 @@ begin
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-					'' as SQLBranch, NULL as BuildVersion
+				select 'Available Newer Versions:' as MessageText
+					, '' as SQLVersionDescription
+					, '' as SQLBranch, NULL as BuildVersion
+					, NULL as ReleaseDate
 				UNION ALL
-				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-						SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+				select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+						, SQLBranch as SQLVersionDescription
+						, SQLVersion as BuildVersion
+						, ReleaseDate as ReleaseDate
 						from #SQLVersions
 						where  @SQLServerBuild <  SQLVersion;
 

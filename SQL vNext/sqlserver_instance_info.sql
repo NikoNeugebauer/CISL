@@ -25,6 +25,9 @@
 */
 
 /*
+Changes in 1.5.0
+	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4 for the SQL Server vNext (2017 situation)
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 
 */
 
@@ -78,7 +81,11 @@ insert into #SQLBranches (SQLBranch, MinVersion)
 
 insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	values 
-	( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' );
+	( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
+	( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
+	( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
+	( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
+	( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' );
 
 
 
@@ -90,7 +97,8 @@ begin
 		MessageText nvarchar(512) NOT NULL,		
 		SQLVersionDescription nvarchar(200) NOT NULL,
 		SQLBranch char(3) not null,
-		SQLVersion smallint NULL );
+		SQLVersion smallint NULL,
+		ReleaseDate date NULL );
 
 	-- Identify the number of days that has passed since the installed release
 	declare @daysSinceLastRelease int = NULL;
@@ -114,11 +122,15 @@ begin
 	if @showNewerVersions = 1
 	begin 
 		insert into #TempVersionResults
-			select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-				'' as SQLBranch, NULL as BuildVersion
+			select 'Available Newer Versions:' as MessageText
+				, '' as SQLVersionDescription
+				, '' as SQLBranch, NULL as BuildVersion
+				, NULL as ReleaseDate
 			UNION ALL
-			select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-					SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+			select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+					, SQLBranch as SQLVersionDescription
+					, SQLVersion as BuildVersion
+					, ReleaseDate as ReleaseDate
 					from #SQLVersions
 					where  @SQLServerBuild <  SQLVersion;
 

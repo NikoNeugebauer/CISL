@@ -57,7 +57,8 @@ Changes in 1.4.2
 	* Fixed missing information on the most recent SQL Server 2016 updates
 
 Changes in 1.5.0
-	+ Added information on the CU1 for SQL Server 2016 SP1 and CU3 for SQL Server 2016 RTM
+	+ Added information on the CU1, CU2 for SQL Server 2016 SP1 and CU3, CU4, CU5 for SQL Server 2016 RTM
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -149,9 +150,10 @@ begin
 		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
 		( 'RTM', 2186, convert(datetime,'17-11-2016',105), 'CU 3 for SQL Server 2016' ),
 		( 'RTM', 2193, convert(datetime,'18-01-2017',105), 'CU 4 for SQL Server 2016' ),
+		( 'RTM', 2197, convert(datetime,'21-03-2017',105), 'CU 5 for SQL Server 2016' ),
 		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
-		( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' );
-
+		( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -182,7 +184,20 @@ begin
 		( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' ),
 		( 4411, 'SP1', 'FIX: The “sys.dm_db_column_store_row_group_physical_stats” query runs slowly on SQL Server 2016', 'https://support.microsoft.com/en-us/help/3210747/fix-the-sys.dm-db-column-store-row-group-physical-stats-query-runs-slowly-on-sql-server-2016' ),
 		( 4411, 'SP1', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
-		( 4411, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' );
+		( 4411, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' ),
+		( 4422, 'SP1', 'FIX: Cannot insert data into a table that uses a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211602' ),
+		( 4422, 'SP1', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752' ),
+		( 4422, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3195825' ),
+		( 4422, 'SP1', 'FIX: Data type conversion error in a query that involves a column store index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013883' ),
+		( 4422, 'SP1', 'FIX: "Non-yielding Scheduler" condition when you parallel-load data into a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205411' ),
+		( 4422, 'SP1', 'FIX: "Incorrect syntax for definition of the ''default'' constraint" error when you add an arbitrary columnstore column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/5852300' ),
+		( 4422, 'SP1', 'FIX: Error when you add a NOT NULL column with default values to a non-empty clustered columnstore index in SQL Server 2016 Standard and Express edition', 'https://support.microsoft.com/en-us/help/4013851' ),
+		( 4422, 'SP1', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3204769' ),
+		( 4422, 'SP1', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118' ),
+		( 4422, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3067968' ),
+		( 4422, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3201416' ),
+		( 4422, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283' );
+
 
 	if @identifyCurrentVersion = 1
 	begin
@@ -193,7 +208,8 @@ begin
 			MessageText nvarchar(512) NOT NULL,		
 			SQLVersionDescription nvarchar(200) NOT NULL,
 			SQLBranch char(3) not null,
-			SQLVersion smallint NULL );
+			SQLVersion smallint NULL,
+			ReleaseDate date NULL );
 
 		-- Identify the number of days that has passed since the installed release
 		declare @daysSinceLastRelease int = NULL;
@@ -218,11 +234,15 @@ begin
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-					'' as SQLBranch, NULL as BuildVersion
+				select 'Available Newer Versions:' as MessageText
+					, '' as SQLVersionDescription
+					, '' as SQLBranch, NULL as BuildVersion
+					, NULL as ReleaseDate
 				UNION ALL
-				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-						SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+				select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+						, SQLBranch as SQLVersionDescription
+						, SQLVersion as BuildVersion
+						, ReleaseDate as ReleaseDate
 						from #SQLVersions
 						where  @SQLServerBuild <  SQLVersion;
 
