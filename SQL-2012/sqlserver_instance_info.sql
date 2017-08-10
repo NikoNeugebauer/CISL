@@ -65,7 +65,7 @@ Changes in 1.4.1
 
 Changes in 1.5.0
 	+ Added information on the CU 16 for SQL Server 2012 SP2 and CU 7 for SQL Server 2012 SP3
-	+ Added information on the CU 8 for SQL Server 2012 SP3
+	+ Added information on the CU 8, CU 9, CU 10 for SQL Server 2012 SP3
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
@@ -181,7 +181,9 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' ),
 	( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' ),
 	( 'SP3', 6579, convert(datetime,'18-01-2017',105), 'CU 7 for SQL Server 2012 SP3' ),
-	( 'SP3', 6594, convert(datetime,'21-03-2017',105), 'CU 8 for SQL Server 2012 SP3' );
+	( 'SP3', 6594, convert(datetime,'21-03-2017',105), 'CU 8 for SQL Server 2012 SP3' ),
+	( 'SP3', 6598, convert(datetime,'15-05-2017',105), 'CU 9 for SQL Server 2012 SP3' ),
+	( 'SP3', 6607, convert(datetime,'08-08-2017',105), 'CU 10 for SQL Server 2012 SP3' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
