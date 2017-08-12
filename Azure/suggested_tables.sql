@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -52,6 +52,11 @@ Changes in 1.4.1
 Changes in 1.4.2
 	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
 	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 -- Params --
@@ -59,6 +64,8 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = null,							-- Allows to show data filtered down to the specified table name pattern
+		@preciseSearch bit = 0,										-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+		@objectId INT = NULL,										-- Allows to show data filtered down to the specific object_id
 		@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
@@ -218,8 +225,11 @@ select t.object_id as [ObjectId]
 				from sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
-		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
+		 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id) = @tableName) )
+	 	 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id ) like '%' + @schemaName + '%')
+	 		OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id ) = @schemaName))
+		 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -338,8 +348,11 @@ select t.object_id as [ObjectId]
 				from tempdb.sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-		 and (@tableName is null or obj.name like '%' + @tableName + '%')
-		 and (@schemaName is null or object_schema_name( t.object_id, db_id('tempdb') ) = @schemaName)
+		 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+			  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) = @tableName) )
+		 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+			  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName))
+		 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 		 and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		 and (( @showReadyTablesOnly = 1 
 				and  
