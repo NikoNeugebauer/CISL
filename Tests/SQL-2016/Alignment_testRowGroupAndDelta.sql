@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
