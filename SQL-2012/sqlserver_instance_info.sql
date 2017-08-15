@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
-	SQL Server Instance Information - Provides with the list of the known SQL Server Versions that have bugfixes or improvements over your current Version: 1.4.2, December 2016 + lists currently enabled trace flags on the instance & session
+	SQL Server Instance Information - Provides with the list of the known SQL Server Versions that have bugfixes or improvements over your current Version: 1.5.0, August 2017 + lists currently enabled trace flags on the instance & session
 	Version: 1.5.0, January 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.5.0, August 2017 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -27,13 +27,13 @@
 /*
 Changes in 1.0.1
 	+ Added drops for the existing temp tables: #SQLColumnstoreImprovements, #SQLBranches, #SQLVersions
-	+ Added new parameter for Enables showing the SQL Server Versions that are posterior the current Version: 1.4.2, December 2016
+	+ Added new parameter for Enables showing the SQL Server Versions that are posterior the current Version: 1.5.0, August 2017
 	* Added more source code description in the comments
 	+ Removed some redundant information (column UpdateName from the #SQLColumnstoreImprovements) which were left from the very early Versions
 	+ Added information about CU8 for SQL Server 2012 SP 2
 
 Changes in 1.0.2
-	+ Added column with the CU Version: 1.4.2, December 2016 for the Bugfixes output
+	+ Added column with the CU Version: 1.5.0, August 2017 for the Bugfixes output
 	* Updated temporary tables in order to avoid error messages
 
 Changes in 1.0.3
@@ -84,7 +84,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.5.0, August 2017 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -217,16 +217,16 @@ begin
 		where SQLBranch = ServerProperty('ProductLevel')
 			and SQLVersion = cast(@SQLServerBuild as int);
 
-	-- Get information about current SQL Server Version: 1.4.2, December 2016
+	-- Get information about current SQL Server Version: 1.5.0, August 2017
 	if( exists (select 1
 					from #SQLVersions
 					where SQLVersion = cast(@SQLServerBuild as int) ) )
-		select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
+		select 'You are Running:' as MessageText, SQLVersionDescription, SQLBranch, SQLVersion as BuildVersion, 'Your Version: 1.5.0, August 2017 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease
 			from #SQLVersions
 			where SQLVersion = cast(@SQLServerBuild as int);
 	else
-		select 'You are Running a Non RTM/SP/CU standard Version: 1.4.2, December 2016:' as MessageText, '-' as SQLVersionDescription, 
-			ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version: 1.4.2, December 2016 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
+		select 'You are Running a Non RTM/SP/CU standard Version: 1.5.0, August 2017:' as MessageText, '-' as SQLVersionDescription, 
+			ServerProperty('ProductLevel') as SQLBranch, @SQLServerBuild as SQLVersion, 'Your Version: 1.5.0, August 2017 is ' + cast(@daysSinceLastRelease as varchar(3)) + ' days old' as DaysSinceRelease;
 	
 	-- Select information about all newer SQL Server Versions that are known
 	if @showNewerVersions = 1
