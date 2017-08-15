@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Extended Events Setup Script for Batch Execution Mode events 'batch_hash_join_separate_hash_column,'batch_hash_table_build_bailout'&'potential_batch_mode_colocated_join'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -66,9 +66,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Extended Events Setup Script for Index Creation events 'columnstore_index_rebuild'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -128,9 +128,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Extended Events Setup Script for Memory events 'column_store_object_pool_hit', 'column_store_object_pool_miss'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -196,9 +196,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Extended Events Setup Script for Row Group reading with events
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.

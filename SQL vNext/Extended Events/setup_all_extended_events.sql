@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Batch Execution Mode events 'batch_hash_join_separate_hash_column,'query_execution_batch_hash_join_spilled', 'query_execution_batch_hash_children_reversed','query_execution_batch_hash_aggregation_finished','batch_hash_table_build_bailout','query_execution_batch_filter'&'query_execution_batch_spill_started'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -75,9 +75,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Log Exception event 'columnstore_log_exception'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -139,9 +139,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Index Creation events 'clustered_columnstore_index_rebuild', 'column_store_index_build_low_memory', 'column_store_index_build_throttle', 'column_store_index_build_process_segment'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -208,9 +208,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Internal Object Operations events: 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -283,9 +283,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Memory events 'column_store_object_pool_hit', 'column_store_object_pool_miss'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -350,9 +350,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Row Group elimination event:  'column_store_segment_eliminate'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -416,9 +416,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Row Group reading with events
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -495,9 +495,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Extended Events Setup Script for Tuple Mover events 'columnstore_tuple_mover_begin_compress', 'columnstore_tuple_mover_end_compress' & 'column_store_acquire_insert_lock'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.

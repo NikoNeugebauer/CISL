@@ -1,11 +1,11 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Extended Events Setup Script for reading Row Group events 'column_store_rowgroup_read_issued', 'column_store_rowgroup_readahead_issued'
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.5.0, August 2017 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -18,14 +18,14 @@
     limitations under the License.
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.5.0, August 2017') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.5.0, August 2017 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
