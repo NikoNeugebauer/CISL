@@ -245,8 +245,8 @@ select TableName, Location, partition_number as 'Partition', cte.column_id as 'C
 IF @showSegmentAnalysis = 1 
 BEGIN
 
-	DECLARE @alignedColumnList NVARCHAR(2000) = NULL;
-	DECLARE @alignedColumnNamesList NVARCHAR(2000) = NULL;
+	DECLARE @alignedColumnList NVARCHAR(MAX) = NULL;
+	DECLARE @alignedColumnNamesList NVARCHAR(MAX) = NULL;
 	DECLARE @alignedTable NVARCHAR(128) = NULL,
 			@alignedPartition INT = NULL,
 			@partitioningClause NVARCHAR(500) = NULL;
@@ -288,9 +288,11 @@ BEGIN
 		
 			-- Get the list with COUNT(DISTINCT [ColumnName])
 			SELECT @alignedColumnList = STUFF((
-				SELECt ', COUNT( DISTINCT ' + name + ') as [' + name + ']'
+				SELECt ', COUNT( DISTINCT ' + QUOTENAME(name) + ') as [' + name + ']'
 					FROM sys.columns cols
 					WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+						AND cols.name = isnull(@columnName,cols.name)
+						AND cols.column_id = isnull(@columnId,cols.column_id)
 					ORDER BY cols.column_id DESC
 					FOR XML PATH('')
 				), 1, 1, '');
@@ -299,6 +301,8 @@ BEGIN
 				SELECt ', [' + name + ']'
 					FROM sys.columns cols
 					WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+						AND cols.name = isnull(@columnName,cols.name)
+						AND cols.column_id = isnull(@columnId,cols.column_id)
 					ORDER BY cols.column_id DESC
 					FOR XML PATH('')
 				), 1, 1, '');
@@ -362,6 +366,7 @@ BEGIN
 						CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
 							) res
 				WHERE res.[Database] = QUOTENAME(DB_NAME()) AND res.[Schema] IS NOT NULL AND res.[Table] IS NOT NULL
+					AND res.[Column]= isnull(@columnName,res.[Column])
 			GROUP BY [Schema], [Table], [Column];
 
 		-- Distribute Rank based on the values between 0 & 100
@@ -376,7 +381,8 @@ BEGIN
 		DENSE_RANK() OVER ( PARTITION BY res.[TableName], [Partition] 
 					  ORDER BY ISNULL(ScanRank,-100) + 
 							CASE WHEN [DistinctCount] < [Total Segments] OR [DistinctCount] < 2 THEN - 100 ELSE 0 END +
-							( ISNULL(cnt.DistinctCount,0) * 100. / CASE ISNULL(cnt.TotalRowCount,0) WHEN 0 THEN 1 ELSE cnt.TotalRowCount END) - CASE [Segment Elimination] WHEN 'OK' THEN 0. ELSE 100. END
+							( ISNULL(cnt.DistinctCount,0) * 100. / CASE ISNULL(cnt.TotalRowCount,0) WHEN 0 THEN 1 ELSE cnt.TotalRowCount END) 
+							- CASE [Segment Elimination] WHEN 'OK' THEN 0. ELSE 1000. END
 							DESC ) AS [Recommendation]		
 		FROM #SegmentAlignmentResults res
 		LEFT OUTER JOIN #DistinctCounts cnt
