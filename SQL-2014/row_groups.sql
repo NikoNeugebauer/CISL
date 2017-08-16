@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -42,6 +42,11 @@ Changes in 1.4.0
 
 Changes in 1.4.2
 	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 -- Params --
@@ -51,6 +56,8 @@ declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes 
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+		@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+		@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 		@showPartitionDetails bit = 1,					-- Allows to show details of each of the available partitions
 		@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
@@ -103,8 +110,11 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)			
+		 	and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+		    AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end)--, part.data_compression_desc
 	having cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) >= @minSizeInGB
@@ -138,8 +148,11 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 			and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			and (@tableName is null or object_name (ind.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(ind.object_id, db_id('tempdb')) = @schemaName)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
 			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) --, part.data_compression_desc

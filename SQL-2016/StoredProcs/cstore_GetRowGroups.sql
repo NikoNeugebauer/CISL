@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -53,6 +53,10 @@ Changes in 1.4.1
 
 Changes in 1.4.2
 	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -83,7 +87,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -93,6 +97,7 @@ alter procedure dbo.cstore_GetRowGroups(
 	@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 	@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 	@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
@@ -145,16 +150,20 @@ begin
 					on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 				left join sys.partitions part with(READUNCOMMITTED)
 					on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
+					AND ind.index_id = part.index_id
 				left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 					on rg.object_id = stat.object_id and ind.index_id = stat.index_id
 					   and isnull(stat.database_id,db_id()) = db_id()
-			where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-				  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+			where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
+				  and part.data_compression >= 3 and part.data_compression <= 4
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (obj.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or object_schema_name(obj.object_id) = @schemaName)
+		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+				  AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
@@ -196,9 +205,9 @@ begin
 						from sys.dm_db_xtp_memory_consumers xtpMem 
 						where ind.object_id = xtpMem.object_id and xtpMem.memory_consumer_type = 5 /* HKCS_COMPRESSED */)
 				  ) as Decimal(8,2)) as 'Size in GB',
-		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
-		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
-		max(stat.last_user_scan) as 'LastScan'
+			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
+			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
+			max(stat.last_user_scan) as 'LastScan'
 		from tempdb.sys.indexes ind
 			inner join sys.objects obj
 				on ind.object_id = obj.object_id
@@ -208,14 +217,16 @@ begin
 				on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 			left join tempdb.sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on rg.object_id = stat.object_id and ind.index_id = stat.index_id 
-		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-				and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+		where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
+				and part.data_compression >= 3 and part.data_compression <= 4
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@tableName is null or object_name (obj.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-				and (@schemaName is null or object_schema_name(obj.object_id, db_id('tempdb')) = @schemaName)
-				and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
+				and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+				and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+				AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 		group by ind.object_id, ind.type, obj.type_desc, rg.partition_number,
 				ind.data_space_id,
@@ -235,12 +246,12 @@ begin
 		max([Compression Type]) as [Compression Type], sum([Bulk Load RG]) as [Bulk Load RG], sum([Open DS]) as [Open DS], sum([Closed DS]) as [Closed DS], 
 		sum(Tombstones) as Tombstones, sum(Compressed) as Compressed, sum(Total) as Total, 
 		sum([Deleted Rows (M)]) as [Deleted Rows (M)], sum([Active Rows (M)]) as [Active Rows (M)], sum([Total Rows (M)]) as [Total Rows (M)], 
-		sum([Size in GB]) as [Size in GB], sum(Scans) as Scans, sum(Updates) as Updates, max(LastScan) as LastScan
+		sum([Size in GB]) as [Size in GB], sum(ISNULL(Scans,0)) as Scans, sum(ISNULL(Updates,0)) as Updates, NULL as LastScan
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
 		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
 		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end)
-		option (force order);
+		--option (force order);
 
 	SET ANSI_WARNINGS ON;
 end

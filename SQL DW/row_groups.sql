@@ -25,8 +25,10 @@ declare @indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes 
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
+		@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+		@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 		@showPartitionDetails bit = 0,					-- Allows to show details of each of the available partitions
 		@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
@@ -39,7 +41,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running Azure SQLDW
 if SERVERPROPERTY('EngineEdition') <> 6
 begin
-	set @errorMessage = (N'Your are not running this script agains Azure SQLDW: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script on Azure SQLDW: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -92,8 +94,11 @@ select  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 				  --and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or schema_name(ind.object_id) = @schemaName)
+		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+				  AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 				  and case @showPartitionDetails when 1 then part.partition_number else 1 end = isnull(@partitionId, case @showPartitionDetails when 1 then part.partition_number else 1 end)  -- Partition Filtering
 		group by obj.schema_id, ind.object_id, ind.type, (case @showPartitionDetails when 1 then part.partition_number else 1 end) 
