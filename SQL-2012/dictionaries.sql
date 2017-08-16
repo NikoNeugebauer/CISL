@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.5.0, August 2017 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -33,7 +33,7 @@ Changes in 1.0.4:
 	+ Added new parameter for filtering on the schema - @schemaName
 
 Changes in 1.1.0:
-	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 Version: 1.4.2, December 2016)
+	- Fixed error with row groups information returning back an error, because of the non-existing view (the code was copied from 2014 Version: 1.5.0, August 2017)
 
 Changes in 1.2.0
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)	
@@ -47,6 +47,12 @@ Changes in 1.3.0
 
 Changes in 1.3.1
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.5.0
+	+ Added new parameter that allows to filter the results by specific partition number (@partitionNumber)
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 	
 -- Params --
@@ -59,6 +65,9 @@ declare
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
+	@preciseSearch bit = 0,								-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@objectId INT = NULL,								-- Allows to show data filtered down to the specific object_id
+	@partitionNumber int = 0,							-- Allows to filter data on a specific partion. 
 	@columnName nvarchar(256) = NULL,					-- Allows to filter out data base on 1 particular column name
 	@indexLocation varchar(15) = NULL,					-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@indexType char(2) = NULL							-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
@@ -72,7 +81,7 @@ else
 	set @table_object_id = NULL;
 
 --------------------------------------------------------------------------------------------------------------------
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.5.0, August 2017') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
@@ -80,7 +89,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.5.0, August 2017 is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -111,8 +120,12 @@ SELECT QuoteName(object_schema_name(i.object_id)) + '.' + QuoteName(object_name(
 		inner join sys.column_store_dictionaries AS csd
 			on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
     where i.type in (5,6)
-		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (i.object_id) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( i.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( i.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,i.object_id) = i.object_id)
+		AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
 		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
 	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, p.hobt_id, p.partition_number, p.partition_id, i.data_space_id, i.type
@@ -135,8 +148,12 @@ SELECT QuoteName(object_schema_name(i.object_id,db_id('tempdb'))) + '.' + QuoteN
 		inner join tempdb.sys.column_store_dictionaries AS csd
 			on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
     where i.type in (5,6)
-		and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) = @schemaName))
+		AND (ISNULL(@objectId,p.object_id) = p.object_id)
+		AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
 		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
 	group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, p.hobt_id, p.partition_id, p.partition_number, i.data_space_id, i.type;
@@ -181,8 +198,12 @@ if @showDetails = 1
 				when 'sysname' then 1
 			end = 1
 		) OR @showAllTextDictionaries = 0 )
-		and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
+		AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
@@ -226,8 +247,12 @@ if @showDetails = 1
 				when 'sysname' then 1
 			end = 1
 		) OR @showAllTextDictionaries = 0 )
-		and (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
+		and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,part.object_id) = part.object_id)
+		AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end		
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )

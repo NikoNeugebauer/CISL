@@ -28,6 +28,9 @@ declare
 	@showDictionaryType nvarchar(52) = NULL,			-- Enables to filter out dictionaries by type with possible values 'Local', 'Global' or NULL for both 
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
+	@preciseSearch bit = 0,								-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@objectId INT = NULL,								-- Allows to show data filtered down to the specific object_id
+	@partitionNumber int = 0,							-- Allows to filter data on a specific partion. 
 	@columnName nvarchar(256) = NULL;					-- Allows to filter out data base on 1 particular column name
 -- end of --
 
@@ -41,7 +44,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running Azure SQLDW
 if SERVERPROPERTY('EngineEdition') <> 6
 begin
-	set @errorMessage = (N'Your are not running this script agains Azure SQLDW: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script on Azure SQLDW: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -97,8 +100,12 @@ SELECT QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.o
 				and rg.index_id = NI.index_id
 				and rg.distribution_id = NI.distribution_id
     where ind.type in (5,6)
-		and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or schema_name(ind.object_id) = @schemaName)	
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
+		AND part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 	group by QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.object_id)), 
 		ind.object_id, 
 		part.partition_number,
@@ -167,8 +174,12 @@ select QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.o
 				when 'sysname' then 1
 			end = 1
 		) OR @showAllTextDictionaries = 0 )
-		and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or schema_name(ind.object_id) = @schemaName)	
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
+		and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,part.object_id) = part.object_id)
+		AND part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 		and cols.name = isnull(@columnName,cols.name)
 		and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 	order by QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.object_id)), 
