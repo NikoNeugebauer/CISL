@@ -33,6 +33,8 @@ Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
 	+ Added new parameter for the identifying the object by its object_id (@objectId)
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed bug with the partitioned table not showing the correct number of rows
+	+ Added new result column [Partitions] showing the total number of the partitions
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -92,6 +94,7 @@ begin
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
 		[ShortTableName] nvarchar(256) NOT NULL,
+		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -124,8 +127,9 @@ begin
 		, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, isnull(max(p.rows),0) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, isnull(SUM(p.rows),0) as 'Row Count'
+		, ceiling(SUM(p.rows)/1045678.) as 'Min RowGroups' 
 		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -247,8 +251,9 @@ begin
 		, 'Disk-Based'
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, max(p.rows) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, SUM(p.rows) as 'Row Count'
+		, ceiling(SUM(p.rows)/1045678.) as 'Min RowGroups' 
 		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -387,7 +392,7 @@ begin
 					  AND TableLocation = 'In-Memory' then 'Clustered Columnstore'  
 		   end as 'Compatible With'
 		, TableLocation		
-		, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
+		, [TableName], [Partitions], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 		, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 		, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [InMemoryOLTP], [Replication], [FileStream], [FileTable]
 		from #TablesToColumnstore tempRes
