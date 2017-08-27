@@ -222,8 +222,8 @@ begin
 	IF @showSegmentAnalysis = 1 
 	BEGIN
 
-		DECLARE @alignedColumnList NVARCHAR(2000) = NULL;
-		DECLARE @alignedColumnNamesList NVARCHAR(2000) = NULL;
+		DECLARE @alignedColumnList NVARCHAR(MAX) = NULL;
+		DECLARE @alignedColumnNamesList NVARCHAR(MAX) = NULL;
 		DECLARE @alignedTable NVARCHAR(128) = NULL,
 				@alignedPartition INT = NULL,
 				@partitioningClause NVARCHAR(500) = NULL;
@@ -265,9 +265,11 @@ begin
 		
 				-- Get the list with COUNT(DISTINCT [ColumnName])
 				SELECT @alignedColumnList = STUFF((
-					SELECt ', COUNT( DISTINCT ' + name + ') as [' + name + ']'
+					SELECt ', COUNT( DISTINCT ' + QUOTENAME(name) + ') as [' + name + ']'
 						FROM sys.columns cols
 						WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+							AND cols.name = isnull(@columnName,cols.name)
+							AND cols.column_id = isnull(@columnId,cols.column_id)
 						ORDER BY cols.column_id DESC
 						FOR XML PATH('')
 					), 1, 1, '');
@@ -276,6 +278,8 @@ begin
 					SELECt ', [' + name + ']'
 						FROM sys.columns cols
 						WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+							AND cols.name = isnull(@columnName,cols.name)
+							AND cols.column_id = isnull(@columnId,cols.column_id)
 						ORDER BY cols.column_id DESC
 						FOR XML PATH('')
 					), 1, 1, '');
@@ -339,6 +343,7 @@ begin
 							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
 								) res
 				WHERE res.[Database] = QUOTENAME(DB_NAME()) AND res.[Schema] IS NOT NULL AND res.[Table] IS NOT NULL
+					AND res.[Column]= isnull(@columnName,res.[Column])
 				GROUP BY [Schema], [Table], [Column];
 
 			-- Distribute Rank based on the values between 0 & 100
@@ -353,7 +358,8 @@ begin
 			DENSE_RANK() OVER ( PARTITION BY res.[TableName], [Partition] 
 						  ORDER BY ISNULL(ScanRank,-100) + 
 								CASE WHEN [DistinctCount] < [Total Segments] OR [DistinctCount] < 2 THEN - 100 ELSE 0 END +
-								( ISNULL(cnt.DistinctCount,0) * 100. / CASE ISNULL(cnt.TotalRowCount,0) WHEN 0 THEN 1 ELSE cnt.TotalRowCount END) - CASE [Segment Elimination] WHEN 'OK' THEN 0. ELSE 100. END
+								( ISNULL(cnt.DistinctCount,0) * 100. / CASE ISNULL(cnt.TotalRowCount,0) WHEN 0 THEN 1 ELSE cnt.TotalRowCount END) 
+								- CASE [Segment Elimination] WHEN 'OK' THEN 0. ELSE 1000. END
 								DESC ) AS [Recommendation]	
 			FROM #SegmentAlignmentResults res
 			LEFT OUTER JOIN #DistinctCounts cnt
@@ -1536,6 +1542,8 @@ Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
 	+ Added new parameter for the identifying the object by its object_id (@objectId)
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed bug with the partitioned table not showing the correct number of rows
+	+ Added new result column [Partitions] showing the total number of the partitions
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1595,6 +1603,7 @@ begin
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
 		[ShortTableName] nvarchar(256) NOT NULL,
+		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -1627,8 +1636,9 @@ begin
 		, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, isnull(max(p.rows),0) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 
 		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -1750,8 +1760,9 @@ begin
 		, 'Disk-Based'
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, max(p.rows) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 		
 		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -1890,7 +1901,7 @@ begin
 					  AND TableLocation = 'In-Memory' then 'Clustered Columnstore'  
 		   end as 'Compatible With'
 		, TableLocation		
-		, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
+		, [TableName], [Partitions], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 		, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 		, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [InMemoryOLTP], [Replication], [FileStream], [FileTable]
 		from #TablesToColumnstore tempRes
