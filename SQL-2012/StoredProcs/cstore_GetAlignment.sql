@@ -358,7 +358,7 @@ begin
 								FROM sys.dm_exec_query_stats
 									CROSS APPLY sys.dm_exec_sql_text(dm_exec_query_stats.sql_handle)
 									CROSS APPLY sys.dm_exec_query_plan(dm_exec_query_stats.plan_handle)
-								WHERE query_plan.exist('//RelOp//IndexScan//Object[@Storage = "ColumnStore"]') = 1
+								WHERE query_plan.exist('//RelOp//IndexScan[@Storage = "ColumnStore"]') = 1
 									  AND query_plan.exist('//RelOp//IndexScan//Predicate//ColumnReference') = 1
 						) xmlRes
 							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
