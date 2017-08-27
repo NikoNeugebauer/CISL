@@ -25,9 +25,9 @@
 
 /*
 Changes in 1.5.0
-	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4 for the SQL Server vNext (2017 situation)	
+	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4, 2.0, 2.1, RC1 & RC2 for the SQL Server vNext (2017 situation)
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
-
+	+ Added information on the Trace Flag 6404
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ begin
 	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 
-	declare @SQLServerBuild smallint = REVERSE(SUBSTRING(REVERSE(cast(SERVERPROPERTY('ProductVersion') as nvarchar(20))),0,CHARINDEX('.',REVERSE(cast(SERVERPROPERTY('ProductVersion') as nvarchar(20))))))
+	set @SQLServerBuild = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 
 
 	drop table if exists #SQLColumnstoreImprovements;
@@ -91,11 +91,15 @@ begin
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-		( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
-		( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
-		( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
-		( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
-		( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' );
+			( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
+			( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
+			( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
+			( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
+			( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' ),
+			( 'CTP', 272, convert(datetime,'19-04-2017',105), 'CTP 2.0 for SQL Server vNext' ),
+			( 'CTP', 250, convert(datetime,'17-05-2017',105), 'CTP 2.1 for SQL Server vNext' ),
+			( 'RC', 800, convert(datetime,'17-07-2017',105), 'RC 1 for SQL Server vNext' ),
+			( 'RC', 900, convert(datetime,'05-08-2017',105), 'RC 2 for SQL Server vNext' );
 
 		
 
