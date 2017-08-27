@@ -156,8 +156,8 @@ begin
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
 		, COUNT(DISTINCT p.partition_number) as [Partitions]
-		, isnull(SUM(p.rows),0) as 'Row Count'
-		, ceiling(SUM(p.rows)/1045678.) as 'Min RowGroups' 
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 
 		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -281,8 +281,8 @@ begin
 		, replace(obj.name,' ', '')  as 'ShortTableName'
 		, COUNT(DISTINCT p.partition_number) as [Partitions]
 		, SUM(p.rows) as 'Row Count'
-		, ceiling(SUM(p.rows)/1045678.) as 'Min RowGroups' 
-		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 
 		, (select count(*) from tempdb.sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
 		, (select count(*) 
