@@ -63,7 +63,7 @@ Changes in 1.4.2
 	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
 
 Changes in 1.5.0
-	+ Added information on the CU 11, CU 12, CU 13 for SQL Server 2014 SP1 & CU 4, CU 5, CU 6 for SQL Server 2014 SP2
+	+ Added information on the CU 11, CU 12, CU 13 for SQL Server 2014 SP1 & CU 4, CU 5, CU 6 & CU 7 for SQL Server 2014 SP2
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
@@ -174,7 +174,8 @@ begin
 		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' ),
 		( 'SP2', 5540, convert(datetime,'21-02-2017',105), 'CU 4 for SQL Server 2014 SP2' ),
 		( 'SP2', 5546, convert(datetime,'18-04-2017',105), 'CU 5 for SQL Server 2014 SP2' ),
-		( 'SP2', 5553, convert(datetime,'08-08-2017',105), 'CU 6 for SQL Server 2014 SP2' );
+		( 'SP2', 5553, convert(datetime,'08-08-2017',105), 'CU 6 for SQL Server 2014 SP2' ),
+		( 'SP2', 5556, convert(datetime,'29-08-2017',105), 'CU 7 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -235,7 +236,8 @@ begin
 		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' ),
 		( 5540, 'SP2', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3067968' ),
 		( 5546, 'SP2', 'FIX: Access violation in SQL Server 2014 when large number of rows are inserted into a partitioned columnstore index', 'https://support.microsoft.com/en-us/help/4014327/fix-access-violation-in-sql-server-2014-when-large-number-of-rows-are' ),
-		( 5553, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' );
+		( 5553, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 5556, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' );
 
 	if @identifyCurrentVersion = 1
 	begin
