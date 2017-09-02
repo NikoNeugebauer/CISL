@@ -34,7 +34,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -47,9 +48,9 @@ BEGIN
 	-- CCI
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneDeletedRowGroupCCI';

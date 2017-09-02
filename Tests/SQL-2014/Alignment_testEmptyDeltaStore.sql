@@ -24,14 +24,15 @@ GO
 
 ALTER PROCEDURE [Alignment].[testEmptyDeltaStore] AS
 BEGIN
-		create table #ExpectedAlignment(
+	create table #ExpectedAlignment(
 		TableName nvarchar(256),
 		Location varchar(15),
 		Partition bigint,
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)

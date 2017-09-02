@@ -32,6 +32,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -65,7 +66,7 @@ BEGIN
 
 	-- Insert expected result for the 'DB' Schema - the results should be empty
 	insert into #ActualSuggestedTables
-		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbx', @tableName = 'SuggestedTables_Test1'
 
 	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
 	TRUNCATE TABLE #ExpectedSuggestedTables;
@@ -75,7 +76,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'DBO' Schema
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
