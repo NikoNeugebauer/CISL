@@ -366,12 +366,17 @@ begin
 									CROSS APPLY sys.dm_exec_sql_text(dm_exec_query_stats.sql_handle)
 									CROSS APPLY sys.dm_exec_query_plan(dm_exec_query_stats.plan_handle)
 								WHERE query_plan.exist('//RelOp//IndexScan//Object[@Storage = "ColumnStore"]') = 1
-									  AND query_plan.exist('//RelOp//IndexScan//Predicate//ColumnReference') = 1
+									  AND query_plan.exist('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') = 1
 						) xmlRes
-							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
+							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
+							WHERE 
+								-- Avoid Inter-column Search references since they are not supporting Segment Elimination
+								NOT (query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[1]') = 1
+									AND query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[2]') = 1 
+									AND x.value('(@Table)[1]', 'nvarchar(128)') = x.value('(@Table)[2]', 'nvarchar(128)') )
 								) res
 					WHERE res.[Database] = QUOTENAME(DB_NAME()) AND res.[Schema] IS NOT NULL AND res.[Table] IS NOT NULL
-							AND res.[Column]= isnull(@columnName,res.[Column])
+							AND res.[Column] COLLATE DATABASE_DEFAULT = isnull(@columnName,res.[Column])
 				GROUP BY [Schema], [Table], [Column];
 
 			-- Distribute Rank based on the values between 0 & 100
@@ -391,9 +396,12 @@ begin
 								DESC ) AS [Recommendation]
 			FROM #SegmentAlignmentResults res
 			LEFT OUTER JOIN #DistinctCounts cnt
-				ON res.TableName = cnt.TableName AND res.ColumnName = cnt.ColumnName AND res.[Partition] = cnt.PartitionId
+				ON res.TableName = cnt.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cnt.ColumnName COLLATE DATABASE_DEFAULT
+					AND res.[Partition] = cnt.PartitionId
 			LEFT OUTER JOIN #CachedAccessToColumnstore cache
-				ON res.TableName = cache.TableName AND res.ColumnName = cache.ColumnName 
+				ON res.TableName = cache.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cache.ColumnName COLLATE DATABASE_DEFAULT
 			ORDER BY res.TableName, res.Partition, res.[Column Id];
 
 	END
