@@ -366,12 +366,17 @@ begin
 									CROSS APPLY sys.dm_exec_sql_text(dm_exec_query_stats.sql_handle)
 									CROSS APPLY sys.dm_exec_query_plan(dm_exec_query_stats.plan_handle)
 								WHERE query_plan.exist('//RelOp//IndexScan//Object[@Storage = "ColumnStore"]') = 1
-									  AND query_plan.exist('//RelOp//IndexScan//Predicate//ColumnReference') = 1
+									  AND query_plan.exist('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') = 1
 						) xmlRes
-							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
+							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
+							WHERE 
+								-- Avoid Inter-column Search references since they are not supporting Segment Elimination
+								NOT (query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[1]') = 1
+									AND query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[2]') = 1 
+									AND x.value('(@Table)[1]', 'nvarchar(128)') = x.value('(@Table)[2]', 'nvarchar(128)') )
 								) res
 					WHERE res.[Database] = QUOTENAME(DB_NAME()) AND res.[Schema] IS NOT NULL AND res.[Table] IS NOT NULL
-							AND res.[Column]= isnull(@columnName,res.[Column])
+							AND res.[Column] COLLATE DATABASE_DEFAULT = isnull(@columnName,res.[Column])
 				GROUP BY [Schema], [Table], [Column];
 
 			-- Distribute Rank based on the values between 0 & 100
@@ -391,9 +396,12 @@ begin
 								DESC ) AS [Recommendation]
 			FROM #SegmentAlignmentResults res
 			LEFT OUTER JOIN #DistinctCounts cnt
-				ON res.TableName = cnt.TableName AND res.ColumnName = cnt.ColumnName AND res.[Partition] = cnt.PartitionId
+				ON res.TableName = cnt.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cnt.ColumnName COLLATE DATABASE_DEFAULT
+					AND res.[Partition] = cnt.PartitionId
 			LEFT OUTER JOIN #CachedAccessToColumnstore cache
-				ON res.TableName = cache.TableName AND res.ColumnName = cache.ColumnName 
+				ON res.TableName = cache.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cache.ColumnName COLLATE DATABASE_DEFAULT
 			ORDER BY res.TableName, res.Partition, res.[Column Id];
 
 	END
@@ -1435,7 +1443,7 @@ Changes in 1.4.2
 	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
 
 Changes in 1.5.0
-	+ Added information on the CU 11, CU 12, CU 13 for SQL Server 2014 SP1 & CU 4, CU 5, CU 6 for SQL Server 2014 SP2
+	+ Added information on the CU 11, CU 12, CU 13 for SQL Server 2014 SP1 & CU 4, CU 5, CU 6 & CU 7 for SQL Server 2014 SP2
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 */
 
@@ -1546,7 +1554,8 @@ begin
 		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' ),
 		( 'SP2', 5540, convert(datetime,'21-02-2017',105), 'CU 4 for SQL Server 2014 SP2' ),
 		( 'SP2', 5546, convert(datetime,'18-04-2017',105), 'CU 5 for SQL Server 2014 SP2' ),
-		( 'SP2', 5553, convert(datetime,'08-08-2017',105), 'CU 6 for SQL Server 2014 SP2' );
+		( 'SP2', 5553, convert(datetime,'08-08-2017',105), 'CU 6 for SQL Server 2014 SP2' ),
+		( 'SP2', 5556, convert(datetime,'29-08-2017',105), 'CU 7 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1607,7 +1616,8 @@ begin
 		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' ),
 		( 5540, 'SP2', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3067968' ),
 		( 5546, 'SP2', 'FIX: Access violation in SQL Server 2014 when large number of rows are inserted into a partitioned columnstore index', 'https://support.microsoft.com/en-us/help/4014327/fix-access-violation-in-sql-server-2014-when-large-number-of-rows-are' ),
-		( 5553, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' );
+		( 5553, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 5556, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' );
 
 	if @identifyCurrentVersion = 1
 	begin

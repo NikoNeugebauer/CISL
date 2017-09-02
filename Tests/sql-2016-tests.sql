@@ -246,7 +246,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -267,9 +268,9 @@ BEGIN
 	-- NCI on HEAP
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Heap';
@@ -282,9 +283,9 @@ BEGIN
 	-- NCI on Clustered
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Clustered';
@@ -328,7 +329,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -381,7 +383,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,		
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -449,7 +452,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -462,9 +466,9 @@ BEGIN
 	-- CCI
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneDeletedRowGroupCCI';
@@ -511,7 +515,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -524,9 +529,9 @@ BEGIN
 	-- CCI
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1, 100.00 );
+		('[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 'OK', 0, 1, 100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'RowGroupAndDelta';
@@ -2139,6 +2144,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2172,7 +2178,7 @@ BEGIN
 
 	-- Insert expected result for 499999 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2185,7 +2191,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 500000 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2208,7 +2214,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.005 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2221,7 +2227,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.006 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2244,7 +2250,7 @@ BEGIN
 	-- Insert expected result for the 'DB' Schema - the results should be empty
 	
 	insert into #ActualSuggestedTables
-		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbx', @tableName = 'SuggestedTables_Test1'
 
 	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
 	TRUNCATE TABLE #ExpectedSuggestedTables;
@@ -2254,7 +2260,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'DBO' Schema
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2267,7 +2273,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2300,7 +2306,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2313,7 +2319,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2326,7 +2332,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2339,7 +2345,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2387,6 +2393,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2421,7 +2428,7 @@ BEGIN
 		-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2434,7 +2441,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2482,6 +2489,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2516,7 +2524,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2583,6 +2591,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2616,7 +2625,7 @@ BEGIN
 
 	-- Insert expected result for 499999 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2629,7 +2638,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 500000 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2687,6 +2696,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2721,7 +2731,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.005 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2734,7 +2744,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.006 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2792,6 +2802,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2825,7 +2836,7 @@ BEGIN
 
 	-- Insert expected result for the 'DB' Schema - the results should be empty
 	insert into #ActualSuggestedTables
-		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbx', @tableName = 'SuggestedTables_Test1'
 
 	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
 	TRUNCATE TABLE #ExpectedSuggestedTables;
@@ -2835,7 +2846,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'DBO' Schema
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2882,6 +2893,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2916,7 +2928,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2929,7 +2941,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
