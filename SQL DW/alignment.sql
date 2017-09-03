@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDW: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.5.0, January 2017
+	Version: 1.5.0, August 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -27,7 +27,9 @@ Known Issues & Limitations:
 declare
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
-	@showPartitionStats bit = 0,			-- Shows alignment statistics based on the partition
+	@preciseSearch bit = 0,					-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
+	@partitionNumber int = 0,				-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
 	@columnName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular column name
 	@columnId int = NULL;					-- Allows to filter one specific column Id
@@ -40,7 +42,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running Azure SQLDW
 if SERVERPROPERTY('EngineEdition') <> 6
 begin
-	set @errorMessage = (N'Your are not running this script agains Azure SQLDW: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script on Azure SQLDW: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -54,6 +56,8 @@ create table #column_store_segments(
 	partition_number bigint,
 	hobt_id bigint,
 	partition_id bigint,
+	[node_id] bigint,
+	[distribution_id] bigint,
 	column_id bigint,
 	segment_id bigint,
 	min_data_id bigint,
@@ -61,8 +65,11 @@ create table #column_store_segments(
 );
 
 insert into #column_store_segments 
-	SELECT ind.object_id, part.partition_number, part.hobt_id, part.partition_id, 
-		seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id
+	SELECT ind.object_id, part.partition_number, 
+		part.distribution_id,
+		part.pdw_node_id,
+		part.hobt_id, part.partition_id, 
+		seg.column_id, seg.segment_id, seg.min_data_id, seg.max_data_id		
 	from sys.indexes ind
 			inner join sys.tables obj
 				on ind.object_id = obj.object_id
@@ -96,18 +103,22 @@ insert into #column_store_segments
 --ALTER TABLE #column_store_segments
 --	ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
 
-select quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id)) as TableName, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
+select quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id)) as TableName, 
+	partition_number as 'Partition', 
+	pdw_node_id,
+	distribution_id,
+	cte.column_id as 'Column Id', cte.ColumnName, 
 	cte.ColumnType,
-	case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
-						when 'datetimeoffset' then 'Segment Elimination is not supported' 
-						when 'char' then 'Segment Elimination is not supported' 
-						when 'nchar' then 'Segment Elimination is not supported' 
-						when 'varchar' then 'Segment Elimination is not supported' 
-						when 'nvarchar' then 'Segment Elimination is not supported' 
-						when 'sysname' then 'Segment Elimination is not supported' 
-						when 'binary' then 'Segment Elimination is not supported' 
-						when 'varbinary' then 'Segment Elimination is not supported' 
-						when 'uniqueidentifier' then 'Segment Elimination is not supported' 
+	case cte.ColumnType when 'numeric' then 'not supported' 
+						when 'datetimeoffset' then 'not supported' 
+						when 'char' then 'not supported' 
+						when 'nchar' then 'not supported' 
+						when 'varchar' then 'not supported' 
+						when 'nvarchar' then 'not supported' 
+						when 'sysname' then 'not supported' 
+						when 'binary' then 'not supported' 
+						when 'varbinary' then 'not supported' 
+						when 'uniqueidentifier' then 'not supported' 
 		else 'OK' end as 'Segment Elimination',
 	sum(CONVERT(INT, hasOverlappingSegment)) as [Dealigned Segments],
 	count(*) as [Total Segments],
@@ -115,6 +126,8 @@ select quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id
 	from 
 		(
 				select  obj.schema_id, obj.object_id,  case @showPartitionStats when 1 then part.partition_number else 1 end as partition_number, 
+						part.pdw_node_id,
+						part.distribution_id,
 						--seg.partition_id, 
 						seg.column_id, cols.name as ColumnName, tp.name as ColumnType,
 						seg.segment_id, 
@@ -165,12 +178,19 @@ select quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id
 									AND seg.segment_id <> otherSeg.segment_id
 									AND (seg.min_data_id < otherSeg.max_data_id and seg.max_data_id > otherSeg.max_data_id )  -- Scenario 2 
 						) filteredSeg
-					where (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-						and (@schemaName is null or schema_name(ind.object_id) = @schemaName)	
+					--where (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
+					--	and (@schemaName is null or schema_name(ind.object_id) = @schemaName)	
+					where (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
+							  OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
+						 and (@preciseSearch = 0 AND (@schemaName is null or schema_name( part.object_id ) like '%' + @schemaName + '%')
+							  OR @preciseSearch = 1 AND (@schemaName is null or schema_name( part.object_id ) = @schemaName))
+						AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 					group by obj.schema_id, obj.object_id, case @showPartitionStats when 1 then part.partition_number else 1 end, 			
 						--NI.pdw_node_id,
 						--NI.distribution_id
 						--seg.partition_id, 
+						part.pdw_node_id,
+						part.distribution_id,
 						part.partition_number,
 						seg.column_id, cols.name, tp.name, seg.segment_id
 			) cte
@@ -178,5 +198,9 @@ select quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id
 		  OR @showUnsupportedSegments = 1)
 		  and cte.ColumnName = isnull(@columnName,cte.ColumnName)
 		  and cte.column_id = isnull(@columnId,cte.column_id)
-	group by quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id)), partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
-	order by [TableName], partition_number, cte.column_id;
+	group by quotename(schema_name(schema_id)) + '.' + quotename(object_name(object_id)), 
+		partition_number, 
+		pdw_node_id,
+		distribution_id,
+		cte.column_id, cte.ColumnName, cte.ColumnType
+	order by [TableName], partition_number, pdw_node_id, distribution_id, cte.column_id;

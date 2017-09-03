@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDW: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.5.0, January 2017
+	Version: 1.5.0, August 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -21,6 +21,7 @@
 -- Params --
 declare @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
+		@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 		@indexLocation varchar(15) = NULL,				-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 		@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 		@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
@@ -43,7 +44,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running Azure SQLDW
 if SERVERPROPERTY('EngineEdition') <> 6
 begin
-	set @errorMessage = (N'Your are not running this script agains Azure SQLDW: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script on Azure SQLDW: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -90,9 +91,10 @@ select  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 			WHERE ind.type >= 5 and ind.type <= 6
 				--and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
-				and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-				and (@schemaName is null or schema_name(ind.object_id) = @schemaName)
-				
+				and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+				and (@preciseSearch = 0 AND (@schemaName is null or schema_name( ind.object_id ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or schema_name( ind.object_id ) = @schemaName))				
 				--and isnull(rg.trim_reason,1) <> case isnull(@showTrimmedGroupsOnly,-1) when 1 then 1 /* NO_TRIM */ else -1 end 
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type

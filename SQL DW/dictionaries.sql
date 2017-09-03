@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDW: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.5.0, January 2017
+	Version: 1.5.0, August 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -102,8 +102,8 @@ SELECT QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.o
     where ind.type in (5,6)
 		AND (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
 			OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
-		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
-			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+		AND (@preciseSearch = 0 AND (@schemaName is null or schema_name( ind.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or schema_name( ind.object_id ) = @schemaName))
 		AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 		AND part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 	group by QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.object_id)), 
@@ -176,8 +176,8 @@ select QuoteName(schema_name(obj.schema_id)) + '.' + QuoteName(object_name(ind.o
 		) OR @showAllTextDictionaries = 0 )
 		AND (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
 			OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
-		and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id ) like '%' + @schemaName + '%')
-			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id ) = @schemaName))
+		and (@preciseSearch = 0 AND (@schemaName is null or schema_name( part.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or schema_name( part.object_id ) = @schemaName))
 		AND (ISNULL(@objectId,part.object_id) = part.object_id)
 		AND part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 		and cols.name = isnull(@columnName,cols.name)

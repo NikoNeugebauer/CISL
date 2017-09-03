@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQLDW: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.5.0, January 2017
+	Version: 1.5.0, August 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -60,7 +60,7 @@ select  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 		sum( case when rg.object_id is not null then 1 else 0 end ) as 'Total',
 		cast( sum(isnull(deleted_rows,0) )/1000000./count(distinct part.partition_number) as Decimal(16,6)) as 'Deleted Rows (M)',
 		cast( sum(isnull(total_rows-isnull(deleted_rows,0),0))/1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(part.rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+		cast( sum(isnull(total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) as Decimal(8,2)) as 'Size in GB',
 		count( distinct part.distribution_id ) as [Distributions],
 		count( distinct part.pdw_node_id ) as [Nodes]	
@@ -96,8 +96,8 @@ select  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
 					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
-				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
-					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+				  and (@preciseSearch = 0 AND (@schemaName is null or schema_name( ind.object_id ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or schema_name( ind.object_id ) = @schemaName))
 				  AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 				  and case @showPartitionDetails when 1 then part.partition_number else 1 end = isnull(@partitionId, case @showPartitionDetails when 1 then part.partition_number else 1 end)  -- Partition Filtering

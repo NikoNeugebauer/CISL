@@ -20,7 +20,9 @@
 
 /*
 Known Issues & Limitations: 
-	- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.*/
+	- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.
+	- Optimisable RGs and Optimisable RGs Perc just do generic counts, they do not involve infos on Partitions, Nodes & Distributions yet (p.partition_number, p.pdw_node_id & p.distribution_id)
+*/
 
 -- Params --
 declare
@@ -60,7 +62,7 @@ SELECT  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 		cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
 		avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
 		sum(rg.total_rows) as [Total Rows],
-		count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
+		count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576 ) as 'Optimisable RGs',
 		cast((count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 		count(*) as 'Row Groups'
 		from sys.indexes ind
@@ -94,8 +96,8 @@ SELECT  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 		and p.data_compression in (3,4)
 		AND (@preciseSearch = 0 AND (@tableName is null or object_name ( p.object_id ) like '%' + @tableName + '%') 
 			OR @preciseSearch = 1 AND (@tableName is null or object_name ( p.object_id ) = @tableName) )
-		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id ) like '%' + @schemaName + '%')
-			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id ) = @schemaName))
+		AND (@preciseSearch = 0 AND (@schemaName is null or schema_name( p.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or schema_name( p.object_id ) = @schemaName))
 		AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
 		AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end		
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
