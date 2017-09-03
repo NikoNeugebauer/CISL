@@ -49,7 +49,7 @@ function Install-CISL(
     # Writing the header
     Write-Host "CISL - Columnstore Indexes Scripts Library for SQL Server: " -ForegroundColor Green
     Write-Host "Version: 1.5.0, August 2017" -ForegroundColor Green
-    Write-Host "(c) 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)" -ForegroundColor Green
+    Write-Host "(c) 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)" -ForegroundColor Green
     Write-Host "----------------------------------------------------------------------------------------------------"
     
     # Load SMO Assembly
