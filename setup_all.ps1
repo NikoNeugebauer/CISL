@@ -85,7 +85,7 @@ Get-Content $scriptRootPath\Azure\StoredProcs\cstore_GetAlignment.sql, $scriptRo
 
 Get-Content -Path "$($scriptRootPath)\Azure\Extended Events\*.*" -Include *.sql -Exclude setup_all_extended_events.sql | Set-Content "$($scriptRootPath)\Azure\Extended Events\setup_all_extended_events.sql"
 
-#$cred = Get-Credential -errorAction SilentlyContinue;
+$cred = Get-Credential -errorAction SilentlyContinue;
 
 $InstallCISLExists = Get-Command Install-CISL -errorAction SilentlyContinue;
 if( $InstallCISLExists )
@@ -95,5 +95,5 @@ if( $InstallCISLExists )
     Install-CISL -SQLInstance .\SQL16
 }
 if ( $cred ){
-    Install-CISL -SQLInstance "columnstore.database.windows.net" -cred $cred 
+    Install-CISL -SQLInstance "columnstore.database.windows.net" -cred $cred -installDBs "cisl"
 }

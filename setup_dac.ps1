@@ -16,15 +16,15 @@
 #    See the License for the specific lan guage governing permissions and
 #    limitations under the License.
 
-$CISLVersion = "141"
+$CISLVersion = "150"
 $sqlPackageLocation = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\sqlpackage.exe"
 $dacpacLocation = "Z:\MEOCloud\CISL GitHub\CISL\Releases\DacPacs\"
 $sql2012 = ".\SQL12"
 $sql2014 = ".\SQL14"
 $sql2016 = ".\SQL16"
-$sqlAzure = "x.database.windows.net"
-$sqlAzureUser = "x"
-$sqlAzurePass = "x"
+$sqlAzure = "#.database.windows.net"
+$sqlAzureUser = "#"
+$sqlAzurePass = "#"
 
 # Verify if the SQLPackage.exe location is correctly specified
 if( !(Test-Path $sqlPackageLocation) ){
