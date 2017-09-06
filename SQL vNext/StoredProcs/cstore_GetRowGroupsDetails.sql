@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.5.0, August 2017
+	Version: 1.5.1, September 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -24,6 +24,9 @@ Known Issues & Limitations:
 Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+
+Changes in 1.5.1
+	+ Added new parameter for specifying the name of the database, where the Columnstore Indexes should be located (@dbName)
 */
 
 
@@ -44,16 +47,17 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.5.0, August 2017
+	Version: 1.5.1, September 2017
 */
 create or alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
+	@dbName SYSNAME = NULL,							-- Identifies the Database to run the stored procedure against. If this parameter is left to be NULL, then the current database is used
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
 	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@indexLocation varchar(15) = NULL,				-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
-	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
+	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for ''Clustered'', NC for ''Nonclustered'' or NULL for both)
 	@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
 	@showTrimmedGroupsOnly bit = 0,					-- Filters only those Row Groups, which size <> 1048576
 	@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
@@ -68,10 +72,17 @@ create or alter procedure dbo.cstore_GetRowGroupsDetails(
 -- end of --
 	) as
 BEGIN
-	set nocount on;
+	SET NOCOUNT ON;
 
-	select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name(rg.object_id)) as [Table Name],
-		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
+	IF @dbName IS NULL
+	SET @dbName = DB_NAME(DB_ID());
+
+	DECLARE @dbId INT = DB_ID(@dbName);
+	DECLARE @sql NVARCHAR(MAX);
+
+	SET @sql = N'
+	select quotename(object_schema_name(rg.object_id, @dbId)) + ''.'' + quotename(object_name(rg.object_id, @dbId)) as [Table Name],
+		case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end as [Location],	
 		rg.partition_number as partition_nr,
 		rg.row_group_id,
 		rg.state,
@@ -87,18 +98,18 @@ BEGIN
 		rg.generation,
 		rg.closed_time,	
 		rg.created_time
-		from sys.dm_db_column_store_row_group_physical_stats rg
-			inner join sys.indexes ind
+		from ' + QUOTENAME(@dbName) + N'.sys.dm_db_column_store_row_group_physical_stats rg
+			inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 				on ind.object_id = rg.object_id and rg.index_id = ind.index_id
 		where isnull(rg.trim_reason,1) <> case isnull(@showTrimmedGroupsOnly,-1) when 1 then 1 /* NO_TRIM */ else -1 end 
-			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
+			and ind.data_space_id = isnull( case @indexLocation when ''In-Memory'' then 0 when ''Disk-Based'' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when ''CC'' then 5 when ''NC'' then 6 else ind.type end = ind.type
 			and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 			and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
-				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
-			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
-				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id, @dbId) like ''%'' + @tableName + ''%'') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id, @dbId) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id, @dbId ) like ''%'' + @schemaName + ''%'')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id, @dbId ) = @schemaName))
 			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
@@ -109,8 +120,8 @@ BEGIN
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
 	union all
-	select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quotename(object_name(rg.object_id, db_id('tempdb'))) as [Table Name],
-		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as [Location],	
+	select quotename(object_schema_name(rg.object_id, db_id(''tempdb''))) + ''.'' + quotename(object_name(rg.object_id, db_id(''tempdb''))) as [Table Name],
+		case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end as [Location],	
 		rg.partition_number as partition_nr,
 		rg.row_group_id,
 		rg.state,
@@ -130,14 +141,14 @@ BEGIN
 			inner join tempdb.sys.indexes ind
 				on ind.object_id = rg.object_id and rg.index_id = ind.index_id
 		where isnull(rg.trim_reason,1) <> case isnull(@showTrimmedGroupsOnly,-1) when 1 then 1 /* NO_TRIM */ else -1 end 
-			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
+			and ind.data_space_id = isnull( case @indexLocation when ''In-Memory'' then 0 when ''Disk-Based'' then 1 else ind.data_space_id end, ind.data_space_id )
+			and case @indexType when ''CC'' then 5 when ''NC'' then 6 else ind.type end = ind.type
 			and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 			and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
-					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
-			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
-					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id(''tempdb'')) like ''%'' + @tableName + ''%'') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id(''tempdb'')) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id(''tempdb'') ) like ''%'' + @schemaName + ''%'')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id(''tempdb'') ) = @schemaName))
 			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
@@ -147,7 +158,40 @@ BEGIN
 			and isnull(rg.trim_reason,255) = coalesce(@trimReason, rg.trim_reason,255)
 			and isnull(rg.transition_to_compressed_state,255) = coalesce(@compressionOperation,rg.transition_to_compressed_state,255)
 			and isnull(rg.has_vertipaq_optimization,1) = case @showNonOptimisedOnly when 1 then 0 else isnull(rg.has_vertipaq_optimization,1) end
-	order by [Table Name], rg.partition_number, rg.row_group_id
+	order by [Table Name], rg.partition_number, rg.row_group_id';
+
+
+	DECLARE @paramDefinition NVARCHAR(1000) =  '@indexType char(2),				
+												@indexLocation varchar(15),					
+												@preciseSearch bit,						
+												@tableName nvarchar(256),			
+												@schemaName nvarchar(256),			
+												@objectId int,							
+												@partitionNumber int,
+												@compressionOperation tinyint,
+												@showTrimmedGroupsOnly bit,
+												@showNonCompressedOnly bit,
+												@showFragmentedGroupsOnly bit,
+												@showNonOptimisedOnly bit,
+												@trimReason tinyint,
+												@minSizeInMB Decimal(16,3),			
+												@maxSizeInMB Decimal(16,3), 			
+												@minCreatedDateTime Datetime,		
+												@maxCreatedDateTime Datetime,	
+												@dbId int';						
+
+	EXEC sp_executesql @sql, @paramDefinition, @indexType = @indexType, @indexLocation = @indexLocation,
+											   @preciseSearch = @preciseSearch, @tableName = @tableName,
+											   @schemaName = @schemaName, @objectId = @objectId, 
+											   @partitionNumber = @partitionNumber, @showTrimmedGroupsOnly = @showTrimmedGroupsOnly,
+											   @showNonCompressedOnly = @showNonCompressedOnly, @showNonOptimisedOnly = @showNonOptimisedOnly,											   
+											   @compressionOperation = @compressionOperation, @showFragmentedGroupsOnly = @showFragmentedGroupsOnly,
+											   @trimReason = @trimReason, @minSizeInMB = @minSizeInMB, @maxSizeInMB = @maxSizeInMB,
+											   @minCreatedDateTime = @minCreatedDateTime, @maxCreatedDateTime = @maxCreatedDateTime,
+											   @dbId = @dbId;
+
+
+
 END
 
 GO

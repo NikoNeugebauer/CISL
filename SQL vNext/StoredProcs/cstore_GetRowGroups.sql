@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.5.0, August 2017
+	Version: 1.5.1, September 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -25,6 +25,10 @@ Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
 	+ Added new parameter for the identifying the object by its object_id (@objectId)
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+
+Changes in 1.5.1
+	+ Added new parameter for specifying the name of the database, where the Columnstore Indexes should be located (@dbName)
+
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -45,10 +49,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.5.0, August 2017
+	Version: 1.5.1, September 2017
 */
 create or alter procedure dbo.cstore_GetRowGroups(
 -- Params --
+	@dbName SYSNAME = NULL,							-- Identifies the Database to run the stored procedure against. If this parameter is left to be NULL, then the current database is used
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectType varchar(20) = NULL,					-- Allows to filter the object type with 2 possible supported values: 'Table' & 'Indexed View'
@@ -65,64 +70,72 @@ create or alter procedure dbo.cstore_GetRowGroups(
 	) as
 begin
 	SET ANSI_WARNINGS OFF;
-	set nocount on;
+	SET NOCOUNT ON;
 
+	IF @dbName IS NULL
+		SET @dbName = DB_NAME(DB_ID());
+
+	DECLARE @dbId INT = DB_ID(@dbName);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	
+	SET @sql = N'
 	with partitionedInfo as (
-	select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_name(ind.object_id)) as 'TableName', 
-			case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-			case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
-			case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
+	select quotename(object_schema_name(ind.object_id, @dbId)) + ''.'' + quotename(object_name(ind.object_id, @dbId)) as [TableName], 
+			case ind.type when 5 then ''Clustered'' when 6 then ''Nonclustered'' end as [Type],
+			case obj.type_desc when ''USER_TABLE'' then ''Table'' when ''VIEW'' then ''Indexed View'' else obj.type_desc end as [ObjectType],
+			case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end as [Location],
 			part.partition_number as Partition, 
-			case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
-			sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
-			sum(case state when 1 then 1 else 0 end) as 'Open DS',
-			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
-			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
-			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(rg.object_id) as 'Total',
+			case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else ''Multiple'' end  as [Compression Type],
+			sum(case state when 0 then 1 else 0 end) as [Bulk Load RG],
+			sum(case state when 1 then 1 else 0 end) as [Open DS],
+			sum(case state when 2 then 1 else 0 end) as [Closed DS],
+			sum(case state when 4 then 1 else 0 end) as [Tombstones],	
+			sum(case state when 3 then 1 else 0 end) as [Compressed],
+			count(rg.object_id) as [Total],
 			cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
-						from sys.internal_partitions intpart
+						from ' + QUOTENAME(@dbName) + '.sys.internal_partitions intpart
 						where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
 							and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-				   )/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+				   )/1000000. as Decimal(16,6)) as [Deleted Rows (M)],
 			cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) -
 					(select isnull(sum(intpart.rows),0)
-						from sys.internal_partitions intpart
+						from ' + QUOTENAME(@dbName) + '.sys.internal_partitions intpart
 						where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
 							and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-				   ) /1000000. as Decimal(16,6)) as 'Active Rows (M)',
-			cast( sum(isnull(case state when 4 then 0 else total_rows end,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+				   ) /1000000. as Decimal(16,6)) as [Active Rows (M)],
+			cast( sum(isnull(case state when 4 then 0 else total_rows end,0))/1000000. as Decimal(16,6)) as [Total Rows (M)],
 			cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) +
 				   (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
-						from sys.dm_db_xtp_memory_consumers xtpMem 
+						from ' + QUOTENAME(@dbName) + '.sys.dm_db_xtp_memory_consumers xtpMem 
 						where ind.object_id = xtpMem.object_id and xtpMem.memory_consumer_type = 5 /* HKCS_COMPRESSED */)
-				  ) as Decimal(8,2)) as 'Size in GB',
-			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
-			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
-			max(stat.last_user_scan) as 'LastScan'
-			from sys.indexes ind
-				inner join sys.objects obj
+				  ) as Decimal(8,2)) as [Size in GB],
+			isnull(sum(stat.user_scans)/count(*),0) as [Scans],
+			isnull(sum(stat.user_updates)/count(*),0) as [Updates],
+			max(stat.last_user_scan) as [LastScan]
+			from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
+				inner join ' + QUOTENAME(@dbName) + N'.sys.objects obj
 					on ind.object_id = obj.object_id
-				left join sys.column_store_row_groups rg
+				left join ' + QUOTENAME(@dbName) + N'.sys.column_store_row_groups rg
 					on ind.object_id = rg.object_id and ind.index_id = rg.index_id
-				left join sys.partitions part with(READUNCOMMITTED)
+				left join ' + QUOTENAME(@dbName) + N'.sys.partitions part with(READUNCOMMITTED)
 					on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 					AND ind.index_id = part.index_id
-				left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
+				left join ' + QUOTENAME(@dbName) + N'.sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 					on rg.object_id = stat.object_id and ind.index_id = stat.index_id
 					   and isnull(stat.database_id,db_id()) = db_id()
 			where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
 				  and part.data_compression >= 3 and part.data_compression <= 4
-				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
-				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
-					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
-				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
-					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+				  and ind.data_space_id = isnull( case @indexLocation when ''In-Memory'' then 0 when ''Disk-Based'' then 1 else ind.data_space_id end, ind.data_space_id )
+				  and case @indexType when ''CC'' then 5 when ''NC'' then 6 else ind.type end = ind.type
+				  and case @compressionType when ''Columnstore'' then 3 when ''Archive'' then 4 else part.data_compression end = part.data_compression
+		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id, @dbId) like ''%'' + @tableName + ''%'') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id, @dbId) = @tableName) )
+				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name(ind.object_id, @dbId) like N''%'' + @schemaName + ''%'')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name(ind.object_id, @dbId) = @schemaName))
 				  AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
-				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+				  and obj.type_desc = ISNULL(case @objectType when ''Table'' then ''USER_TABLE'' when ''Indexed View'' then ''VIEW'' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
 			having cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) + 
@@ -133,39 +146,39 @@ begin
 					as Decimal(8,2)) >= @minSizeInGB
 					and sum(isnull(total_rows,0)) >= @minTotalRows
 	union all
-	select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quotename(object_name(ind.object_id, db_id('tempdb'))) as 'TableName', 
-		case ind.type when 5 then 'Clustered' when 6 then 'Nonclustered' end as 'Type',
-		case obj.type_desc when 'USER_TABLE' then 'Table' when 'VIEW' then 'Indexed View' else obj.type_desc end as ObjectType,
-		case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end as 'Location',
+	select quotename(object_schema_name(ind.object_id, db_id(''tempdb''))) + ''.'' + quotename(object_name(ind.object_id, db_id(''tempdb''))) as [TableName], 
+		case ind.type when 5 then ''Clustered'' when 6 then ''Nonclustered'' end as [Type],
+		case obj.type_desc when ''USER_TABLE'' then ''Table'' when ''VIEW'' then ''Indexed View'' else obj.type_desc end as ObjectType,
+		case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end as [Location],
 		part.partition_number as Partition,
-		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else 'Multiple' end  as 'Compression Type',
-			sum(case state when 0 then 1 else 0 end) as 'Bulk Load RG',
-			sum(case state when 1 then 1 else 0 end) as 'Open DS',
-			sum(case state when 2 then 1 else 0 end) as 'Closed DS',
-			sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
-			sum(case state when 3 then 1 else 0 end) as 'Compressed',
-			count(rg.object_id) as 'Total',	
+		case count( distinct part.data_compression_desc) when 1 then max(part.data_compression_desc) else ''Multiple'' end  as [Compression Type],
+			sum(case state when 0 then 1 else 0 end) as [Bulk Load RG],
+			sum(case state when 1 then 1 else 0 end) as [Open DS],
+			sum(case state when 2 then 1 else 0 end) as [Closed DS],
+			sum(case state when 4 then 1 else 0 end) as [Tombstones],	
+			sum(case state when 3 then 1 else 0 end) as [Compressed],
+			count(rg.object_id) as [Total],	
 		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart
 						where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
 							and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-				   )/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+				   )/1000000. as Decimal(16,6)) as [Deleted Rows (M)],
 			cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) -
 					(select isnull(sum(intpart.rows),0)
 						from tempdb.sys.internal_partitions intpart
 						where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
 							and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-				   ) /1000000. as Decimal(16,6)) as 'Active Rows (M)',
-		cast( sum(isnull(rg.total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
+				   ) /1000000. as Decimal(16,6)) as [Active Rows (M)],
+		cast( sum(isnull(rg.total_rows,0))/1000000. as Decimal(16,6)) as [Total Rows (M)],
 		cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) +
 				   (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
 						from sys.dm_db_xtp_memory_consumers xtpMem 
 						where ind.object_id = xtpMem.object_id and xtpMem.memory_consumer_type = 5 /* HKCS_COMPRESSED */)
-				  ) as Decimal(8,2)) as 'Size in GB',
-			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
-			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
-			max(stat.last_user_scan) as 'LastScan'
+				  ) as Decimal(8,2)) as [Size in GB],
+			isnull(sum(stat.user_scans)/count(*),0) as [Scans],
+			isnull(sum(stat.user_updates)/count(*),0) as [Updates],
+			max(stat.last_user_scan) as [LastScan]
 		from tempdb.sys.indexes ind
 			inner join sys.objects obj
 				on ind.object_id = obj.object_id
@@ -177,15 +190,15 @@ begin
 				on rg.object_id = stat.object_id and ind.index_id = stat.index_id 
 		where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
 				and part.data_compression >= 3 and part.data_compression <= 4
-				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
-				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
-					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
-				and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
-					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+				and case @indexType when ''CC'' then 5 when ''NC'' then 6 else ind.type end = ind.type
+				and ind.data_space_id = isnull( case @indexLocation when ''In-Memory'' then 0 when ''Disk-Based'' then 1 else ind.data_space_id end, ind.data_space_id )
+				and case @compressionType when ''Columnstore'' then 3 when ''Archive'' then 4 else part.data_compression end = part.data_compression
+				and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id(''tempdb'')) like ''%'' + @tableName + ''%'') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id(''tempdb'')) = @tableName) )
+				and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id(''tempdb'') ) like ''%'' + @schemaName + ''%'')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id(''tempdb'') ) = @schemaName))
 				AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
-				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
+				and obj.type_desc = ISNULL(case @objectType when ''Table'' then ''USER_TABLE'' when ''Indexed View'' then ''VIEW'' end,obj.type_desc)
 		group by ind.object_id, ind.type, obj.type_desc, rg.partition_number,
 				ind.data_space_id,
 				part.partition_number
@@ -197,21 +210,49 @@ begin
 					as Decimal(8,2)) >= @minSizeInGB
 				and sum(isnull(total_rows,0)) >= @minTotalRows
 	)
-	select TableName, 
-		Type, 
-		ObjectType,
-		Location, (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
-		max([Compression Type]) as [Compression Type], sum([Bulk Load RG]) as [Bulk Load RG], sum([Open DS]) as [Open DS], sum([Closed DS]) as [Closed DS], 
-		sum(Tombstones) as Tombstones, sum(Compressed) as Compressed, sum(Total) as Total, 
+	select [TableName], 
+		[Type], 
+		[ObjectType],
+		[Location], (case @showPartitionDetails when 1 then Partition else 1 end) as [Partition], 
+		max([Compression Type]) as [Compression Type], 
+		sum([Bulk Load RG]) as [Bulk Load RG], 
+		sum([Open DS]) as [Open DS], 
+		sum([Closed DS]) as [Closed DS], 
+		sum(Tombstones) as Tombstones, 
+		sum(Compressed) as Compressed, 
+		sum(Total) as Total, 
 		sum([Deleted Rows (M)]) as [Deleted Rows (M)], sum([Active Rows (M)]) as [Active Rows (M)], sum([Total Rows (M)]) as [Total Rows (M)], 
 		sum([Size in GB]) as [Size in GB], sum(ISNULL(Scans,0)) as Scans, sum(ISNULL(Updates,0)) as Updates, NULL as LastScan
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
 		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
 		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end)
-		--option (force order);
+		';
 
-	SET ANSI_WARNINGS ON;
+	SET ANSI_WARNINGS ON; 
+
+	DECLARE @paramDefinition NVARCHAR(1000) =  '@indexType char(2),				
+												@indexLocation varchar(15),			
+												@objectType varchar(20),				
+												@compressionType varchar(15),		
+												@minTotalRows bigint,				
+												@minSizeInGB Decimal(16,3),			
+												@preciseSearch bit,						
+												@tableName nvarchar(256),			
+												@schemaName nvarchar(256),			
+												@objectId int,						
+												@showPartitionDetails bit,				
+												@partitionId int,
+												@dbId int';						
+
+	EXEC sp_executesql @sql, @paramDefinition, @indexType = @indexType, @indexLocation = @indexLocation,
+											   @objectType = @objectType, @compressionType = @compressionType,
+											   @minTotalRows = @minTotalRows, @minSizeInGB = @minSizeInGB,
+											   @preciseSearch = @preciseSearch, @tableName = @tableName,
+											   @schemaName = @schemaName, @objectId = @objectId, 
+											   @showPartitionDetails = @showPartitionDetails, @partitionId = @partitionId,
+											   @dbId = @dbId;
 end
 
 GO
+
