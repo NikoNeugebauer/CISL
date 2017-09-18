@@ -1,7 +1,7 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.5.0, August 2017
+	Version: 1.5.1, Setember 2017
 
 	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
@@ -54,6 +54,9 @@ Changes in 1.5.0
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 	+ Added information on the Trace Flag 6404
 	* Small changes for taking advantages of SQL Server 2016 syntax
+
+Changes in 1.5.1
+	+ Added information on the CU5 for SQL Server 2016 SP1 and CU8 for SQL Server 2016 RTM
 */
 
 -- Params --
@@ -135,11 +138,13 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'RTM', 2197, convert(datetime,'21-03-2017',105), 'CU 5 for SQL Server 2016' ),
 	( 'RTM', 2204, convert(datetime,'15-05-2017',105), 'CU 6 for SQL Server 2016' ),
 	( 'RTM', 2210, convert(datetime,'08-08-2017',105), 'CU 7 for SQL Server 2016' ),
+	( 'RTM', 2213, convert(datetime,'18-09-2017',105), 'CU 8 for SQL Server 2016' ),
 	( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
 	( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' ),
 	( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' ),
 	( 'SP1', 4435, convert(datetime,'15-05-2017',105), 'CU 3 for SQL Server 2016 SP 1' ),
-	( 'SP1', 4446, convert(datetime,'08-08-2017',105), 'CU 4 for SQL Server 2016 SP 1' );
+	( 'SP1', 4446, convert(datetime,'08-08-2017',105), 'CU 4 for SQL Server 2016 SP 1' ),
+	( 'SP1', 4451, convert(datetime,'18-09-2017',105), 'CU 5 for SQL Server 2016 SP 1' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -173,6 +178,8 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 2204, 'RTM', 'FIX: Query against sys.dm_db_partition_stats DMV runs slow if the database contains large numbers of columnstore partitions in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019903/fix-query-against-sys-dm-db-partition-stats-dmv-runs-slow-if-the-datab' ),
 	( 2204, 'RTM', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
 	( 2204, 'RTM', 'Intra-query deadlock on communication buffer when you run a bulk load against a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4017154/intra-query-deadlock-on-communication-buffer-when-you-run-a-bulk-load' ),
+	( 2213, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+	( 2213, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' ),
 	( 4001, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 	( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' ),
 	( 4411, 'SP1', 'FIX: The “sys.dm_db_column_store_row_group_physical_stats” query runs slowly on SQL Server 2016', 'https://support.microsoft.com/en-us/help/3210747/fix-the-sys.dm-db-column-store-row-group-physical-stats-query-runs-slowly-on-sql-server-2016' ),
@@ -200,8 +207,10 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 4435, 'SP1', 'FIX: Intra-query deadlock when you execute a parallel query that contains outer join operators in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019718/fix-intra-query-deadlock-when-you-execute-a-parallel-query-that-contai' ),
 	( 4446, 'SP1', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
 	( 4446, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
-	( 4446, 'SP1', 'FIX: Access violation occurs when you run a query in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4034056/fix-access-violation-occurs-when-you-run-a-query-in-sql-server-2016' );
-	
+	( 4446, 'SP1', 'FIX: Access violation occurs when you run a query in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4034056/fix-access-violation-occurs-when-you-run-a-query-in-sql-server-2016' ),
+	( 4451, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+	( 4451, 'SP1', 'FIX: Query that joins a view and contains UNION ALL slow in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4040014/fix-query-that-joins-a-view-and-contains-union-all-slow-in-sql-server' ),
+	( 4451, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' );
 	
 if @identifyCurrentVersion = 1
 begin
