@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.5.1, Setember 2017
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -55,8 +55,9 @@ Changes in 1.5.0
 	+ Added information on the Trace Flag 6404
 	* Small changes for taking advantages of SQL Server 2016 syntax
 
-Changes in 1.5.1
-	+ Added information on the CU5 for SQL Server 2016 SP1 and CU8 for SQL Server 2016 RTM
+Changes in 1.6.0
+	+ Added information on the CU5, CU6, CU7 for SQL Server 2016 SP1 and CU8, CU9 for SQL Server 2016 RTM
+	+ Added information on the Trace Flag 2469 - Fixing: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index 
 */
 
 -- Params --
@@ -139,12 +140,15 @@ insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	( 'RTM', 2204, convert(datetime,'15-05-2017',105), 'CU 6 for SQL Server 2016' ),
 	( 'RTM', 2210, convert(datetime,'08-08-2017',105), 'CU 7 for SQL Server 2016' ),
 	( 'RTM', 2213, convert(datetime,'18-09-2017',105), 'CU 8 for SQL Server 2016' ),
+	( 'RTM', 2216, convert(datetime,'21-11-2017',105), 'CU 9 for SQL Server 2016' ),
 	( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
 	( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' ),
 	( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' ),
 	( 'SP1', 4435, convert(datetime,'15-05-2017',105), 'CU 3 for SQL Server 2016 SP 1' ),
 	( 'SP1', 4446, convert(datetime,'08-08-2017',105), 'CU 4 for SQL Server 2016 SP 1' ),
-	( 'SP1', 4451, convert(datetime,'18-09-2017',105), 'CU 5 for SQL Server 2016 SP 1' );
+	( 'SP1', 4451, convert(datetime,'18-09-2017',105), 'CU 5 for SQL Server 2016 SP 1' ),
+	( 'SP1', 4457, convert(datetime,'21-11-2017',105), 'CU 6 for SQL Server 2016 SP 1' ),
+	( 'SP1', 4466, convert(datetime,'04-01-2018',105), 'CU 7 for SQL Server 2016 SP 1' );
 
 insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 	values 
@@ -210,7 +214,9 @@ insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, U
 	( 4446, 'SP1', 'FIX: Access violation occurs when you run a query in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4034056/fix-access-violation-occurs-when-you-run-a-query-in-sql-server-2016' ),
 	( 4451, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
 	( 4451, 'SP1', 'FIX: Query that joins a view and contains UNION ALL slow in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4040014/fix-query-that-joins-a-view-and-contains-union-all-slow-in-sql-server' ),
-	( 4451, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' );
+	( 4451, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' ),
+	( 4457, 'SP1', 'FIX: SELECT query that uses batch mode hash aggregate operator that counts multiple nullable columns returns bad results in SQL Server', 'https://support.microsoft.com/en-us/help/4057055/deadlock-when-you-run-parallel-query-on-clustered-columnstore-index' ),
+	( 4466, 'SP1', 'FIX: A deadlock occurs when you run a parallel query on a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4057055/deadlock-when-you-run-parallel-query-on-clustered-columnstore-index' );
 	
 if @identifyCurrentVersion = 1
 begin
@@ -309,6 +315,7 @@ insert into #ColumnstoreTraceFlags (TraceFlag, Description, URL, SupportedStatus
 	(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 	(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 	(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
+	( 2469, 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-ph/help/3204769/fix-intra-query-deadlock-when-values-are-inserted-into-a-partitioned-c', 1 ),
 	( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 	( 6404, 'Fixes the amount of memory for ALTER INDEX REORGANIZE on 4GB/16GB depending on the Server size.', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns', 1 ),
 	( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
