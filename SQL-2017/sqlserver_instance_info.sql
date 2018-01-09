@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2017: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
 	Version: 1.6.0, January 2018
 
@@ -26,9 +26,12 @@
 
 /*
 Changes in 1.5.0
-	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4, 2.0, 2.1, RC1 & RC2 for the SQL Server vNext (2017 situation)
+	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4, 2.0, 2.1, RC1 & RC2 for the SQL Server 2017 (2017 situation)
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
 	+ Added information on the Trace Flag 6404
+
+Changes in 1.6.0
+	+ Added information on the RTM, CU1, CU2 & CU3 for SQL Server 2017 RTM
 */
 
 -- Params --
@@ -43,10 +46,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
+-- Ensure that we are running SQL Server 2017
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2017. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -81,17 +84,24 @@ insert into #SQLBranches (SQLBranch, MinVersion)
 
 insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 	values 
-	( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
-	( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
-	( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
-	( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
-	( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' ),
-	( 'CTP', 272, convert(datetime,'19-04-2017',105), 'CTP 2.0 for SQL Server vNext' ),
-	( 'CTP', 250, convert(datetime,'17-05-2017',105), 'CTP 2.1 for SQL Server vNext' ),
-	( 'RC', 800, convert(datetime,'17-07-2017',105), 'RC 1 for SQL Server vNext' ),
-	( 'RC', 900, convert(datetime,'05-08-2017',105), 'RC 2 for SQL Server vNext' )
-	;
+	( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server 2017' ),
+	( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server 2017' ),
+	( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server 2017' ),
+	( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server 2017' ),
+	( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server 2017' ),
+	( 'CTP', 272, convert(datetime,'19-04-2017',105), 'CTP 2.0 for SQL Server 2017' ),
+	( 'CTP', 250, convert(datetime,'17-05-2017',105), 'CTP 2.1 for SQL Server 2017' ),
+	( 'RC', 800, convert(datetime,'17-07-2017',105), 'RC 1 for SQL Server 2017' ),
+	( 'RC', 900, convert(datetime,'05-08-2017',105), 'RC 2 for SQL Server 2017' ),
+	( 'RTM', 1000, convert(datetime,'02-10-2017',105), 'RTM for SQL Server 2017' ),
+	( 'RTM', 3006, convert(datetime,'23-10-2017',105), 'CU 1 for SQL Server 2017' ),
+	( 'RTM', 3008, convert(datetime,'28-11-2017',105), 'CU 2 for SQL Server 2017' ),
+	( 'RTM', 3015, convert(datetime,'04-01-2018',105), 'CU 3 for SQL Server 2017' );
 
+insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
+	values 
+	( 3006, 'RTM', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016 or 2017', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' ),
+	( 3008, 'RTM', 'FIX: "Message 611" error when you use BULK INSERT or INSERT SELECT to insert data into a clustered columnstore index', 'https://support.microsoft.com/en-us/help/4045814/fix-message-611-error-when-you-use-bulk-insert-or-insert-select-to-ins' );
 
 
 if @identifyCurrentVersion = 1
@@ -193,9 +203,9 @@ insert into #ColumnstoreTraceFlags (TraceFlag, Description, URL, SupportedStatus
 	(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
 	( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 	( 6404, 'Fixes the amount of memory for ALTER INDEX REORGANIZE on 4GB/16GB depending on the Server size.', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns', 1 ),
-	( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
+	( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2017', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
 	( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
-	( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+	( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2017', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
 	( 9389, 'Enables dynamic memory grant for batch mode operators', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 	( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2016/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
 	( 9354, 'Disables Aggregate Pushdown', '', 0 ),
