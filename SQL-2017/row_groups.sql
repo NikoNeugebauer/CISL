@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2017: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
 	Version: 1.6.0, January 2018
 
@@ -27,6 +27,9 @@ Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
 	+ Added new parameter for the identifying the object by its object_id (@objectId)
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+
+Changes in 1.6.0
+	* Greatly improved performance against the databases with thousands of Row Groups
 */
 
 -- Params --
@@ -48,10 +51,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- --Ensure that we are running SQL Server vNext
+-- --Ensure that we are running SQL Server 2017
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2017. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -70,18 +73,10 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 		sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
 		count(rg.object_id) as 'Total',
-		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
-				(select isnull(sum(intpart.rows),0)
-					from sys.internal_partitions intpart
-					where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
-						and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
+		cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + isnull(sum(intpart.rows),0)
 			   )/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) -
-				(select isnull(sum(intpart.rows),0)
-					from sys.internal_partitions intpart
-					where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
-						and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-			   ) /1000000. as Decimal(16,6)) as 'Active Rows (M)',
+		cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) - isnull(sum(intpart.rows),0)
+			   )/1000000. as Decimal(16,6)) as 'Active Rows (M)',
 		cast( sum(isnull(case state when 4 then 0 else total_rows end,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 		cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) +
 			   (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
@@ -101,8 +96,11 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on rg.object_id = stat.object_id and ind.index_id = stat.index_id
 				   and isnull(stat.database_id,db_id()) = db_id()
+			LEFT HASH JOIN sys.internal_partitions intpart
+				ON ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
+						and intpart.internal_object_type = 4
 		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-			  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+			  and part.data_compression BETWEEN 3 AND 4 -- ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 			  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
@@ -134,18 +132,10 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 		sum(case state when 4 then 1 else 0 end) as 'Tombstones',	
 		sum(case state when 3 then 1 else 0 end) as 'Compressed',
 		count(rg.object_id) as 'Total',	
-	cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + 
-				(select isnull(sum(intpart.rows),0)
-					from tempdb.sys.internal_partitions intpart
-					where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
-						and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-			   )/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
-		cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) -
-				(select isnull(sum(intpart.rows),0)
-					from tempdb.sys.internal_partitions intpart
-					where ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
-						and intpart.internal_object_type = 4 /* Deleted Buffer */ ) 
-			   ) /1000000. as Decimal(16,6)) as 'Active Rows (M)',
+	cast( (sum(isnull(case state when 4 then 0 else deleted_rows end,0)) + isnull(sum(intpart.rows),0)
+			)/1000000. as Decimal(16,6)) as 'Deleted Rows (M)',
+	cast( (sum(isnull(case state when 4 then 0 else (total_rows-isnull(deleted_rows,0)) end,0)) - isnull(sum(intpart.rows),0)
+			)/1000000. as Decimal(16,6)) as 'Active Rows (M)',	
 	cast( sum(isnull(rg.total_rows,0))/1000000. as Decimal(16,6)) as 'Total Rows (M)',
 	cast( (sum(isnull(size_in_bytes,0) / 1024. / 1024 / 1024) +
 			   (select isnull(sum(xtpMem.allocated_bytes) / 1024. / 1024 / 1024,0) 
@@ -164,8 +154,11 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 			on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 		left join tempdb.sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 			on rg.object_id = stat.object_id and ind.index_id = stat.index_id 
+		LEFT HASH JOIN tempdb.sys.internal_partitions intpart
+			ON ind.object_id = intpart.object_id and rg.partition_number = intpart.partition_number
+					and intpart.internal_object_type = 4
 	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-			and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+			and part.data_compression BETWEEN 3 AND 4 -- ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
