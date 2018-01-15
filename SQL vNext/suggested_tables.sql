@@ -35,6 +35,10 @@ Changes in 1.5.0
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table	
 */
 
 -- Params --
@@ -86,7 +90,7 @@ create table #TablesToColumnstore(
 	[ShortTableName] nvarchar(256) NOT NULL,
 	[Partitions] BIGINT NOT NULL,
 	[Row Count] bigint NOT NULL,
-	[Min RowGroups] smallint NOT NULL,
+	[Min RowGroups] INT NOT NULL,
 	[Size in GB] decimal(16,3) NOT NULL,
 	[Cols Count] smallint NOT NULL,
 	[String Cols] smallint NOT NULL,
@@ -154,7 +158,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
@@ -278,7 +282,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'

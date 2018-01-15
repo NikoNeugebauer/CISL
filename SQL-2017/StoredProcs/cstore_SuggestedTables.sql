@@ -36,8 +36,11 @@ Changes in 1.5.0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
 
-Changes in 1.5.1
+Changes in 1.6.0
 	+ Added new parameter for specifying the name of the database, where the Columnstore Indexes should be located (@dbName)
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
+
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -112,7 +115,7 @@ begin
 		[ShortTableName] nvarchar(256) NOT NULL,
 		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
-		[Min RowGroups] smallint NOT NULL,
+		[Min RowGroups] INT NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
 		[Cols Count] smallint NOT NULL,
 		[String Cols] smallint NOT NULL,
@@ -183,7 +186,7 @@ begin
 	SET @sql += N'
 		, (select count(*) 
 				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
-				where is_computed = 1 ) as ''Computed''
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
 				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''
@@ -311,7 +314,7 @@ begin
 		   ) as ''LOBs''
 		, (select count(*) 
 				from sys.columns as col
-				where is_computed = 1 ) as ''Computed''
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
 				from sys.indexes ind
 				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''

@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.5.0, August 2017
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -64,6 +64,11 @@ Changes in 1.5.0
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	+ Added new parameter for specifying the name of the database, where the Columnstore Indexes should be located (@dbName)
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -93,10 +98,11 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.5.0, August 2017
+	Version: 1.6.0, January 2018
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
+	@dbName SYSNAME = NULL,										-- Identifies the Database to run the stored procedure against. If this parameter is left to be NULL, then the current database is used
 	@minRowsToConsider bigint = 500000,							-- Minimum number of rows for a table to be considered for the suggestion inclusion
 	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 	@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
@@ -112,8 +118,19 @@ alter procedure dbo.cstore_SuggestedTables(
 -- end of --
 ) as 
 begin
-	SET ANSI_WARNINGS OFF;
 	set nocount on;
+
+	IF @dbName IS NULL
+		SET @dbName = DB_NAME(DB_ID());
+
+	DECLARE @dbId INT = DB_ID(@dbName);
+	DECLARE @sql NVARCHAR(MAX);
+
+	IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @dbName)
+	BEGIN
+		DECLARE @errorMessage NVARCHAR(500) = 'The Database ''' + @dbName + ''' does not exist on this SQL Server Instance!';
+		THROW 51000, @errorMessage, 1;
+	END
 
 	declare 
 		@readCommitedSnapshot tinyint = 0,
@@ -123,7 +140,7 @@ begin
 	select @readCommitedSnapshot = is_read_committed_snapshot_on, 
 		@snapshotIsolation = snapshot_isolation_state
 		from sys.databases
-		where database_id = DB_ID();
+		where database_id = @dbId;
 
 	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
 	drop table IF EXISTS #TablesToColumnstore;
@@ -135,7 +152,7 @@ begin
 		[ShortTableName] nvarchar(256) NOT NULL,
 		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
-		[Min RowGroups] smallint NOT NULL,
+		[Min RowGroups] INT NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
 		[Cols Count] smallint NOT NULL,
 		[String Cols] smallint NOT NULL,
@@ -161,110 +178,116 @@ begin
 		[FileTable] tinyint NOT NULL
 	);
 
+	SET @sql = N'
 	insert into #TablesToColumnstore
 	select t.object_id as [ObjectId]
-		, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
-		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
-		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
+		, case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end 
+		, quotename(object_schema_name(t.object_id, @dbId)) + ''.'' + quotename(object_name(t.object_id, @dbId)) as ''TableName''
+		, replace(object_name(t.object_id, @dbId),'' '', '''') as ''ShortTableName''
 		, COUNT(DISTINCT p.partition_number) as [Partitions]
-		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
-		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
-		, (select count(*) from sys.columns as col
-			where t.object_id = col.object_id ) as 'Cols Count'
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as ''Row Count''
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as ''Min RowGroups'' 
+		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as ''size in GB'' 
+		, (select count(*) from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+			where t.object_id = col.object_id ) as ''Cols Count''
 		, (select count(*) 
-				from sys.columns as col
-					inner join sys.types as tp
+				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+					inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR','SYSNAME') 
-		   ) as 'String Cols'
+					 UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'',''SYSNAME'') 
+		   ) as ''String Cols''
 		, isnull((select sum(col.max_length) 
-				from sys.columns as col
-					inner join sys.types as tp
+				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+					inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id 
-		  ),0) as 'Sum Length'
+		  ),0) as ''Sum Length''
 		, (select count(*) 
-				from sys.columns as col
-					inner join sys.types as tp
+				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+					inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 (UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY') OR
-					  (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+					 (UPPER(tp.name) in (''TEXT'',''NTEXT'',''TIMESTAMP'',''HIERARCHYID'',''SQL_VARIANT'',''XML'',''GEOGRAPHY'',''GEOMETRY'') OR
+					  (UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'') and (col.max_length = 8000 or col.max_length = -1)) 
 					 )
-		   ) as 'Unsupported'
+		   ) as ''Unsupported''
 		, (select count(*) 
-				from sys.columns as col
-					inner join sys.types as tp
+				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+					inner join ' + QUOTENAME(@dbName) + N'. sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
-		   ) as 'LOBs'
+					 (UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'') and (col.max_length = 8000 or col.max_length = -1)) 
+		   ) as ''LOBs''
+		   ';
+	SET @sql += N'
 		, (select count(*) 
-				from sys.columns as col
-				where is_computed = 1 ) as 'Computed'
+				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
-				from sys.indexes ind
-				where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
+				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
+				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''
 		, (select count(*)
-				from sys.indexes ind
-				where type = 2 AND ind.object_id = t.object_id ) as 'Nonclustered Indexes'
+				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
+				where type = 2 AND ind.object_id = t.object_id ) as ''Nonclustered Indexes''
 		, (select count(*)
-				from sys.indexes ind
-				where type = 3 AND ind.object_id = t.object_id ) as 'XML Indexes'
+				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
+				where type = 3 AND ind.object_id = t.object_id ) as ''XML Indexes''
 		, (select count(*)
-				from sys.indexes ind
-				where type = 4 AND ind.object_id = t.object_id ) as 'Spatial Indexes'
+				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
+				where type = 4 AND ind.object_id = t.object_id ) as ''Spatial Indexes''
 		, (select count(*)
-				from sys.objects
-				where UPPER(type) = 'PK' AND parent_object_id = t.object_id ) as 'Primary Key'
+				from ' + QUOTENAME(@dbName) + N'.sys.objects
+				where UPPER(type) = ''PK'' AND parent_object_id = t.object_id ) as ''Primary Key''
 		, (select count(*)
-				from sys.objects
-				where UPPER(type) = 'F' AND parent_object_id = t.object_id ) as 'Foreign Keys'
+				from ' + QUOTENAME(@dbName) + N'.sys.objects
+				where UPPER(type) = ''F'' AND parent_object_id = t.object_id ) as ''Foreign Keys''
 		, (select count(*)
-				from sys.objects
-				where UPPER(type) in ('UQ') AND parent_object_id = t.object_id ) as 'Unique Constraints'
+				from ' + QUOTENAME(@dbName) + N'.sys.objects
+				where UPPER(type) in (''UQ'') AND parent_object_id = t.object_id ) as ''Unique Constraints''
 		, (select count(*)
-				from sys.objects
-				where UPPER(type) in ('TA','TR') AND parent_object_id = t.object_id ) as 'Triggers'
-		, @readCommitedSnapshot as 'RCSI'
-		, @snapshotIsolation as 'Snapshot'
-		, t.is_tracked_by_cdc as 'CDC'
+				from ' + QUOTENAME(@dbName) + N'.sys.objects
+				where UPPER(type) in (''TA'',''TR'') AND parent_object_id = t.object_id ) as ''Triggers''
+		, @readCommitedSnapshot as ''RCSI''
+		, @snapshotIsolation as ''Snapshot''
+		, t.is_tracked_by_cdc as [CDC]
 		, (select count(*) 
-				from sys.change_tracking_tables ctt with(READUNCOMMITTED)
+				from ' + QUOTENAME(@dbName) + N'.sys.change_tracking_tables ctt with(READUNCOMMITTED)
 				where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
-					  and DB_ID() in (select database_id from sys.change_tracking_databases ctdb)) as 'CT'
-		, t.is_memory_optimized as 'InMemoryOLTP'
-		, t.is_replicated as 'Replication'
-		, coalesce(t.filestream_data_space_id,0,1) as 'FileStream'
-		, t.is_filetable as 'FileTable'
-		from sys.tables t
-			inner join sys.partitions as p 
+					  and DB_ID() in (select database_id from ' + QUOTENAME(@dbName) + N'.sys.change_tracking_databases ctdb)) as ''CT''
+		, t.is_memory_optimized as ''InMemoryOLTP''
+		, t.is_replicated as ''Replication''
+		, coalesce(t.filestream_data_space_id,0,1) as ''FileStream''
+		, t.is_filetable as ''FileTable''
+		';
+	SET @sql += N'
+		from ' + QUOTENAME(@dbName) + N'.sys.tables t
+			inner join ' + QUOTENAME(@dbName) + N'.sys.partitions as p 
 				ON t.object_id = p.object_id
-			inner join sys.allocation_units as a 
+			inner join ' + QUOTENAME(@dbName) + N'.sys.allocation_units as a 
 				ON p.partition_id = a.container_id
-			inner join sys.indexes ind
+			inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 				on ind.object_id = p.object_id and ind.index_id = p.index_id
-			left join sys.dm_db_xtp_table_memory_stats xtpMem
+			left join ' + QUOTENAME(@dbName) + N'.sys.dm_db_xtp_table_memory_stats xtpMem
 				on xtpMem.object_id = t.object_id
 		where p.data_compression in (0,1,2) -- None, Row, Page
 			 and (select count(*)
-					from sys.indexes ind
+					from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 					where t.object_id = ind.object_id
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%') 
-				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id) = @tableName) )
-			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id ) like '%' + @schemaName + '%')
-				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id ) = @schemaName))
+			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id, @dbId) like ''%'' + @tableName + ''%'') 
+				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id, @dbId) = @tableName) )
+			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id, @dbId ) like ''%'' + @schemaName + ''%'')
+				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id, @dbId ) = @schemaName))
 			 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
-						from sys.columns as col
-							inner join sys.types as tp
+						from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+							inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 								on col.system_type_id = tp.system_type_id
 						where t.object_id = col.object_id and 
-								(UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY'))
+								(UPPER(tp.name) in (''TEXT'',''NTEXT'',''TIMESTAMP'',''HIERARCHYID'',''SQL_VARIANT'',''XML'',''GEOGRAPHY'',''GEOMETRY''))
 						) = 0 
 					--and t.is_replicated = 0
 					and coalesce(t.filestream_data_space_id,0,1) = 0
@@ -275,93 +298,96 @@ begin
 		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
-					from sys.columns as col
-						inner join sys.types as tp
+					from ' + QUOTENAME(@dbName) + N'.sys.columns as col
+						inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 							on col.system_type_id = tp.system_type_id
 					where t.object_id = col.object_id 
 				  ) < 8000 and @considerColumnsOver8K = 0 ) 
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
+				(isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)';
+
+	SET @sql += N'
 	union all
 	select t.object_id as [ObjectId]
-		, 'Disk-Based'
-		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
-		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
+		, ''Disk-Based''
+		, quotename(object_schema_name(t.object_id)) + ''.'' + quotename(object_name(t.object_id)) as ''TableName''
+		, replace(object_name(t.object_id),'' '', '''') as ''ShortTableName''
 		, COUNT(DISTINCT p.partition_number) as [Partitions]
-		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
-		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 		
-		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as ''Row Count''
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as ''Min RowGroups'' 		
+		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as ''size in GB''
 		, (select count(*) from sys.columns as col
-			where t.object_id = col.object_id ) as 'Cols Count'
+			where t.object_id = col.object_id ) as ''Cols Count''
 		, (select count(*) 
 				from sys.columns as col
 					inner join sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR','SYSNAME') 
-		   ) as 'String Cols'
+					 UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'',''SYSNAME'') 
+		   ) as ''String Cols''
 		, isnull((select sum(col.max_length) 
 				from sys.columns as col
 					inner join sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id 
-		  ),0) as 'Sum Length'
+		  ),0) as ''Sum Length''
 		, (select count(*) 
 				from sys.columns as col
 					inner join sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 (UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY') OR
-					  (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+					 (UPPER(tp.name) in (''TEXT'',''NTEXT'',''TIMESTAMP'',''HIERARCHYID'',''SQL_VARIANT'',''XML'',''GEOGRAPHY'',''GEOMETRY'') OR
+					  (UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'') and (col.max_length = 8000 or col.max_length = -1)) 
 					 )
-		   ) as 'Unsupported'
+		   ) as ''Unsupported''
 		, (select count(*) 
 				from sys.columns as col
 					inner join sys.types as tp
 						on col.user_type_id = tp.user_type_id
 				where t.object_id = col.object_id and 
-					 (UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
-		   ) as 'LOBs'
+					 (UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'') and (col.max_length = 8000 or col.max_length = -1)) 
+		   ) as ''LOBs''
 		, (select count(*) 
 				from sys.columns as col
-				where is_computed = 1 ) as 'Computed'
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
 				from sys.indexes ind
-				where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
+				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''
 		, (select count(*)
 				from sys.indexes ind
-				where type = 2 AND ind.object_id = t.object_id ) as 'Nonclustered Indexes'
+				where type = 2 AND ind.object_id = t.object_id ) as ''Nonclustered Indexes''
 		, (select count(*)
 				from sys.indexes ind
-				where type = 3 AND ind.object_id = t.object_id ) as 'XML Indexes'
+				where type = 3 AND ind.object_id = t.object_id ) as ''XML Indexes''
 		, (select count(*)
 				from sys.indexes ind
-				where type = 4 AND ind.object_id = t.object_id ) as 'Spatial Indexes'
+				where type = 4 AND ind.object_id = t.object_id ) as ''Spatial Indexes''
 		, (select count(*)
 				from sys.objects
-				where UPPER(type) = 'PK' AND parent_object_id = t.object_id ) as 'Primary Key'
+				where UPPER(type) = ''PK'' AND parent_object_id = t.object_id ) as ''Primary Key''
 		, (select count(*)
 				from sys.objects
-				where UPPER(type) = 'F' AND parent_object_id = t.object_id ) as 'Foreign Keys'
+				where UPPER(type) = ''F'' AND parent_object_id = t.object_id ) as ''Foreign Keys''
 		, (select count(*)
 				from sys.objects
-				where UPPER(type) in ('UQ') AND parent_object_id = t.object_id ) as 'Unique Constraints'
+				where UPPER(type) in (''UQ'') AND parent_object_id = t.object_id ) as ''Unique Constraints''
 		, (select count(*)
 				from sys.objects
-				where UPPER(type) in ('TA','TR') AND parent_object_id = t.object_id ) as 'Triggers'
-		, @readCommitedSnapshot as 'RCSI'
-		, @snapshotIsolation as 'Snapshot'
-		, t.is_tracked_by_cdc as 'CDC'
+				where UPPER(type) in (''TA'',''TR'') AND parent_object_id = t.object_id ) as ''Triggers''
+		, @readCommitedSnapshot as ''RCSI''
+		, @snapshotIsolation as ''Snapshot''
+		, t.is_tracked_by_cdc as [CDC]
 		, (select count(*) 
 				from sys.change_tracking_tables ctt with(READUNCOMMITTED)
 				where ctt.object_id = t.object_id and ctt.is_track_columns_updated_on = 1 
-					  and DB_ID() in (select database_id from sys.change_tracking_databases ctdb)) as 'CT'
-		, t.is_memory_optimized as 'InMemoryOLTP'
-		, t.is_replicated as 'Replication'
-		, coalesce(t.filestream_data_space_id,0,1) as 'FileStream'
-		, t.is_filetable as 'FileTable'
+					  and DB_ID() in (select database_id from sys.change_tracking_databases ctdb)) as ''CT''
+		, t.is_memory_optimized as ''InMemoryOLTP''
+		, t.is_replicated as ''Replication''
+		, coalesce(t.filestream_data_space_id,0,1) as ''FileStream''
+		, t.is_filetable as ''FileTable'' ';
+	SET @sql += N'
 		from tempdb.sys.tables t
 			left join tempdb.sys.partitions as p 
 				on t.object_id = p.object_id
@@ -374,16 +400,16 @@ begin
 					from sys.indexes ind
 					where t.object_id = ind.object_id
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
-				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) = @tableName) )
-			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
-				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName))
+			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id,db_id(''tempdb'')) like ''%'' + @tableName + ''%'') 
+				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id,db_id(''tempdb'')) = @tableName) )
+			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id,db_id(''tempdb'') ) like ''%'' + @schemaName + ''%'')
+				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id,db_id(''tempdb'') ) = @schemaName))
 			 AND (ISNULL(@objectId,t.object_id) = t.object_id)
-		 			--and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
-		 	 and ind.data_space_id = case isnull(@indexLocation,'Null') 
-													when 'In-Memory' then 0
-													when 'Disk-Based' then 1 
-													when 'Null' then ind.data_space_id
+		 			--and ind.data_space_id = isnull( case @indexLocation when ''In-Memory'' then 0 when ''Disk-Based'' then 1 else ind.data_space_id end, ind.data_space_id )
+		 	 and ind.data_space_id = case isnull(@indexLocation,''Null'') 
+													when ''In-Memory'' then 0
+													when ''Disk-Based'' then 1 
+													when ''Null'' then ind.data_space_id
 													else 255 
 									end
 			 and (( @showReadyTablesOnly = 1 
@@ -393,7 +419,7 @@ begin
 							inner join sys.types as tp
 								on col.system_type_id = tp.system_type_id
 						where t.object_id = col.object_id and 
-								(UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY'))
+								(UPPER(tp.name) in (''TEXT'',''NTEXT'',''TIMESTAMP'',''HIERARCHYID'',''SQL_VARIANT'',''XML'',''GEOGRAPHY'',''GEOMETRY''))
 						) = 0 
 					--and t.is_replicated = 0
 					and coalesce(t.filestream_data_space_id,0,1) = 0
@@ -412,151 +438,210 @@ begin
 				  OR
 				 @considerColumnsOver8K = 1 )
 				and 
-			(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB)
-	OPTION (FORCE ORDER);
+				(cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) >= @minSizeToConsiderInGB);
+	';
+
+	DECLARE @paramDefinition NVARCHAR(1000) =  '@indexLocation varchar(15),			
+												@minRowsToConsider bigint,
+												@minSizeToConsiderInGB bigint,				
+												@showReadyTablesOnly bit,	
+												@considerColumnsOver8K bit,
+												@showUnsupportedColumnsDetails bit,
+												@readCommitedSnapshot tinyint = 0,
+												@snapshotIsolation tinyint = 0,
+												@preciseSearch bit,						
+												@tableName nvarchar(256),			
+												@schemaName nvarchar(256),			
+												@objectId int,	
+												@dbId int';						
+
+	EXEC sp_executesql @sql, @paramDefinition, @indexLocation = @indexLocation,
+											   @minRowsToConsider = @minRowsToConsider, @minSizeToConsiderInGB = @minSizeToConsiderInGB,
+											   @showReadyTablesOnly = @showReadyTablesOnly, @considerColumnsOver8K = @considerColumnsOver8K,
+											   @showUnsupportedColumnsDetails = @showUnsupportedColumnsDetails,
+											   @readCommitedSnapshot = @readCommitedSnapshot,	@snapshotIsolation = @snapshotIsolation,
+											   @preciseSearch = @preciseSearch, @tableName = @tableName,
+											   @schemaName = @schemaName, @objectId = @objectId,
+											   @dbId = @dbId;
+
 
 	-- Show the found results
-	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then 'None' 
+	SET @sql = N'
+	select case when ([Triggers] + [FileStream] + [FileTable] + [Unsupported] - ([LOBs] + [Computed])) > 0 then ''None'' 
 				when ([Clustered Index] + [CDC] + [CT] +
 					  [Unique Constraints] + [Triggers] + [InMemoryOLTP] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) = 0 and [Unsupported] = 0
-					  AND TableLocation <> 'In-Memory' then 'Both Columnstores' 
+					  AND TableLocation <> ''In-Memory'' then ''Both Columnstores'' 
 				when ( [Triggers] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) <= 0 
-					  AND TableLocation <> 'In-Memory' then 'Nonclustered Columnstore'  
+					  AND TableLocation <> ''In-Memory'' then ''Nonclustered Columnstore''  
 				when ( [Clustered Index] + [CDC] + [CT] +
 					  [Unique Constraints] + [Triggers] + [Replication] + [FileStream] + [FileTable] + [Unsupported] 
 					  - ([LOBs] + [Computed])) <= 0 
-					  AND TableLocation = 'In-Memory' then 'Clustered Columnstore'  
-		   end as 'Compatible With'
+					  AND TableLocation = ''In-Memory'' then ''Clustered Columnstore''  
+		   end as ''Compatible With''
 		, TableLocation		
 		, [TableName], [Partitions], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 		, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 		, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [InMemoryOLTP], [Replication], [FileStream], [FileTable]
 		from #TablesToColumnstore tempRes
 		where TableLocation = isnull(@indexLocation, TableLocation)
-		order by [Row Count] desc;
+		order by [Row Count] desc;'
 
+	SET @paramDefinition =  '@indexLocation varchar(15)';
+	EXEC sp_executesql @sql, @paramDefinition, @indexLocation = @indexLocation;
 
 	if( @showUnsupportedColumnsDetails = 1 ) 
 	begin
-		select quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name (t.object_id)) as 'TableName',
-			col.name as 'Unsupported Column Name',
-			tp.name as 'Data Type',
-			col.max_length as 'Max Length',
-			col.precision as 'Precision',
-			col.is_computed as 'Computed'
-			from sys.tables t
-				inner join sys.columns as col
+		SET @sql = N'
+		select quotename(object_schema_name(t.object_id,@dbId)) + ''.'' + quotename(object_name (t.object_id,@dbId)) as ''TableName'',
+			col.name as ''Unsupported Column Name'',
+			tp.name as ''Data Type'',
+			col.max_length as ''Max Length'',
+			col.precision as ''Precision'',
+			col.is_computed as ''Computed''
+			from ' + QUOTENAME(@dbName) + N'.sys.tables t
+				inner join ' + QUOTENAME(@dbName) + N'.sys.columns as col
 					on t.object_id = col.object_id 
-				inner join sys.types as tp
+				inner join ' + QUOTENAME(@dbName) + N'.sys.types as tp
 					on col.user_type_id = tp.user_type_id 
-				where  ((UPPER(tp.name) in ('TEXT','NTEXT','TIMESTAMP','HIERARCHYID','SQL_VARIANT','XML','GEOGRAPHY','GEOMETRY') OR
-						(UPPER(tp.name) in ('VARCHAR','NVARCHAR','CHAR','NCHAR') and (col.max_length = 8000 or col.max_length = -1)) 
+				where  ((UPPER(tp.name) in (''TEXT'',''NTEXT'',''TIMESTAMP'',''HIERARCHYID'',''SQL_VARIANT'',''XML'',''GEOGRAPHY'',''GEOMETRY'') OR
+						(UPPER(tp.name) in (''VARCHAR'',''NVARCHAR'',''CHAR'',''NCHAR'') and (col.max_length = 8000 or col.max_length = -1)) 
 						) 
 						OR col.is_computed = 1 )
-				 and t.object_id in (select ObjectId from #TablesToColumnstore);
+				 and t.object_id in (select ObjectId from #TablesToColumnstore);'
+
+		SET @paramDefinition =  '@dbId int';
+		EXEC sp_executesql @sql, @paramDefinition, @dbId = @dbId;
 	end
+
+
 
 	if( @showTSQLCommandsBeta = 1 ) 
 	begin
+		SET @sql = N'
 		select coms.TableName, coms.[TSQL Command], coms.[type]
 			from (
 				select t.TableName, 
-						'create ' + @columnstoreIndexTypeForTSQL + ' columnstore index ' + 
-						case @columnstoreIndexTypeForTSQL when 'Clustered' then 'CCI' when 'Nonclustered' then 'NCCI' end 
-						+ '_' + t.[ShortTableName] + 
-						' on ' + t.TableName + case @columnstoreIndexTypeForTSQL when 'Nonclustered' then '()' else '' end + ';' as [TSQL Command]
-					   , 'CCL' as type,
+						''create '' + @columnstoreIndexTypeForTSQL + '' columnstore index '' + 
+						case @columnstoreIndexTypeForTSQL when ''Clustered'' then ''CCI'' when ''Nonclustered'' then ''NCCI'' end 
+						+ ''_'' + t.[ShortTableName] + 
+						'' on '' + t.TableName + case @columnstoreIndexTypeForTSQL when ''Nonclustered'' then ''()'' else '''' end + '';'' as [TSQL Command]
+					   , ''CCL'' as type,
 					   101 as [Sort Order]
 					from #TablesToColumnstore t
-					where TableLocation = 'Disk-Based'
+					where TableLocation = ''Disk-Based''
 				union all
 					select t.TableName, 
-						'alter table ' + t.TableName +
-						' add index CCI_' + t.[ShortTableName] + ' clustered columnstore;' as [TSQL Command]
-					   , 'CCL' as type,
+						''alter table '' + t.TableName +
+						'' add index CCI_'' + t.[ShortTableName] + '' clustered columnstore;'' as [TSQL Command]
+					   , ''CCL'' as type,
 					   102 as [Sort Order]
 					from #TablesToColumnstore t
-					where TableLocation = 'In-Memory'
+					where TableLocation = ''In-Memory''
 				union all
-				select t.TableName, 'alter table ' + t.TableName + ' drop constraint ' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + ';' as [TSQL Command], [type], 
-					   case UPPER(type) when 'PK' then 100 when 'F' then 1 when 'UQ' then 100 end as [Sort Order]
+				select t.TableName, ''alter table '' + t.TableName + '' drop constraint '' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + '';'' as [TSQL Command], [type], 
+					   case UPPER(type) when ''PK'' then 100 when ''F'' then 1 when ''UQ'' then 100 end as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.objects so
+					inner join ' + QUOTENAME(@dbName) + N'.sys.objects so
 						on t.ObjectId = so.parent_object_id
-					where UPPER(type) in ('PK')
-						and t.TableLocation <> 'In-Memory'
+					where UPPER(type) in (''PK'')
+						and t.TableLocation <> ''In-Memory''
 				union all
-				select t.TableName, 'drop trigger ' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + ';' as [TSQL Command], type,
+				select t.TableName, ''drop trigger '' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + '';'' as [TSQL Command], type,
 					50 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.objects so
+					inner join ' + QUOTENAME(@dbName) + N'.sys.objects so
 						on t.ObjectId = so.parent_object_id
-					where UPPER(type) in ('TR')
-				union all
-				select t.TableName, 'drop assembly ' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + ' WITH NO DEPENDENTS ;' as [TSQL Command], type,
+					where UPPER(type) in (''TR'')
+				union all ';
+			SET @sql += N'
+				select t.TableName, ''drop assembly '' + (quotename(so.name) collate SQL_Latin1_General_CP1_CI_AS) + '' WITH NO DEPENDENTS ;'' as [TSQL Command], type,
 					50 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.objects so
+					inner join ' + QUOTENAME(@dbName) + N'.sys.objects so
 						on t.ObjectId = so.parent_object_id
-					where UPPER(type) in ('TA')	
+					where UPPER(type) in (''TA'')	
 				union all 
-				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'CL' as type,
+				select t.TableName, ''drop index '' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + '' on '' + t.TableName + '';'' as [TSQL Command], ''CL'' as type,
 					10 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.indexes ind
+					inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 						on t.ObjectId = ind.object_id
 					where type = 1 and not exists
 						(select 1 from #TablesToColumnstore t1
-							inner join sys.objects so1
+							inner join ' + QUOTENAME(@dbName) + N'.sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK')
+							where UPPER(so1.type) in (''PK'')
 								and quotename(ind.name) <> quotename(so1.name)
-								and t1.TableLocation <> 'In-Memory')
-						and t.TableLocation <> 'In-Memory'
-						and ind.is_primary_key <> 1
+								and t1.TableLocation <> ''In-Memory'')
+						and t.TableLocation <> ''In-Memory''
 				union all 
-				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'NC' as type,
+				select t.TableName, ''drop index '' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + '' on '' + t.TableName + '';'' as [TSQL Command], ''NC'' as type,
 					10 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.indexes ind
+					inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 						on t.ObjectId = ind.object_id
 					where type = 2 and not exists
 						(select 1 from #TablesToColumnstore t1
-							inner join sys.objects so1
+							inner join ' + QUOTENAME(@dbName) + N'.sys.objects so1
 								on t1.ObjectId = so1.parent_object_id
-							where UPPER(so1.type) in ('PK')
+							where UPPER(so1.type) in (''PK'')
 								and quotename(ind.name) <> quotename(so1.name) and t.ObjectId = t1.ObjectId 
-								and t1.TableLocation <> 'In-Memory')
-						and t.TableLocation <> 'In-Memory'
-						and ind.is_primary_key <> 1
-				union all 
-				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'XML' as type,
+								and t1.TableLocation <> ''In-Memory'')
+						and t.TableLocation <> ''In-Memory''
+				union all ';
+			SET @sql += N'
+				select t.TableName, ''drop index '' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + '' on '' + t.TableName + '';'' as [TSQL Command], ''XML'' as type,
 					10 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.indexes ind
+					inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 						on t.ObjectId = ind.object_id
 					where type = 3
 				union all 
-				select t.TableName, 'drop index ' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + ' on ' + t.TableName + ';' as [TSQL Command], 'SPAT' as type,
+				select t.TableName, ''drop index '' + (quotename(ind.name) collate SQL_Latin1_General_CP1_CI_AS) + '' on '' + t.TableName + '';'' as [TSQL Command], ''SPAT'' as type,
 					10 as [Sort Order]
 					from #TablesToColumnstore t
-					inner join sys.indexes ind
+					inner join ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 						on t.ObjectId = ind.object_id
 					where type = 4
 				union all 
-				select t.TableName, '-- - - - - - - - - - - - - - - - - - - - - -' as [TSQL Command], '---' as type,
+				select t.TableName, 
+					'''', 
+					'''',
 					0 as [Sort Order]
 					from #TablesToColumnstore t
 			) coms
-		order by coms.type desc, coms.[Sort Order]; --coms.TableName 
+		order by coms.type desc, coms.[Sort Order]; ';
+
+		SET @paramDefinition				    =  '@indexLocation varchar(15),			
+													@minRowsToConsider bigint,
+													@minSizeToConsiderInGB bigint,				
+													@showReadyTablesOnly bit,	
+													@considerColumnsOver8K bit,
+													@showUnsupportedColumnsDetails bit,
+													@readCommitedSnapshot tinyint = 0,
+													@snapshotIsolation tinyint = 0,
+													@preciseSearch bit,						
+													@tableName nvarchar(256),			
+													@schemaName nvarchar(256),			
+													@objectId int,	
+													@columnstoreIndexTypeForTSQL varchar(20),
+													@dbId int';						
+		PRINT @sql;
+		EXEC sp_executesql @sql, @paramDefinition, @indexLocation = @indexLocation,
+												   @minRowsToConsider = @minRowsToConsider, @minSizeToConsiderInGB = @minSizeToConsiderInGB,
+												   @showReadyTablesOnly = @showReadyTablesOnly, @considerColumnsOver8K = @considerColumnsOver8K,
+												   @showUnsupportedColumnsDetails = @showUnsupportedColumnsDetails,
+												   @readCommitedSnapshot = @readCommitedSnapshot,	@snapshotIsolation = @snapshotIsolation,
+												   @preciseSearch = @preciseSearch, @tableName = @tableName,
+												   @schemaName = @schemaName, @objectId = @objectId,
+												   @columnstoreIndexTypeForTSQL = @columnstoreIndexTypeForTSQL,
+												   @dbId = @dbId;
 			 
 	end
 
-	drop table if exists #TablesToColumnstore; 
-
-	SET ANSI_WARNINGS ON;
+	DROP TABLE IF EXISTS #TablesToColumnstore; 
 end
 
 GO

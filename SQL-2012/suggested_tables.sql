@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.5.0, August 2017
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 
 /*
 Known Issues & Limitations: 
-	- @showTSQLCommandsBeta parameter is in alpha Version: 1.5.0, August 2017 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- @showTSQLCommandsBeta parameter is in alpha Version: 1.6.0, January 2018 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 	- CLR support is not included or tested
 	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 	- Data Precision is not being taken into account
@@ -44,7 +44,7 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a cast bug, that would filter out some of the indexes, based on the casting of the hidden numbers (3rd number behind the comma)
-	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.5.0, August 2017 'Disk-Based'.
+	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.6.0, January 2018 'Disk-Based'.
 
 Changes in 1.5.0
 	+ Added new parameter for the searching precise name of the object (@preciseSearch)
@@ -52,6 +52,10 @@ Changes in 1.5.0
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
 */
 
 -- Params --
@@ -103,7 +107,7 @@ create table #TablesToColumnstore(
 	[ShortTableName] nvarchar(256) NOT NULL,
 	[Partitions] BIGINT NOT NULL,
 	[Row Count] bigint NOT NULL,
-	[Min RowGroups] smallint NOT NULL,
+	[Min RowGroups] INT NOT NULL,
 	[Size in GB] decimal(16,3) NOT NULL,
 	[Cols Count] smallint NOT NULL,
 	[String Cols] smallint NOT NULL,
@@ -170,7 +174,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
@@ -307,7 +311,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from tempdb.sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from tempdb.sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'

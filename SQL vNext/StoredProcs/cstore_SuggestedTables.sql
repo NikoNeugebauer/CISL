@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2017: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.5.1, September 2017
 
@@ -35,6 +35,11 @@ Changes in 1.5.0
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	+ Added new parameter for specifying the name of the database, where the Columnstore Indexes should be located (@dbName)
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -42,10 +47,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
+-- Ensure that we are running SQL Server 2017
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2017. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 GO
@@ -53,7 +58,7 @@ GO
 --------------------------------------------------------------------------------------------------------------------
 
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2017: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.5.1, September 2017
 */
@@ -83,6 +88,12 @@ begin
 	DECLARE @dbId INT = DB_ID(@dbName);
 	DECLARE @sql NVARCHAR(MAX);
 
+	IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = @dbName)
+	BEGIN
+		DECLARE @errorMessage NVARCHAR(500) = 'The Database ''' + @dbName + ''' does not exist on this SQL Server Instance!';
+		THROW 51000, @errorMessage, 1;
+	END
+
 	declare 
 		@readCommitedSnapshot tinyint = 0,
 		@snapshotIsolation tinyint = 0;
@@ -103,7 +114,7 @@ begin
 		[ShortTableName] nvarchar(256) NOT NULL,
 		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
-		[Min RowGroups] smallint NOT NULL,
+		[Min RowGroups] INT NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
 		[Cols Count] smallint NOT NULL,
 		[String Cols] smallint NOT NULL,
@@ -174,7 +185,7 @@ begin
 	SET @sql += N'
 		, (select count(*) 
 				from ' + QUOTENAME(@dbName) + N'.sys.columns as col
-				where is_computed = 1 ) as ''Computed''
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
 				from ' + QUOTENAME(@dbName) + N'.sys.indexes ind
 				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''
@@ -302,7 +313,7 @@ begin
 		   ) as ''LOBs''
 		, (select count(*) 
 				from sys.columns as col
-				where is_computed = 1 ) as ''Computed''
+				where is_computed = 1 AND col.object_id = t.object_id ) as ''Computed''
 		, (select count(*)
 				from sys.indexes ind
 				where type = 1 AND ind.object_id = t.object_id ) as ''Clustered Index''

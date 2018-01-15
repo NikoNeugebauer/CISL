@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2017: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
 	Version: 1.6.0, January 2018
 
@@ -35,6 +35,11 @@ Changes in 1.5.0
 	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 	- Fixed bug with the partitioned table not showing the correct number of rows
 	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
+
 */
 
 -- Params --
@@ -56,10 +61,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
+-- Ensure that we are running SQL Server 2017
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2017. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -86,7 +91,7 @@ create table #TablesToColumnstore(
 	[ShortTableName] nvarchar(256) NOT NULL,
 	[Partitions] BIGINT NOT NULL,
 	[Row Count] bigint NOT NULL,
-	[Min RowGroups] smallint NOT NULL,
+	[Min RowGroups] INT NOT NULL,
 	[Size in GB] decimal(16,3) NOT NULL,
 	[Cols Count] smallint NOT NULL,
 	[String Cols] smallint NOT NULL,
@@ -154,7 +159,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
@@ -278,7 +283,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
