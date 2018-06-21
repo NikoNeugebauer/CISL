@@ -40,7 +40,7 @@ DECLARE
 	@InMemory INT = 0,							-- Requirement for using In-Memory Technology with Columnstore Indexes
 	@Replication INT = 0,						-- Requirement for using Replication on the tables with Columnstore Indexes
 	@IndexedViews INT = 0,						-- Requirement for using Indexed Views with Columnstore Indexes
-	@OnlineRebuilds INT = 0,					-- Requirement for using Online Rebuild for the Columnstore Indexes
+	@OnlineRebuilds INT = 1,					-- Requirement for using Online Rebuild for the Columnstore Indexes
 	@ComputedColumns INT = 0,					-- Requirement for using Computed Columns (non-persisted) on the tables with Columnstore Indexes
 	@ComputedColumnsPersisted INT = 0;			-- Requirement for using Persisted Computed Columns on the tables with Columnstore Indexes
 -- end of --
@@ -90,17 +90,17 @@ SELECT 'Clustered Columnstore' as IndexType,
 				 @IndexedViews = 1 OR @ComputedColumns = 1 OR @ComputedColumnsPersisted = 1 ) THEN 1 ELSE 0 END) 
 			   > 0 THEN 0 ELSE 1 END as SQL2017,
 	CASE WHEN @ChangeTracking + @CDC + @Replication + @IndexedViews +
-	          @OnlineRebuilds + @ComputedColumnsPersisted +
+	          @ComputedColumnsPersisted +
 			  (CASE WHEN @InMemory = 1 AND 
 				(@CDC = 1 OR @ChangeTracking = 1 OR @LOBs = 1 OR @Replication = 1 OR 
 				 @IndexedViews = 1 OR @ComputedColumns = 1 OR @ComputedColumnsPersisted = 1 ) THEN 1 ELSE 0 END) 
 			   > 0 THEN 0 ELSE 1 END as [Azure SQL DB],
-	CASE WHEN @agReadableSecondaries + @ChangeTracking + @CDC + @Replication + @InMemory + @LOBs + 
+	CASE WHEN @OnlineRebuilds + @agReadableSecondaries + @ChangeTracking + @CDC + @Replication + @InMemory + @LOBs + 
 	          @ComputedColumns + @ComputedColumnsPersisted > 0 THEN 0 ELSE 1 END as [Azure SQL DW]
 UNION ALL
 SELECT 'NonClustered Columnstore' as IndexType, 
 	CASE WHEN @writable + @DecimalPrecisionOver18 + @InMemory + @LOBs +
-			  @Replication + @IndexedViews + @OnlineRebuilds > 0 THEN 0 ELSE 1 END as SQL2012, 
+			  @Replication + @IndexedViews + @OnlineRebuilds + @CDC + @ChangeTracking > 0 THEN 0 ELSE 1 END as SQL2012, 
 	CASE WHEN @writable + @ChangeTracking + @CDC + @ChangeTracking + @InMemory + @LOBs + 
 			  @Replication + @IndexedViews + @OnlineRebuilds +
 			  @ComputedColumns + @ComputedColumnsPersisted > 0 THEN 0 ELSE 1 END as SQL2014, 
