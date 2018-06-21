@@ -40,7 +40,7 @@ DECLARE
 	@InMemory INT = 0,							-- Requirement for using In-Memory Technology with Columnstore Indexes
 	@Replication INT = 0,						-- Requirement for using Replication on the tables with Columnstore Indexes
 	@IndexedViews INT = 0,						-- Requirement for using Indexed Views with Columnstore Indexes
-	@OnlineRebuilds INT = 1,					-- Requirement for using Online Rebuild for the Columnstore Indexes
+	@OnlineRebuilds INT = 0,					-- Requirement for using Online Rebuild for the Columnstore Indexes
 	@ComputedColumns INT = 0,					-- Requirement for using Computed Columns (non-persisted) on the tables with Columnstore Indexes
 	@ComputedColumnsPersisted INT = 0;			-- Requirement for using Persisted Computed Columns on the tables with Columnstore Indexes
 -- end of --
