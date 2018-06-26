@@ -19,7 +19,7 @@ Welcome to CISL - Microsoft SQL Server Columnstore Indexes Scripts Library
 A columnstore index is a technology for storing, retrieving and managing data by using a columnar data format, called a columnstore. More information you can find here: https://msdn.microsoft.com/en-us/library/gg492088.aspx
 
 The library is launched with the very first release on 1st of September 2015. 
-The current release (1.4.1) is supporting SQL Server 2012, 2014, 2016, Azure SQL Database & SQL Server vNext (2016 Stand).  
+The current release (1.4.1) is supporting SQL Server 2012, 2014, 2016, 2017 & Azure SQL Database.  
 
 At the moment, the CISL consists from 8 scripts and 9 stored procedures (8 standrad & a maintenance solution).  
 Every CISL script comes in 2 variants: a simple executable script & stored procedure.  
