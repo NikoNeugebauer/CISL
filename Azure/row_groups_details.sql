@@ -58,7 +58,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
