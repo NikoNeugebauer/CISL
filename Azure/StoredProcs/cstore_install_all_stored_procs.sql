@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
+	CSIL - Columnstore Indexes Scripts Library for Azure SQL Database: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
 	Version: 1.5.0, August 2017
 
@@ -60,7 +60,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -490,7 +490,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -758,7 +758,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -918,7 +918,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -1146,7 +1146,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -1340,7 +1340,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8)
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
@@ -1854,7 +1854,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running Azure SQLDatabase
-if SERVERPROPERTY('EngineEdition') <> 5 
+if SERVERPROPERTY('EngineEdition') NOT IN (5,8) 
 begin
 	set @errorMessage = (N'Your are not running this script on Azure SQLDatabase: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
