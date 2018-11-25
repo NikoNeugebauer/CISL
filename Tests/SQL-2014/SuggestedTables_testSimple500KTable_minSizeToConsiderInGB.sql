@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ GO
 
 ALTER PROCEDURE [SuggestedTables].[testSimple500KTable_minSizeToConsiderInGB] AS
 BEGIN
+	SET NOCOUNT ON;
+
 	-- Returns tables suggested for using Columnstore Indexes for the DataWarehouse environments
 	if OBJECT_ID('tempdb..#ActualSuggestedTables') IS NOT NULL
 		drop table #ActualSuggestedTables;
@@ -32,6 +34,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -66,7 +69,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.005 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -79,7 +82,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.006 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables

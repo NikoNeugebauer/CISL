@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.5.0, August 2017 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -23,25 +23,29 @@ Changes in 1.1.0
 	- Fixed error with a semicolon inside the parameters of the stored procedure
 	+ Added new parameter for filtering on the object id - @objectId
 	* Changed constant creation and dropping of the stored procedure to 1st time execution creation and simple alteration after that
-	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.4.2, December 2016 can be easily determined.
+	* The description header is copied into making part of the function code that will be stored on the server. This way the CISL Version: 1.5.0, August 2017 can be easily determined.
 
 Changes in 1.2.0
-	- Fixed bug with conVersion: 1.4.2, December 2016 to bigint for row_count
+	- Fixed bug with conVersion: 1.5.0, August 2017 to bigint for row_count
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
 Changes in 1.3.0
 	+ Added compatibility support for the SQL Server 2016 internals information on Location, Row Group Trimming, Build Process, Vertipaq Optimisations, Sequential Generation Id, Closed DateTime & Creation DateTime
 	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
  --Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is:' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -59,13 +63,14 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
 	@showTrimmedGroupsOnly bit = 0,					-- Filters only those Row Groups, which size <> 1048576
 	@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
@@ -95,8 +100,11 @@ BEGIN
 		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 			and part.object_id = isnull(@objectId, part.object_id)
-			and (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 			and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
 		group by part.object_id, part.partition_number, rg.segment_id
@@ -121,8 +129,11 @@ BEGIN
 		where 1 = case @showNonCompressedOnly when 0 then 1 else -1 end
 			and 1 = case @showFragmentedGroupsOnly when 1 then 0 else 1 end
 			and part.object_id = isnull(@objectId, part.object_id)
-			and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and part.partition_number = case @partitionNumber when 0 then part.partition_number else @partitionNumber end
 			and ind.create_date between isnull(@minCreatedDateTime,ind.create_date) and isnull(@maxCreatedDateTime,ind.create_date)
 		group by part.object_id, part.partition_number, rg.segment_id

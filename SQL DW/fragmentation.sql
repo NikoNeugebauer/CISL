@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for Azure SQL DataWarehouse: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.5.0, January 2017
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -20,14 +20,19 @@
 
 /*
 Known Issues & Limitations: 
-	- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.*/
+	- Tables with just 1 Row Group are shown that they can be improved. This will be corrected in the future version.
+	- Optimisable RGs and Optimisable RGs Perc just do generic counts, they do not involve infos on Partitions, Nodes & Distributions yet (p.partition_number, p.pdw_node_id & p.distribution_id)
+*/
 
 -- Params --
 declare
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
-	@showPartitionStats bit = 1;					-- Allows to drill down fragmentation statistics on the partition level
+	@showPartitionStats bit = 1,					-- Allows to drill down fragmentation statistics on the partition level
+	@partitionNumber int = 0,						-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
+	@objectId INT = NULL;							-- Allows to show data filtered down to the specific object_id
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -38,7 +43,7 @@ declare @errorMessage nvarchar(512);
 -- Ensure that we are running Azure SQLDW
 if SERVERPROPERTY('EngineEdition') <> 6
 begin
-	set @errorMessage = (N'Your are not running this script agains Azure SQLDW: Your are running a ' + @SQLServerEdition);
+	set @errorMessage = (N'Your are not running this script on Azure SQLDW: Your are running a ' + @SQLServerEdition);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -57,7 +62,7 @@ SELECT  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 		cast(sum( case rg.total_rows when 1048576 then 0 else 1 end ) * 1. / count(*) * 100 as Decimal(5,2)) as 'Trimmed Perc.',
 		avg(rg.total_rows - rg.deleted_rows) as 'Avg Rows',
 		sum(rg.total_rows) as [Total Rows],
-		count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576) as 'Optimisable RGs',
+		count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576 ) as 'Optimisable RGs',
 		cast((count(*) - ceiling( 1. * sum(rg.total_rows - rg.deleted_rows) / 1048576)) / count(*) * 100 as Decimal(8,2)) as 'Optimisable RGs Perc.',
 		count(*) as 'Row Groups'
 		from sys.indexes ind
@@ -88,10 +93,13 @@ SELECT  quotename(schema_name(obj.schema_id)) + '.' + quotename(object_name(ind.
 					and p.partition_number = rg.partition_number
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 		and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6.)
-		and p.index_id in (1,2)
 		and p.data_compression in (3,4)
-		and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or schema_name(rg.object_id) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name ( p.object_id ) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name ( p.object_id ) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or schema_name( p.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or schema_name( p.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
+		AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end		
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 	group by p.object_id, ind.object_id, obj.schema_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	order by TableName, [Partition];	

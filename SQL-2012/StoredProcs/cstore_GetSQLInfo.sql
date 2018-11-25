@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server Versions that have bugfixes or improvements over your current Version + lists currently enabled trace flags on the instance & session
-	Version
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -65,8 +65,11 @@ Changes in 1.4.0
 
 Changes in 1.5.0
 	+ Added information on the CU 16 for SQL Server 2012 SP2 and CU 7 for SQL Server 2012 SP3
-	+ Added information on the CU 8 for SQL Server 2012 SP3
+	+ Added information on the CU 8, CU 9, CU 10 for SQL Server 2012 SP3
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
+
+Changes in 1.6.0
+	+ Added information on the SQL Server 2012 SP4
 */
 
 
@@ -204,7 +207,10 @@ begin
 		( 'SP3', 6544, convert(datetime,'21-09-2016',105), 'CU 5 for SQL Server 2012 SP3' ),
 		( 'SP3', 6567, convert(datetime,'17-11-2016',105), 'CU 6 for SQL Server 2012 SP3' ),
 		( 'SP3', 6579, convert(datetime,'18-01-2017',105), 'CU 7 for SQL Server 2012 SP3' ),
-		( 'SP3', 6594, convert(datetime,'21-03-2017',105), 'CU 8 for SQL Server 2012 SP3' );
+		( 'SP3', 6594, convert(datetime,'21-03-2017',105), 'CU 8 for SQL Server 2012 SP3' ),
+		( 'SP3', 6598, convert(datetime,'15-05-2017',105), 'CU 9 for SQL Server 2012 SP3' ),
+		( 'SP3', 6607, convert(datetime,'08-08-2017',105), 'CU 10 for SQL Server 2012 SP3' ),
+		( 'SP4', 7001, convert(datetime,'03-10-2017',105), 'SQL Server 2012 SP4' );
 
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )

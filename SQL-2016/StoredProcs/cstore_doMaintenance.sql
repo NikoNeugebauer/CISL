@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -31,6 +31,13 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added support for the new cstore_GetAlignment funciton with partition level support
+	+ Added support for the schema parameter of the cstore_getRowGroups funciton
+	- Fixed bug with the Primary Key of the cstore_Clustering table covering only the table name and not the partition (Thanks to Thomas Frohlich)
+	+ Added @schemaName parameter for supporting schema filtering (Thanks to Thomas Frohlich)
+	- Fixed bugs for the case-sensitive instances where variables had wrong names (Thanks to Kendra Little)
 */
 
 declare @createLogTables bit = 1;
@@ -144,14 +151,32 @@ begin
 	);
 end 
 
-IF @createLogTables = 1 AND NOT EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Clustering' and schema_id = SCHEMA_ID('dbo') )
+IF @createLogTables = 1 
 begin
-	-- Configuration table for the Segment Clustering
-	create table dbo.cstore_Clustering(
-		TableName nvarchar(256)  constraint [PK_cstore_Clustering] primary key clustered,
-		Partition int,
-		ColumnName nvarchar(256)
-	);
+	IF NOT EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Clustering' and schema_id = SCHEMA_ID('dbo') )
+	BEGIN
+		-- Configuration table for the Segment Clustering
+		create table dbo.cstore_Clustering(
+			TableName nvarchar(256) NOT NULL,
+			Partition int NOT NULL,
+			ColumnName nvarchar(256),
+			CONSTRAINT PK_cstore_Clustering PRIMARY KEY CLUSTERED ([TableName], [Partition])
+		);
+	END
+	ELSE
+	BEGIN
+		ALTER TABLE dbo.cstore_Clustering
+			ALTER COLUMN TableName nvarchar(256) NOT NULL;
+		
+		ALTER TABLE dbo.cstore_Clustering
+			ALTER COLUMN Partition int NOT NULL;
+
+		ALTER TABLE dbo.cstore_Clustering
+			DROP CONSTRAINT PK_cstore_Clustering;
+
+		ALTER TABLE dbo.cstore_Clustering
+			ADD CONSTRAINT PK_cstore_Clustering PRIMARY KEY CLUSTERED ([TableName], [Partition]);
+	END
 
 	DROP TABLE IF EXISTS #ColumnstoreIndexes;
 
@@ -184,11 +209,12 @@ begin
 		exec dbo.cstore_GetRowGroups @showPartitionDetails = 1;
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
-		select TableName, Partition, NULL 
+		select DISTINCT TableName, Partition, NULL 
 			from #ColumnstoreIndexes ci
-			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
+			where NOT EXISTS (select clu.TableName from dbo.cstore_Clustering clu WHERE ci.TableName = clu.TableName AND ci.Partition = clu.Partition);
 end
 GO
+
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -198,7 +224,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -209,6 +235,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@forceRebuild bit = 0,							-- Allows to force rebuild operation on the tables
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
 	@partition_number int = NULL,					-- Allows to specify a partition to execute maintenance on
+	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
 	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct maintenance proceedings
 	@maxdop tinyint = 0,							-- Allows to control the maximum degreee of parallelism
@@ -379,7 +406,7 @@ begin
 	
 	-- Obtain all Columnstore Indexes
 	insert into #ColumnstoreIndexes 
-		exec dbo.cstore_GetRowGroups @tableName = @tableName, @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
+		exec dbo.cstore_GetRowGroups @schemaName = @schemaName, @tableName = @tableName, @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
 	
 	if( @debug = 1 )
 	begin
@@ -470,7 +497,8 @@ begin
 			ColumnId int,
 			ColumnName nvarchar(256),
 			ColumnType nvarchar(256),
-			SegmentElimination varchar(50),
+			SegmentElimination varchar(25),
+			PredicatePushdown varchar(25),
 			DealignedSegments int,
 			TotalSegments int,
 			SegmentAlignment Decimal(8,2)
@@ -483,9 +511,10 @@ begin
 			set @columnId = NULL;
 
 		-- Get Results from "cstore_GetAlignment" Stored Procedure
-		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment )
+		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, PredicatePushdown, DealignedSegments, TotalSegments, SegmentAlignment )
 				exec dbo.cstore_GetAlignment @objectId = @objectId, 
 											@showPartitionStats = @usePartitionLevel, 
+											@showSegmentAnalysis = 0, @scanExecutionPlans = 0,  @countDistinctValues = 0, @partitionNumber = @partitionNumber,
 											@showUnsupportedSegments = 1, @columnName = @orderingColumnName, @columnId = @columnId;		
 
 		if( --@rebuildNeeded = 0 AND 
@@ -692,9 +721,9 @@ begin
 				-- For that use GetRowGroupsDetails
 				if( @currentOptimizableRGs > 0 AND @useRecommendations = 1 )
 				begin
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGsPerc >= @trimmedRGsPerc )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGsPerc >= @trimmedRGsPerc )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroup Percentage';
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGs >= isnull(@trimmedRGs,2147483647) )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGs >= isnull(@trimmedRGs,2147483647) )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroups';
 
 					if( @rebuildNeeded = 0 AND @currentMinAverageRowsPerRG <= @minAverageRowsPerRG )

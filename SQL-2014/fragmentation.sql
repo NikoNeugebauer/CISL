@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -39,14 +39,24 @@ Changes in 1.3.1
 	- Fixed wrong behaviour for the @tableName parameter
 	- Fixed bug reporting wrong data on the Clustered Tables with Nonclustered Columnstore Index
 	- Added support for Databases with collations different to TempDB
+
+Changes in 1.5.0
+	+ Added new parameter that allows to filter the results by specific partition number (@partitionNumber)
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed Bug with the Columnstore Indexes being limited to values 1 and 2 (Thanks to Thomas Frohlich)
 */
 
 -- Params --
 declare
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
-	@showPartitionStats bit = 1;					-- Allows to drill down fragmentation statistics on the partition level
+	@showPartitionStats bit = 1,					-- Allows to drill down fragmentation statistics on the partition level
+	@partitionNumber int = 0,						-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
+	@objectId INT = NULL;							-- Allows to show data filtered down to the specific object_id
 -- end of --
 
 --------------------------------------------------------------------------------------------------------------------
@@ -93,10 +103,13 @@ SELECT  quotename(object_schema_name(p.object_id)) + '.' + quotename(object_name
 			on rg.object_id = ind.object_id and rg.index_id = ind.index_id
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 		and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
-		and p.index_id in (1,2)
 		and p.data_compression in (3,4)
-		and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name ( p.object_id ) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name ( p.object_id ) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
+		AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 	group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 union all
@@ -124,10 +137,13 @@ SELECT  quotename(isnull(object_schema_name(obj.object_id, db_id('tempdb')),'dbo
 			on rg.object_id = ind.object_id and rg.index_id = ind.index_id
 	where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 		and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
-		and p.index_id in (1,2)
 		and p.data_compression in (3,4)
-		and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) = @schemaName))
+		AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
+		AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 	group by p.object_id, ind.data_space_id, obj.object_id, obj.name, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	order by TableName;

@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - creates new tsqlt test classes for the CISL
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -44,9 +44,9 @@ EXEC tSQLt.NewTestClass 'Cleanup';
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - creates test tables
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -214,9 +214,9 @@ commit;
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -246,7 +246,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -267,9 +268,9 @@ BEGIN
 	-- NCI on HEAP
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Heap';
@@ -282,9 +283,9 @@ BEGIN
 	-- NCI on Clustered
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Clustered';
@@ -298,9 +299,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetAlignment is tested with an empty delta-store at the columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -328,7 +329,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -351,9 +353,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetAlignment is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -381,7 +383,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,		
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -417,9 +420,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetAlignment is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -449,7 +452,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -462,9 +466,9 @@ BEGIN
 	-- CCI
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneDeletedRowGroupCCI]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneDeletedRowGroupCCI';
@@ -479,9 +483,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -511,7 +515,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -524,9 +529,9 @@ BEGIN
 	-- CCI
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1, 100.00 );
+		('[dbo].[RowGroupAndDeltaCCI]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 'OK', 0, 1, 100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'RowGroupAndDelta';
@@ -539,9 +544,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -605,9 +610,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetDictionaries is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -660,9 +665,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetDictionaries is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -726,9 +731,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -781,9 +786,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetDictionaries is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -836,9 +841,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -924,9 +929,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1012,9 +1017,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetFragmentation is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1091,9 +1096,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1155,9 +1160,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetFragmentation is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1219,9 +1224,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1335,9 +1340,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroups is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1410,9 +1415,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroups is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1506,9 +1511,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1579,9 +1584,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroups is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1653,9 +1658,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1769,9 +1774,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with an empty delta-store at the columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1842,9 +1847,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with an empty columnstore table 
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1915,9 +1920,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the table that has 1 compressed Row Group containing 1 row that is deleted
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1990,9 +1995,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2109,9 +2114,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2139,6 +2144,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2172,7 +2178,7 @@ BEGIN
 
 	-- Insert expected result for 499999 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2185,7 +2191,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 500000 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2208,7 +2214,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.005 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2221,7 +2227,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.006 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2244,7 +2250,7 @@ BEGIN
 	-- Insert expected result for the 'DB' Schema - the results should be empty
 	
 	insert into #ActualSuggestedTables
-		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbx', @tableName = 'SuggestedTables_Test1'
 
 	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
 	TRUNCATE TABLE #ExpectedSuggestedTables;
@@ -2254,7 +2260,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'DBO' Schema
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2267,7 +2273,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2300,7 +2306,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2313,7 +2319,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2326,7 +2332,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2339,7 +2345,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2356,9 +2362,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2387,6 +2393,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2421,7 +2428,7 @@ BEGIN
 		-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2434,7 +2441,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2451,9 +2458,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2482,6 +2489,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2516,7 +2524,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2552,9 +2560,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2583,6 +2591,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2616,7 +2625,7 @@ BEGIN
 
 	-- Insert expected result for 499999 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2629,7 +2638,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 500000 rows
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2656,9 +2665,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2687,6 +2696,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2721,7 +2731,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.005 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2734,7 +2744,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for 0.006 GB
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	insert into #ActualSuggestedTables
@@ -2761,9 +2771,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2792,6 +2802,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2825,7 +2836,7 @@ BEGIN
 
 	-- Insert expected result for the 'DB' Schema - the results should be empty
 	insert into #ActualSuggestedTables
-		exec dbo.cstore_SuggestedTables @schemaName = 'db', @tableName = 'SuggestedTables_Test1'
+		exec dbo.cstore_SuggestedTables @schemaName = 'dbx', @tableName = 'SuggestedTables_Test1'
 
 	exec tSQLt.AssertEqualsTable '#ExpectedSuggestedTables', '#ActualSuggestedTables';
 	TRUNCATE TABLE #ExpectedSuggestedTables;
@@ -2835,7 +2846,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'DBO' Schema
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2851,9 +2862,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetRowGroupsDetails is tested with the columnstore table containing 1 row in compressed row group and a Delta-Store with 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2882,6 +2893,7 @@ BEGIN
 		[Compatible With] varchar(50) NOT NULL,
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
+		[Partitions] INT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -2916,7 +2928,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2929,7 +2941,7 @@ BEGIN
 	-- ******************************************************************************************************
 	-- Insert expected result for the 'Disk-Based' Index Location
 	insert into #ExpectedSuggestedTables
-		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 500000, 1, 0.006,	1, 0, 4,
+		select 'Nonclustered Columnstore', 'Disk-Based', '[dbo].[SuggestedTables_Test1]', 1, 500000, 1, 0.006,	1, 0, 4,
 				0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 	
 	insert into #ActualSuggestedTables
@@ -2946,9 +2958,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - Executes all configured tests
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.

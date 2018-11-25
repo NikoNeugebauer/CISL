@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -31,6 +31,13 @@ Changes in 1.3.0
 	* Updated to support the new output columns of the CISL 1.3.0 functions
 	+ Added logic to support automated canceling of execution on the Availability Groups Seconary Replicas
 	* Improved debug logging output with less useless messages
+
+Changes in 1.5.0
+	+ Added support for the new cstore_GetAlignment funciton with partition level support
+	+ Added support for the schema parameter of the cstore_getRowGroups funciton
+	- Fixed bug with the Primary Key of the cstore_Clustering table covering only the table name and not the partition (Thanks to Thomas Frohlich)
+	+ Added @schemaName parameter for supporting schema filtering (Thanks to Thomas Frohlich)
+	- Fixed bugs for the case-sensitive instances where variables had wrong names (Thanks to Kendra Little)
 */
 
 declare @createLogTables bit = 1;
@@ -189,7 +196,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -199,6 +206,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@closeOpenDeltaStores bit = 0,					-- Controls if the Open Delta-Stores are closed and compressed
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
 	@partition_number int = NULL,					-- Allows to specify a partition to execute maintenance on
+	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
 	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct maintenance proceedings
 	@maxdop tinyint = 0,							-- Allows to control the maximum degreee of parallelism
@@ -353,7 +361,7 @@ begin
 	
 	-- Obtain only Clustered Columnstore Indexes for SQL Server 2014
 	insert into #ColumnstoreIndexes
-		exec dbo.cstore_GetRowGroups @tableName = @tableName, @indexType = 'CC', @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
+		exec dbo.cstore_GetRowGroups @schemaName = @schemaName, @tableName = @tableName, @indexType = 'CC', @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
 	
 	if( @debug = 1 )
 	begin
@@ -412,7 +420,8 @@ begin
 			ColumnId int,
 			ColumnName nvarchar(256),
 			ColumnType nvarchar(256),
-			SegmentElimination varchar(50),
+			SegmentElimination varchar(25),
+			PredicatePushdown varchar(25),
 			DealignedSegments int,
 			TotalSegments int,
 			SegmentAlignment Decimal(8,2)
@@ -425,11 +434,11 @@ begin
 			set @columnId = NULL;
 
 		-- Get Results from "cstore_GetAlignment" Stored Procedure
-		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment )
+		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, PredicatePushdown, DealignedSegments, TotalSegments, SegmentAlignment )
 				exec dbo.cstore_GetAlignment @objectId = @objectId, 
 											@showPartitionStats = @usePartitionLevel, 
+											@showSegmentAnalysis = 0, @scanExecutionPlans = 0,  @countDistinctValues = 0, @partitionNumber = @partitionNumber,
 											@showUnsupportedSegments = 1, @columnName = @orderingColumnName, @columnId = @columnId;		
-
 		if( --@rebuildNeeded = 0 AND 
 			@orderSegmentsNeeded = 1 )
 		begin	
@@ -622,9 +631,9 @@ begin
 				-- For that use GetRowGroupsDetails
 				if( @currentOptimizableRGs > 0 AND @useRecommendations = 1 )
 				begin
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGsPerc >= @trimmedRGsPerc )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGsPerc >= @trimmedRGsPerc )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroup Percentage';
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGs >= isnull(@trimmedRGs,2147483647) )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGs >= isnull(@trimmedRGs,2147483647) )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroups';
 
 					if( @rebuildNeeded = 0 AND @currentMinAverageRowsPerRG <= @minAverageRowsPerRG )

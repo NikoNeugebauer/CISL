@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -30,11 +30,18 @@ Changes in 1.3.0
 	+ Added 2 new compatibility parameters for filtering out the Min & Max Creation DateTimes
 	- Fixed error for the temporary tables support
 	* Changed the name of the second result column from partition_number to partition
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 -- Params --
 declare @schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
+		@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+		@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 		@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
 		@showTrimmedGroupsOnly bit = 0,					-- Filters only those Row Groups, which size <> 1048576
 		@showNonCompressedOnly bit = 0,					-- Filters out the comrpessed Row Groups
@@ -88,8 +95,11 @@ select quotename(object_schema_name(rg.object_id)) + '.' + quotename(object_name
 	where   rg.total_rows <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 		and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 		and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-		and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+		and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+		and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 		and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
@@ -118,8 +128,11 @@ select quotename(object_schema_name(rg.object_id, db_id('tempdb'))) + '.' + quot
 	where   rg.total_rows <> case @showTrimmedGroupsOnly when 1 then 1048576 else -1 end
 		and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 		and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-		and (@tableName is null or object_name (rg.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(rg.object_id, db_id('tempdb')) = @schemaName)
+		and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+		and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+		AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 		and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 		and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)

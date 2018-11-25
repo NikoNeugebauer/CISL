@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version: 1.5.0, August 2017 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -26,7 +26,7 @@ Changes in 1.0.3
 	* Changed the name of the @tableNamePattern to @tableName to follow the same standard across all CISL functions
 
 Changes in 1.2.0
-	- Fixed bug with conVersion: 1.4.2, December 2016 to bigint for row_count
+	- Fixed bug with conVersion: 1.5.0, August 2017 to bigint for row_count
 	- Fixed bug with including aggregating tables without taking care of the database name, thus potentially including results from the equally named table from a different database	
 	+ Included support for the temporary tables with Columnstore Indexes (global & local)
 
@@ -38,27 +38,34 @@ Changes in 1.4.0
 
 Changes in 1.4.2
 	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 -- Params --
-declare @indexType char(2) = NULL,						-- Ignored for this Version: 1.4.2, December 2016
+declare @indexType char(2) = NULL,						-- Ignored for this Version: 1.5.0, August 2017
 		@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 		@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 		@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
 		@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 		@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+		@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+		@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 		@showPartitionDetails bit = 1,					-- Allows to show details of each of the available partitions
 		@partitionId int = NULL							-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
  --Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server version is:' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -95,8 +102,11 @@ select quotename(object_schema_name(ind.object_id)) + '.' + quotename(object_nam
 			on part.object_id = stat.object_id and ind.index_id = stat.index_id
 				and isnull(stat.database_id,db_id()) = db_id()			  
 	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
+		    and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and ((part.object_id is NOT NULL 
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
 				and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
@@ -133,8 +143,11 @@ select quotename(object_schema_name(ind.object_id, db_id('tempdb'))) + '.' + quo
 	where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
 			and part.data_compression_desc in ('COLUMNSTORE') 
 			and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-			and (@tableName is null or object_name (part.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(part.object_id, db_id('tempdb')) = @schemaName)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and isnull(stat.database_id, db_id('tempdb')) = db_id('tempdb')	
 			and part.partition_number = isnull(@partitionId, part.partition_number)  -- Partition Filtering
 	group by ind.object_id, ind.type, part.partition_number, part.data_compression_desc

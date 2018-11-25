@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Tests - cstore_GetAlignment is tested with the columnstore table containing 1 row
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ BEGIN
 		ColumnId int,
 		ColumnName nvarchar(256),
 		ColumnType nvarchar(256),
-		SegmentElimination varchar(50),
+		SegmentElimination varchar(25) NOT NULL,
+		PredicatePushdown varchar(25) NOT NULL,
 		DealignedSegments int,
 		TotalSegments int,
 		SegmentAlignment Decimal(8,2)
@@ -55,9 +56,9 @@ BEGIN
 	-- NCI on HEAP
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Heap]', 'Disk-Based', 1,	1, 'c1', 'int', 'OK', 'OK', 0, 1, 100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Heap';
@@ -70,9 +71,9 @@ BEGIN
 	-- NCI on Clustered
 	-- Insert expected result
 	insert into #ExpectedAlignment
-		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [DealignedSegments], [TotalSegments], SegmentAlignment)
+		(TableName, Location, Partition, [ColumnId], ColumnName, ColumnType, [SegmentElimination], [PredicatePushdown], [DealignedSegments], [TotalSegments], SegmentAlignment)
 		values 
-		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 0, 1,	100.00 );
+		('[dbo].[OneRowNCI_Clustered]', 'Disk-Based', 1, 1, 'c1', 'int', 'OK', 'OK', 0, 1,	100.00 );
 
 	insert into #ActualAlignment 
 		exec dbo.cstore_GetAlignment @tableName = 'OneRowNCI_Clustered';

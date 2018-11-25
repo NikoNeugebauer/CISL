@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.5.0, January 2017
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -57,8 +57,14 @@ Changes in 1.4.2
 	* Fixed missing information on the most recent SQL Server 2016 updates
 
 Changes in 1.5.0
-	+ Added information on the CU1, CU2 for SQL Server 2016 SP1 and CU3, CU4, CU5 for SQL Server 2016 RTM
+	+ Added information on the CU1, CU2, CU3, CU4 for SQL Server 2016 SP1 and CU3, CU4, CU5, CU6, CU7 for SQL Server 2016 RTM
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
+	+ Added information on the Trace Flag 6404
+	* Small changes for taking advantages of SQL Server 2016 syntax
+
+Changes in 1.6.0
+	+ Added information on the CU5, CU6, CU7 for SQL Server 2016 SP1 and CU8, CU9 for SQL Server 2016 RTM
+	+ Added information on the Trace Flag 2469 - Fixing: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index 
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -88,7 +94,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.5.0, January 2017
+	Version: 1.6.0, January 2018
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -102,12 +108,9 @@ begin
 
 	declare @SQLServerBuild smallint  = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 
-	if OBJECT_ID('tempdb..#SQLColumnstoreImprovements', 'U') IS NOT NULL
-		drop table #SQLColumnstoreImprovements;
-	if OBJECT_ID('tempdb..#SQLBranches', 'U') IS NOT NULL
-		drop table #SQLBranches;
-	if OBJECT_ID('tempdb..#SQLVersions', 'U') IS NOT NULL
-		drop table #SQLVersions;
+	drop table IF EXISTS #SQLColumnstoreImprovements;
+	drop table IF EXISTS #SQLBranches;
+	drop table IF EXISTS #SQLVersions;
 
 	--  
 	create table #SQLColumnstoreImprovements(
@@ -151,9 +154,18 @@ begin
 		( 'RTM', 2186, convert(datetime,'17-11-2016',105), 'CU 3 for SQL Server 2016' ),
 		( 'RTM', 2193, convert(datetime,'18-01-2017',105), 'CU 4 for SQL Server 2016' ),
 		( 'RTM', 2197, convert(datetime,'21-03-2017',105), 'CU 5 for SQL Server 2016' ),
+		( 'RTM', 2204, convert(datetime,'15-05-2017',105), 'CU 6 for SQL Server 2016' ),
+		( 'RTM', 2210, convert(datetime,'08-08-2017',105), 'CU 7 for SQL Server 2016' ),
+		( 'RTM', 2213, convert(datetime,'18-09-2017',105), 'CU 8 for SQL Server 2016' ),
+		( 'RTM', 2216, convert(datetime,'21-11-2017',105), 'CU 9 for SQL Server 2016' ),
 		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
 		( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' ),
-		( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' );
+		( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4435, convert(datetime,'15-05-2017',105), 'CU 3 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4446, convert(datetime,'08-08-2017',105), 'CU 4 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4451, convert(datetime,'18-09-2017',105), 'CU 5 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4457, convert(datetime,'21-11-2017',105), 'CU 6 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4466, convert(datetime,'04-01-2018',105), 'CU 7 for SQL Server 2016 SP 1' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -180,6 +192,15 @@ begin
 		( 2193, 'RTM', 'FIX: An assertion occurs when you bulk insert data into a table from multiple connections in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205964/fix-an-assertion-occurs-when-you-bulk-insert-data-into-a-table-from-multiple-connections-in-sql-server-2016' ),
 		( 2193, 'RTM', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server', 'https://support.microsoft.com/en-us/help/3201416/fix-out-of-memory-errors-when-you-execute-dbcc-checkdb-on-database-that-contains-columnstore-indexes-in-sql-server-2014' ),
 		( 2193, 'RTM', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
+		( 2197, 'RTM', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752/fix-wrong-number-of-rows-returned-in-sys-partitions-for-columnstore-in' ),
+		( 2197, 'RTM', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118/fix-the-sys-column-store-segments-catalog-view-displays-incorrect-valu' ),
+		( 2197, 'RTM', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3067968/fix-memory-is-paged-out-when-columnstore-index-query-consumes-lots-of' ),
+		( 2197, 'RTM', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3204769/fix-intra-query-deadlock-when-values-are-inserted-into-a-partitioned-c' ),
+		( 2204, 'RTM', 'FIX: Query against sys.dm_db_partition_stats DMV runs slow if the database contains large numbers of columnstore partitions in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019903/fix-query-against-sys-dm-db-partition-stats-dmv-runs-slow-if-the-datab' ),
+		( 2204, 'RTM', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
+		( 2204, 'RTM', 'Intra-query deadlock on communication buffer when you run a bulk load against a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4017154/intra-query-deadlock-on-communication-buffer-when-you-run-a-bulk-load' ),
+		( 2213, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 2213, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' ),
 		( 4001, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 		( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' ),
 		( 4411, 'SP1', 'FIX: The “sys.dm_db_column_store_row_group_physical_stats” query runs slowly on SQL Server 2016', 'https://support.microsoft.com/en-us/help/3210747/fix-the-sys.dm-db-column-store-row-group-physical-stats-query-runs-slowly-on-sql-server-2016' ),
@@ -196,13 +217,28 @@ begin
 		( 4422, 'SP1', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118' ),
 		( 4422, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3067968' ),
 		( 4422, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3201416' ),
-		( 4422, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283' );
+		( 4422, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283' ),
+		( 4435, 'SP1', 'FIX: Query against sys.dm_db_partition_stats DMV runs slow if the database contains large numbers of columnstore partitions in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019903/fix-query-against-sys-dm-db-partition-stats-dmv-runs-slow-if-the-datab' ),
+		( 4435, 'SP1', 'FIX: Access violation when you use SELECT TOP query to retrieve data from clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016902/fix-access-violation-when-you-use-select-top-query-to-retrieve-data-fr' ),
+		( 4435, 'SP1', 'FIX: SQL Server 2016 consumes more memory when you reorganize a columnstore index', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns' ),
+		( 4435, 'SP1', 'Intra-query deadlock on communication buffer when you run a bulk load against a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4017154/intra-query-deadlock-on-communication-buffer-when-you-run-a-bulk-load' ),
+		( 4435, 'SP1', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752/fix-wrong-number-of-rows-returned-in-sys-partitions-for-columnstore-in' ),
+		( 4435, 'SP1', 'FIX: An assertion occurs when you run an UPDATE statement on a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4015034/fix-an-assertion-occurs-when-you-run-an-update-statement-on-a-clustere' ),
+		( 4435, 'SP1', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118/fix-the-sys-column-store-segments-catalog-view-displays-incorrect-valu' ),
+		( 4435, 'SP1', 'FIX: Intra-query deadlock when you execute a parallel query that contains outer join operators in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019718/fix-intra-query-deadlock-when-you-execute-a-parallel-query-that-contai' ),
+		( 4446, 'SP1', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
+		( 4446, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 4446, 'SP1', 'FIX: Access violation occurs when you run a query in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4034056/fix-access-violation-occurs-when-you-run-a-query-in-sql-server-2016' ),
+		( 4451, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 4451, 'SP1', 'FIX: Query that joins a view and contains UNION ALL slow in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4040014/fix-query-that-joins-a-view-and-contains-union-all-slow-in-sql-server' ),
+		( 4451, 'SP1', 'Update to improve the performance for columnstore dynamic management views "column_store_row_groups" and "dm_db_column_store_row_group_physical_stats" in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4024860/update-to-improve-the-performance-for-columnstore-dynamic-management-v' ),
+		( 4457, 'SP1', 'FIX: SELECT query that uses batch mode hash aggregate operator that counts multiple nullable columns returns bad results in SQL Server', 'https://support.microsoft.com/en-us/help/4057055/deadlock-when-you-run-parallel-query-on-clustered-columnstore-index' ),
+		( 4466, 'SP1', 'FIX: A deadlock occurs when you run a parallel query on a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4057055/deadlock-when-you-run-parallel-query-on-clustered-columnstore-index' );
 
 
 	if @identifyCurrentVersion = 1
 	begin
-		if OBJECT_ID('tempdb..#TempVersionResults') IS NOT NULL
-			drop table #TempVersionResults;
+		drop table IF EXISTS #TempVersionResults;
 
 		create table #TempVersionResults(
 			MessageText nvarchar(512) NOT NULL,		
@@ -298,7 +334,9 @@ begin
 		(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
+		( 2469, 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-ph/help/3204769/fix-intra-query-deadlock-when-values-are-inserted-into-a-partitioned-c', 1 ),
 		( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+		( 6404, 'Fixes the amount of memory for ALTER INDEX REORGANIZE on 4GB/16GB depending on the Server size.', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns', 1 ),
 		( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
 		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),

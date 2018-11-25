@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@
 
 /*
 Changes in 1.5.0
-	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4 for the SQL Server vNext (2017 situation)	
+	+ Added information on the CTP 1.1, 1.2, 1.3 & 1.4, 2.0, 2.1, RC1 & RC2 for the SQL Server vNext (2017 situation)
 	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
-
+	+ Added information on the Trace Flag 6404
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server vNext: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 create or alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -59,9 +59,10 @@ create or alter procedure dbo.cstore_GetSQLInfo(
 ) as 
 begin
 	declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
-			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
+			@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128)),
+			@SQLServerBuild smallint = NULL;
 
-	declare @SQLServerBuild smallint = REVERSE(SUBSTRING(REVERSE(cast(SERVERPROPERTY('ProductVersion') as nvarchar(20))),0,CHARINDEX('.',REVERSE(cast(SERVERPROPERTY('ProductVersion') as nvarchar(20))))))
+	set @SQLServerBuild = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 
 
 	drop table if exists #SQLColumnstoreImprovements;
@@ -91,12 +92,15 @@ begin
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-		( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
-		( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
-		( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
-		( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
-		( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' );
-
+			( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
+			( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
+			( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
+			( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
+			( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' ),
+			( 'CTP', 272, convert(datetime,'19-04-2017',105), 'CTP 2.0 for SQL Server vNext' ),
+			( 'CTP', 250, convert(datetime,'17-05-2017',105), 'CTP 2.1 for SQL Server vNext' ),
+			( 'RC', 800, convert(datetime,'17-07-2017',105), 'RC 1 for SQL Server vNext' ),
+			( 'RC', 900, convert(datetime,'05-08-2017',105), 'RC 2 for SQL Server vNext' );
 		
 
 	if @identifyCurrentVersion = 1
@@ -199,6 +203,7 @@ begin
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
 		( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+		( 6404, 'Fixes the amount of memory for ALTER INDEX REORGANIZE on 4GB/16GB depending on the Server size.', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns', 1 ),
 		( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
 		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server vNext', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),

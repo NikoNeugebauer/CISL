@@ -1,9 +1,9 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -63,8 +63,12 @@ Changes in 1.4.2
 	- Added information on the CU 10 for SQL Server 2014 SP1 & CU 3 for SQL Server 2014 SP2
 
 Changes in 1.5.0
-	- Added information on the CU 11 for SQL Server 2014 SP1 & CU 4 for SQL Server 2014 SP2
-	- Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
+	+ Added information on the CU 11, CU 12, CU 13 for SQL Server 2014 SP1 & CU 4, CU 5, CU 6 & CU 7 for SQL Server 2014 SP2
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
+
+Changes in 1.6.0
+	+ Added information on the CU 8 & CU 9 for SQL Server 2014 SP2
+	+ Added information on the Trace Flag 2469 - Fixing: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index 
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -94,7 +98,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2014: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.6.0, January 2018
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -166,11 +170,18 @@ begin
 		( 'SP1', 4474, convert(datetime,'18-10-2016',105), 'CU 9 for SQL Server 2014 SP1' ),
 		( 'SP1', 4491, convert(datetime,'18-12-2016',105), 'CU 10 for SQL Server 2014 SP1' ),
 		( 'SP1', 4502, convert(datetime,'21-02-2017',105), 'CU 11 for SQL Server 2014 SP1' ),
+		( 'SP1', 4511, convert(datetime,'18-04-2017',105), 'CU 12 for SQL Server 2014 SP1' ),
+		( 'SP1', 4522, convert(datetime,'08-08-2017',105), 'CU 13 for SQL Server 2014 SP1' ),
 		( 'SP2', 5000, convert(datetime,'11-07-2016',105), 'SQL Server 2014 SP2' ),
 		( 'SP2', 5511, convert(datetime,'25-08-2016',105), 'CU 1 for SQL Server 2014 SP2' ),
 		( 'SP2', 5522, convert(datetime,'18-10-2016',105), 'CU 2 for SQL Server 2014 SP2' ),
 		( 'SP2', 5537, convert(datetime,'28-12-2016',105), 'CU 3 for SQL Server 2014 SP2' ),
-		( 'SP2', 5540, convert(datetime,'21-02-2017',105), 'CU 4 for SQL Server 2014 SP2' );
+		( 'SP2', 5540, convert(datetime,'21-02-2017',105), 'CU 4 for SQL Server 2014 SP2' ),
+		( 'SP2', 5546, convert(datetime,'18-04-2017',105), 'CU 5 for SQL Server 2014 SP2' ),
+		( 'SP2', 5553, convert(datetime,'08-08-2017',105), 'CU 6 for SQL Server 2014 SP2' ),
+		( 'SP2', 5556, convert(datetime,'29-08-2017',105), 'CU 7 for SQL Server 2014 SP2' ),
+		( 'SP2', 5557, convert(datetime,'16-10-2017',105), 'CU 8 for SQL Server 2014 SP2' ),
+		( 'SP2', 5563, convert(datetime,'19-12-2017',105), 'CU 9 for SQL Server 2014 SP2' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -223,13 +234,18 @@ begin
 		( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
 		( 4491, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3067968' ),
 		( 4491, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
+		( 4522, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
 		( 5522, 'SP2', 'FIX: Access violation when you run a query that uses clustered columnstore index with trace flag 2389, 2390, or 4139', 'https://support.microsoft.com/en-us/kb/3189645' ),
 		( 5522, 'SP2', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 		( 5522, 'SP2', 'Improved SQL Server stability and concurrent query execution for some columnstore queries in SQL Server 2014 and 2016', 'https://support.microsoft.com/en-us/kb/3191487' ),
 		( 5537, 'SP2', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3201416' ),
 		( 5537, 'SP2', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014', 'https://support.microsoft.com/en-us/kb/3204769' ),
-		( 5540, 'SP2', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3067968' );
-
+		( 5540, 'SP2', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3067968' ),
+		( 5546, 'SP2', 'FIX: Access violation in SQL Server 2014 when large number of rows are inserted into a partitioned columnstore index', 'https://support.microsoft.com/en-us/help/4014327/fix-access-violation-in-sql-server-2014-when-large-number-of-rows-are' ),
+		( 5553, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 5556, 'SP2', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 5563, 'SP2', 'FIX: SELECT query that uses batch mode hash aggregate operator that counts multiple nullable columns returns bad results in SQL Server', 'https://support.microsoft.com/en-us/help/4052633/fix-select-query-that-uses-batch-mode-hash-aggregate-operator-that-cou' ),
+		( 5563, 'SP2', 'FIX: Access violation when you query against a table that contains column store indexes in SQL Server 2014', 'https://support.microsoft.com/en-us/help/3097601/fix-access-violation-when-you-query-against-a-table-that-contains-colu' );
 
 	if @identifyCurrentVersion = 1
 	begin
@@ -327,6 +343,7 @@ begin
 		(  634, 'Disables the background columnstore compression task.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
+		( 2469, 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-ph/help/3204769/fix-intra-query-deadlock-when-values-are-inserted-into-a-partitioned-c', 1 ),
 		( 9453, 'Disables Batch Execution Mode', 'http://www.nikoport.com/2014/07/24/clustered-columnstore-indexes-part-35-trace-flags-query-optimiser-rules/', 1 ),
 		(10207, 'Skips Corrupted Columnstore Segments (Fixed in CU8 for SQL Server 2014 RTM and CU1 for SQL Server 2014 SP1)', 'https://support.microsoft.com/en-us/kb/3067257', 1 );
 

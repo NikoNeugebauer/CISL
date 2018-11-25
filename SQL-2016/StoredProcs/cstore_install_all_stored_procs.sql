@@ -1,9 +1,9 @@
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -48,6 +48,15 @@ Changes in 1.3.1
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added new parameter that allows to filter the results by specific partition number (@partitionNumber)
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	+ Added new parameter for showing the number of distinct values within the segments, the percentage related to the total number of the rows within table/partition and the overall recommendation number (@showSegmentAnalysis)
+	+ Added new parameter for showing the frequency of the column usage as predicates during querying (@scanExecutionPlans), which results are included in the overall recommendation for segment elimination
+	+ Added information on the Predicate Pushdown support (it will be showing results depending on the used edition) - column [Predicate Pushdown]
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -74,15 +83,20 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Alignment - Shows the alignment (ordering) between the different Columnstore Segments
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetAlignment(
 -- Params --
 	@schemaName nvarchar(256) = NULL,		-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular table
+	@preciseSearch bit = 0,					-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@showSegmentAnalysis BIT = 0,			-- Allows showing the overall recommendation for aligning order for each table/partition
+	@countDistinctValues BIT = 0,			-- Allows showing the number of distinct values within the segments, the percentage related to the total number of the rows within table/partition (@countDistinctValues)
+	@scanExecutionPlans BIT = 0,			-- Allows showing the frequency of the column usage as predicates during querying (@scanExecutionPlans), which results is included in the overall recommendation for segment elimination
 	@indexLocation varchar(15) = NULL,		-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectId int = NULL,					-- Allows to idenitfy a table thorugh the ObjectId
 	@showPartitionStats bit = 1,			-- Shows alignment statistics based on the partition
+	@partitionNumber int = 0,				-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 	@showUnsupportedSegments bit = 1,		-- Shows unsupported Segments in the result set
 	@columnName nvarchar(256) = NULL,		-- Allows to show data filtered down to 1 particular column name
 	@columnId int = NULL					-- Allows to filter one specific column Id
@@ -92,7 +106,7 @@ begin
 
 	set nocount on;
 
-	DROP TABLE IF EXISTS #column_store_segments
+	DROP TABLE IF EXISTS #column_store_segments;
 
 	SELECT SchemaName, TableName, object_id, partition_number, hobt_id, partition_id, column_id, segment_id, min_data_id, max_data_id
 	INTO #column_store_segments
@@ -113,6 +127,8 @@ begin
 
 	ALTER TABLE #column_store_segments
 	ADD UNIQUE (hobt_id, partition_id, column_id, max_data_id, segment_id);
+
+	DROP TABLE IF EXISTS #SegmentAlignmentResults;
 
 	with cteSegmentAlignment as (
 		select  part.object_id,  
@@ -148,10 +164,13 @@ begin
 							AND seg.segment_id <> otherSeg.segment_id
 							AND (seg.min_data_id < otherSeg.max_data_id and seg.max_data_id > otherSeg.max_data_id )  -- Scenario 2 
 				) filteredSeg
-			where (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%')
-				and (@schemaName is null or object_schema_name(part.object_id) = @schemaName)
-				and (@objectId is null or part.object_id = @objectId)
-				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			where    (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
+				 AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id ) = @schemaName))
+				 AND (ISNULL(@objectId,part.object_id) = part.object_id)
+				 AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
+				 AND ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				--AND exists (select *
 				--		from sys.column_store_row_groups rg
 				--		where seg.segment_id = rg.row_group_id 
@@ -192,29 +211,44 @@ begin
 							AND seg.segment_id <> otherSeg.segment_id
 							AND (seg.min_data_id < otherSeg.max_data_id and seg.max_data_id > otherSeg.max_data_id )  -- Scenario 2 
 				) filteredSeg
-			where (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-				and (@schemaName is null or object_schema_name(part.object_id,db_id('tempdb')) = @schemaName)
-				and (@objectId is null or part.object_id = @objectId)				
-				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+			where (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id,db_id('tempdb')) = @tableName) )
+				 AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id,db_id('tempdb') ) = @schemaName))
+				 AND (ISNULL(@objectId,part.object_id) = part.object_id)
+				 AND ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
+				 AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end				
 			group by part.object_id, ind.data_space_id, case @showPartitionStats when 1 then part.partition_number else 1 end, seg.partition_id, seg.column_id, cols.name, tp.name, seg.segment_id
 
 	)
 	select TableName, Location, partition_number as 'Partition', cte.column_id as 'Column Id', cte.ColumnName, 
 		cte.ColumnType,
-		case cte.ColumnType when 'numeric' then 'Segment Elimination is not supported' 
-							when 'datetimeoffset' then 'Segment Elimination is not supported' 
-							when 'char' then 'Segment Elimination is not supported' 
-							when 'nchar' then 'Segment Elimination is not supported' 
-							when 'varchar' then 'Segment Elimination is not supported' 
-							when 'nvarchar' then 'Segment Elimination is not supported' 
-							when 'sysname' then 'Segment Elimination is not supported' 
-							when 'binary' then 'Segment Elimination is not supported' 
-							when 'varbinary' then 'Segment Elimination is not supported' 
-							when 'uniqueidentifier' then 'Segment Elimination is not supported' 
+		case cte.ColumnType when 'numeric' then 'not supported' 
+							when 'datetimeoffset' then 'not supported' 
+							when 'char' then 'not supported' 
+							when 'nchar' then 'not supported' 
+							when 'varchar' then 'not supported' 
+							when 'nvarchar' then 'not supported' 
+							when 'sysname' then 'not supported' 
+							when 'binary' then 'not supported' 
+							when 'varbinary' then 'not supported' 
+							when 'uniqueidentifier' then 'not supported' 
 			else 'OK' end as 'Segment Elimination',
+		case cte.ColumnType when 'numeric' then 'not supported' 
+						when 'datetimeoffset' then 'not supported' 
+						when 'char' then CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 'OK' ELSE 'not supported' END
+						when 'nchar' then CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 'OK' ELSE 'not supported' END
+						when 'varchar' then CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 'OK' ELSE 'not supported' END
+						when 'nvarchar' then CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 'OK' ELSE 'not supported' END
+						when 'sysname' then CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 'OK' ELSE 'not supported' END
+						when 'binary' then 'not supported' 
+						when 'varbinary' then 'not supported' 
+						when 'uniqueidentifier' then 'not supported' 
+			else 'OK' end as [Predicate Pushdown],
 		sum(CONVERT(INT, hasOverlappingSegment)) as [Dealigned Segments],
 		count(*) as [Total Segments],
 		100 - cast( sum(CONVERT(INT, hasOverlappingSegment)) * 100.0 / (count(*)) as Decimal(6,2)) as [Segment Alignment %]
+		INTO #SegmentAlignmentResults
 		from cteSegmentAlignment cte
 		where ((@showUnsupportedSegments = 0 and cte.ColumnType COLLATE DATABASE_DEFAULT not in ('numeric','datetimeoffset','char', 'nchar', 'varchar', 'nvarchar', 'sysname','binary','varbinary','uniqueidentifier') ) 
 			  OR @showUnsupportedSegments = 1)
@@ -223,6 +257,177 @@ begin
 		group by TableName, Location, partition_number, cte.column_id, cte.ColumnName, cte.ColumnType
 		order by TableName, partition_number, cte.column_id;
 
+	--- *****************************************************
+	IF @showSegmentAnalysis = 1 
+	BEGIN
+
+		DECLARE @alignedColumnList NVARCHAR(MAX) = NULL;
+		DECLARE @alignedColumnNamesList NVARCHAR(MAX) = NULL;
+		DECLARE @alignedTable NVARCHAR(128) = NULL,
+				@alignedPartition INT = NULL,
+				@partitioningClause NVARCHAR(500) = NULL;
+
+		DROP TABLE IF EXISTS #DistinctCounts;
+		CREATE TABLE #DistinctCounts(
+			TableName SYSNAME NOT NULL,
+			PartitionId INT NOT NULL,
+			ColumnName SYSNAME NOT NULL,
+			DistinctCount BIGINT NOT NULL,
+			TotalRowCount BIGINT NOT NULL
+		);
+
+		DECLARE alignmentTablesCursor CURSOR LOCAL FAST_FORWARD FOR
+			SELECT DISTINCT TableName, [Partition]
+				FROM #SegmentAlignmentResults;
+
+		OPEN alignmentTablesCursor  
+
+		FETCH NEXT FROM alignmentTablesCursor   
+			INTO @alignedTable, @alignedPartition;
+
+		WHILE @@FETCH_STATUS = 0  
+		BEGIN  
+			IF @countDistinctValues = 1
+			BEGIN
+				-- Define Partitioning Clause when showing partitioning information
+				SET @partitioningClause = '';
+				SELECT @partitioningClause = 'WHERE $PARTITION.[' + pf.name + ']([' + cols.name + ']) = ' + CAST(@alignedPartition AS VARCHAR(8))
+ 								 FROM sys.indexes ix
+								 INNER JOIN sys.partition_schemes ps on ps.data_space_id = ix.data_space_id
+								 INNER JOIN sys.partition_functions pf on pf.function_id = ps.function_id 
+								INNER JOIN sys.index_columns ic	
+									ON ic.object_id = ix.object_id AND ix.index_id = ic.index_id
+								INNER JOIN sys.all_columns cols
+									ON ic.column_id = cols.column_id AND ic.object_id = cols.object_id 
+								WHERE ix.object_id = object_id(@alignedTable)
+									AND ic.partition_ordinal = 1 AND @showPartitionStats = 1;
+		
+				-- Get the list with COUNT(DISTINCT [ColumnName])
+				SELECT @alignedColumnList = STUFF((
+					SELECt ', COUNT( DISTINCT ' + QUOTENAME(name) + ') as [' + name + ']'
+						FROM sys.columns cols
+						WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+							AND cols.name = isnull(@columnName,cols.name)
+							AND cols.column_id = isnull(@columnId,cols.column_id)
+						ORDER BY cols.column_id DESC
+						FOR XML PATH('')
+					), 1, 1, '');
+	
+				SELECT @alignedColumnNamesList = STUFF((
+					SELECt ', [' + name + ']'
+						FROM sys.columns cols
+						WHERE OBJECT_ID(@alignedTable) = cols.object_id 
+							AND cols.name = isnull(@columnName,cols.name)
+							AND cols.column_id = isnull(@columnId,cols.column_id)
+						ORDER BY cols.column_id DESC
+						FOR XML PATH('')
+					), 1, 1, '');
+
+				-- Insert Count(*) and COUNT(DISTINCT*) into the #DistinctCounts table
+				EXEC ( N'INSERT INTO #DistinctCounts ' +
+						'SELECT ''' + @alignedTable + ''' as TableName, ' + @alignedPartition + ' as PartitionNumber, ColumnName, DistinctCount, __TotalRowCount__ as TotalRowCount ' +
+						'	FROM (SELECT ''DistCount'' as [__Op__], COUNT(*) as __TotalRowCount__, ' + @alignedColumnList + 
+										 ' FROM ' + @alignedTable + @partitioningClause + ') res ' +
+						' UNPIVOT ' +
+						'	  ( DistinctCount FOR ColumnName IN(' + @alignedColumnNamesList + ') ' + 
+						'	  ) AS finalResult;' );
+			END
+
+			FETCH NEXT FROM alignmentTablesCursor   
+				INTO @alignedTable, @alignedPartition;
+		END
+
+		CLOSE alignmentTablesCursor;  
+		DEALLOCATE alignmentTablesCursor;
+	
+		-- Create table storing results of the access via cached execution plans
+		DROP TABLE IF EXISTS #CachedAccessToColumnstore;
+		CREATE TABLE #CachedAccessToColumnstore(
+			[Schema] SYSNAME NOT NULL,
+			[Table] SYSNAME NOT NULL,
+			[TableName] SYSNAME NOT NULL,
+			[ColumnName] SYSNAME NOT NULL,
+			[ScanFrequency] BIGINT,
+			[ScanRank] DECIMAL(16,6)
+		);
+
+		-- Scan cached execution plans and extract the frequency with which the table columns are searched
+		IF @scanExecutionPlans = 1
+		BEGIN
+			
+			-- Extract information from the cached execution plans to determine the frequency of the used(pushed down) predicates against Columnstore Indexes
+			;WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')   
+			INSERT INTO #CachedAccessToColumnstore
+			SELECT [Schema], 
+				   [Table], 
+				   [Schema] + '.' + [Table] as TableName, 
+				   [Column] as ColumnName, 
+				   SUM(execution_count) as ScanFrequency,
+				   Cast(0. as Decimal(16,6)) as ScanRank
+				FROM (
+					SELECT x.value('(@Database)[1]', 'nvarchar(128)') AS [Database],
+						   x.value('(@Schema)[1]', 'nvarchar(128)') AS [Schema],
+						   x.value('(@Table)[1]', 'nvarchar(128)') AS [Table],
+						   x.value('(@Alias)[1]', 'nvarchar(128)') AS [Alias],
+						   x.value('(@Column)[1]', 'nvarchar(128)') AS [Column],
+						   xmlRes.execution_count			   
+						FROM (
+							SELECT dm_exec_query_plan.query_plan,
+								   dm_exec_query_stats.execution_count
+								FROM sys.dm_exec_query_stats
+									CROSS APPLY sys.dm_exec_sql_text(dm_exec_query_stats.sql_handle)
+									CROSS APPLY sys.dm_exec_query_plan(dm_exec_query_stats.plan_handle)
+								WHERE query_plan.exist('//RelOp//IndexScan//Object[@Storage = "ColumnStore"]') = 1
+									  AND query_plan.exist('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') = 1
+						) xmlRes
+							CROSS APPLY xmlRes.query_plan.nodes('//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference') x1(x) --[@Database = "[' + @dbName + ']"]	
+							WHERE 
+								-- Avoid Inter-column Search references since they are not supporting Segment Elimination
+								NOT (query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[1]') = 1
+									AND query_plan.exist('(//RelOp//IndexScan//Predicate//Compare//ScalarOperator//Identifier//ColumnReference[@Table])[2]') = 1 
+									AND x.value('(@Table)[1]', 'nvarchar(128)') = x.value('(@Table)[2]', 'nvarchar(128)') )
+								) res
+				WHERE res.[Database] = QUOTENAME(DB_NAME()) AND res.[Schema] IS NOT NULL AND res.[Table] IS NOT NULL
+					AND res.[Column] COLLATE DATABASE_DEFAULT = isnull(@columnName,res.[Column])
+				GROUP BY [Schema], [Table], [Column];
+
+			-- Distribute Rank based on the values between 0 & 100
+			UPDATE #CachedAccessToColumnstore
+				SET ScanRank = ScanFrequency * 100. / (SELECT MAX(ScanFrequency) FROM #CachedAccessToColumnstore);
+		END
+
+		-- Deliver the final result
+		SELECT res.*, cnt.DistinctCount, cnt.TotalRowCount, 
+			CAST(cnt.DistinctCount * 100. / CASE cnt.TotalRowCount WHEN 0 THEN 1 ELSE cnt.TotalRowCount END  as Decimal(8,3)) as [PercDistinct],
+			ISNULL(ScanFrequency,0) AS ScanFrequency,
+			DENSE_RANK() OVER ( PARTITION BY res.[TableName], [Partition] 
+						  ORDER BY ISNULL(ScanRank,-100) + 
+								CASE WHEN [DistinctCount] < [Total Segments] OR [DistinctCount] < 2 THEN - 100 ELSE 0 END +
+								( ISNULL(cnt.DistinctCount,0) * 100. / CASE ISNULL(cnt.TotalRowCount,0) WHEN 0 THEN 1 ELSE cnt.TotalRowCount END) 
+								- CASE [Segment Elimination] WHEN 'OK' THEN 0. ELSE 1000. END
+								DESC ) AS [Recommendation]		
+			FROM #SegmentAlignmentResults res
+			LEFT OUTER JOIN #DistinctCounts cnt
+				ON res.TableName = cnt.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cnt.ColumnName COLLATE DATABASE_DEFAULT
+					AND res.[Partition] = cnt.PartitionId
+			LEFT OUTER JOIN #CachedAccessToColumnstore cache
+				ON res.TableName = cache.TableName COLLATE DATABASE_DEFAULT 
+					AND res.ColumnName = cache.ColumnName COLLATE DATABASE_DEFAULT
+			ORDER BY res.TableName, res.Partition, res.[Column Id];
+
+	END
+	ELSE
+	BEGIN
+		SELECT res.*
+				FROM #SegmentAlignmentResults res
+			ORDER BY res.TableName, res.Partition, res.[Column Id];
+	END
+
+	-- Cleanup
+	DROP TABLE IF EXISTS #SegmentAlignmentResults;
+	DROP TABLE IF EXISTS #DistinctCounts;
+	DROP TABLE IF EXISTS #CachedAccessToColumnstore;
 
 end
 
@@ -230,9 +435,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -283,6 +488,11 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added new parameter that allows to filter the results by specific partition number (@partitionNumber)
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -312,7 +522,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Dictionaries Analysis - Shows detailed information about the Columnstore Dictionaries
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetDictionaries(
 -- Params --
@@ -325,6 +535,8 @@ alter procedure dbo.cstore_GetDictionaries(
 	@objectId int = NULL,								-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,					-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,					-- Allows to show data filtered down to 1 particular table
+	@preciseSearch bit = 0,								-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@partitionNumber int = 0,							-- Allows to filter data on a specific partion.
 	@columnName nvarchar(256) = NULL,					-- Allows to filter out data base on 1 particular column name
 	@indexLocation varchar(15) = NULL,					-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@indexType char(2) = NULL							-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
@@ -361,8 +573,12 @@ begin
 		inner join sys.column_store_dictionaries AS csd
 			on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
     where i.type in (5,6)
-		and (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%')
-		and (@schemaName is null or object_schema_name(i.object_id) = @schemaName)
+		AND (@preciseSearch = 0 AND (@tableName is null or object_name (i.object_id) like '%' + @tableName + '%') 
+			OR @preciseSearch = 1 AND (@tableName is null or object_name (i.object_id) = @tableName) )
+		AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( i.object_id ) like '%' + @schemaName + '%')
+			OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( i.object_id ) = @schemaName))
+		AND (ISNULL(@objectId,i.object_id) = i.object_id)
+		AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 		and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
 		and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
 	group by object_schema_name(i.object_id) + '.' + object_name(i.object_id), i.object_id, i.data_space_id, i.type, p.partition_number
@@ -386,8 +602,12 @@ begin
 			inner join tempdb.sys.column_store_dictionaries AS csd
 				on csd.hobt_id = p.hobt_id and csd.partition_id = p.partition_id
 		where i.type in (5,6)
-			and (@tableName is null or object_name (i.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(i.object_id,db_id('tempdb')) = @schemaName)
+			AND (@preciseSearch = 0 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) = @tableName) )
+			AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,p.object_id) = p.object_id)
+			AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 			and i.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else i.data_space_id end, i.data_space_id )
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else i.type end = i.type
 		group by object_schema_name(i.object_id,db_id('tempdb')) + '.' + object_name(i.object_id,db_id('tempdb')), i.object_id, i.type, i.data_space_id, p.partition_number;
@@ -434,8 +654,12 @@ begin
 					when 'sysname' then 1
 				end = 1
 			) OR @showAllTextDictionaries = 0 )
-			and (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(ind.object_id) = @schemaName)
+			AND (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id ) = @schemaName))
+			AND (ISNULL(@objectId,part.object_id) = part.object_id)
+			AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end
 			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
@@ -481,9 +705,12 @@ begin
 					when 'sysname' then 1
 				end = 1
 			) OR @showAllTextDictionaries = 0 )
-			and (@tableName is null or object_name(ind.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(ind.object_id,db_id('tempdb')) = @schemaName)
-			and cols.name = isnull(@columnName,cols.name)
+			AND (@preciseSearch = 0 AND (@tableName is null or object_name (part.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (part.object_id,db_id('tempdb')) = @tableName) )
+			AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( part.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( part.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,part.object_id) = part.object_id)
+			AND partition_number = case @partitionNumber when 0 then partition_number else @partitionNumber end			and cols.name = isnull(@columnName,cols.name)
 			and case dictionary_id when 0 then 'Global' else 'Local' end = isnull(@showDictionaryType, case dictionary_id when 0 then 'Global' else 'Local' end)
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
@@ -495,9 +722,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -542,6 +769,12 @@ Changes in 1.3.1
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added new parameter that allows to filter the results by specific partition number (@partitionNumber)
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed Bug with the Columnstore Indexes being limited to values 1 and 2 (Thanks to Thomas Frohlich)
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -572,15 +805,17 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetFragmentation (
 -- Params --
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to 1 particular table
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@indexLocation varchar(15) = NULL,				-- ALlows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
-	@showPartitionStats bit = 1						-- Allows to drill down fragmentation statistics on the partition level
+	@showPartitionStats bit = 1,					-- Allows to drill down fragmentation statistics on the partition level
+	@partitionNumber int = 0						-- Allows to filter data on a specific partion. Works only if @showPartitionDetails is set = 1 
 -- end of --
 ) as 
 begin
@@ -608,10 +843,13 @@ begin
 				on rg.object_id = ind.object_id and rg.index_id = ind.index_id
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2014)
-			and p.index_id in (1,2)
 			and p.data_compression in (3,4)
-			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
+			AND (@preciseSearch = 0 AND (@tableName is null or object_name ( p.object_id ) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name ( p.object_id ) = @tableName) )
+			AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id ) = @schemaName))
+			AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
+			AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		group by p.object_id, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 	union all
@@ -639,10 +877,13 @@ begin
 				on rg.object_id = ind.object_id and rg.index_id = ind.index_id
 		where rg.state in (2,3) -- 2 - Closed, 3 - Compressed	(Ignoring: 0 - Hidden, 1 - Open, 4 - Tombstone) 
 			and ind.type in (5,6) -- Index Type (Clustered Columnstore = 5, Nonclustered Columnstore = 6. Note: There are no Deleted Bitmaps in NCCI in SQL 2012 & 2016)
-			and p.index_id in (1,2)
 			and p.data_compression in (3,4)
-			and (@tableName is null or object_name (rg.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id,db_id('tempdb')) = @schemaName)
+			AND (@preciseSearch = 0 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (p.object_id,db_id('tempdb')) = @tableName) )
+			AND (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( p.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,rg.object_id) = rg.object_id)
+			AND rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 		group by p.object_id, obj.object_id, obj.name, ind.data_space_id, ind.name, ind.type_desc, case @showPartitionStats when 1 then p.partition_number else 1 end 
 		order by TableName
 		OPTION ( FORCE ORDER);
@@ -653,7 +894,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
 	Copyright (C): Niko Neugebauer, OH22 IS (http://www.oh22.is)
 	http://www.nikoport.com/columnstore	
@@ -714,7 +955,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	MemoryInfo - Shows the content of the Columnstore Object Pool
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetMemory(
 -- Params --
@@ -826,9 +1067,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -878,6 +1119,10 @@ Changes in 1.4.1
 
 Changes in 1.4.2
 	- Fixed bug on lookup for the Object Name for the empty Columnstore tables
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -908,7 +1153,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups - Shows detailed information on the Columnstore Row Groups inside current Database
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetRowGroups(
 -- Params --
@@ -918,6 +1163,7 @@ alter procedure dbo.cstore_GetRowGroups(
 	@compressionType varchar(15) = NULL,			-- Allows to filter by the compression type with following values 'ARCHIVE', 'COLUMNSTORE' or NULL for both
 	@minTotalRows bigint = 000000,					-- Minimum number of rows for a table to be included
 	@minSizeInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be included
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name pattern
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
@@ -970,16 +1216,20 @@ begin
 					on ind.object_id = rg.object_id and ind.index_id = rg.index_id
 				left join sys.partitions part with(READUNCOMMITTED)
 					on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
+					AND ind.index_id = part.index_id
 				left join sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 					on rg.object_id = stat.object_id and ind.index_id = stat.index_id
 					   and isnull(stat.database_id,db_id()) = db_id()
-			where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-				  and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+			where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
+				  and part.data_compression >= 3 and part.data_compression <= 4
 				  and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				  and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				  and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				  and (@tableName is null or object_name (obj.object_id) like '%' + @tableName + '%')
-				  and (@schemaName is null or object_schema_name(obj.object_id) = @schemaName)
+		 		  and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+				  and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+				  AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				  and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 			group by ind.object_id, ind.type, obj.type_desc, rg.partition_number, ind.data_space_id,
 					part.partition_number
@@ -1021,9 +1271,9 @@ begin
 						from sys.dm_db_xtp_memory_consumers xtpMem 
 						where ind.object_id = xtpMem.object_id and xtpMem.memory_consumer_type = 5 /* HKCS_COMPRESSED */)
 				  ) as Decimal(8,2)) as 'Size in GB',
-		isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
-		isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
-		max(stat.last_user_scan) as 'LastScan'
+			isnull(sum(stat.user_scans)/count(*),0) as 'Scans',
+			isnull(sum(stat.user_updates)/count(*),0) as 'Updates',
+			max(stat.last_user_scan) as 'LastScan'
 		from tempdb.sys.indexes ind
 			inner join sys.objects obj
 				on ind.object_id = obj.object_id
@@ -1033,14 +1283,16 @@ begin
 				on ind.object_id = part.object_id and isnull(rg.partition_number,1) = part.partition_number
 			left join tempdb.sys.dm_db_index_usage_stats stat with(READUNCOMMITTED)
 				on rg.object_id = stat.object_id and ind.index_id = stat.index_id 
-		where ind.type in (5,6)				-- Clustered & Nonclustered Columnstore
-				and part.data_compression_desc in ('COLUMNSTORE','COLUMNSTORE_ARCHIVE') 
+		where ind.type >= 5 and ind.type <= 6				-- Clustered & Nonclustered Columnstore
+				and part.data_compression >= 3 and part.data_compression <= 4
 				and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 				and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 				and case @compressionType when 'Columnstore' then 3 when 'Archive' then 4 else part.data_compression end = part.data_compression
-				and (@tableName is null or object_name (obj.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-				and (@schemaName is null or object_schema_name(obj.object_id, db_id('tempdb')) = @schemaName)
-				and isnull(stat.database_id,db_id('tempdb')) = db_id('tempdb')
+				and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					  OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+				and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+				AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 				and obj.type_desc = ISNULL(case @objectType when 'Table' then 'USER_TABLE' when 'Indexed View' then 'VIEW' end,obj.type_desc)
 		group by ind.object_id, ind.type, obj.type_desc, rg.partition_number,
 				ind.data_space_id,
@@ -1060,12 +1312,12 @@ begin
 		max([Compression Type]) as [Compression Type], sum([Bulk Load RG]) as [Bulk Load RG], sum([Open DS]) as [Open DS], sum([Closed DS]) as [Closed DS], 
 		sum(Tombstones) as Tombstones, sum(Compressed) as Compressed, sum(Total) as Total, 
 		sum([Deleted Rows (M)]) as [Deleted Rows (M)], sum([Active Rows (M)]) as [Active Rows (M)], sum([Total Rows (M)]) as [Total Rows (M)], 
-		sum([Size in GB]) as [Size in GB], sum(Scans) as Scans, sum(Updates) as Updates, max(LastScan) as LastScan
+		sum([Size in GB]) as [Size in GB], sum(ISNULL(Scans,0)) as Scans, sum(ISNULL(Updates,0)) as Updates, NULL as LastScan
 		from partitionedInfo
 		where Partition = isnull(@partitionId, Partition)  -- Partition Filtering
 		group by TableName, Type, ObjectType, Location, (case @showPartitionDetails when 1 then Partition else 1 end)
 		order by TableName,	(case @showPartitionDetails when 1 then Partition else 1 end)
-		option (force order);
+		--option (force order);
 
 	SET ANSI_WARNINGS ON;
 end
@@ -1074,9 +1326,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1111,6 +1363,10 @@ Changes in 1.3.1
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
 */
 
 
@@ -1140,13 +1396,14 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Row Groups Details - Shows detailed information on the Columnstore Row Groups
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetRowGroupsDetails(
 -- Params --
 	@objectId int = NULL,							-- Allows to idenitfy a table thorugh the ObjectId
 	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified table name
+	@preciseSearch bit = 0,							-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
 	@indexLocation varchar(15) = NULL,				-- Allows to filter Columnstore Indexes based on their location: Disk-Based & In-Memory
 	@indexType char(2) = NULL,						-- Allows to filter Columnstore Indexes by their type, with possible values (CC for 'Clustered', NC for 'Nonclustered' or NULL for both)
 	@partitionNumber bigint = 0,					-- Allows to show details of each of the available partitions, where 0 stands for no filtering
@@ -1191,9 +1448,11 @@ BEGIN
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 			and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-			and (@tableName is null or object_name (rg.object_id) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id) = @schemaName)
-			and rg.object_id = isnull(@objectId, rg.object_id)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id) like '%' + @tableName + '%') 
+				OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id ) like '%' + @schemaName + '%')
+				OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
@@ -1228,9 +1487,11 @@ BEGIN
 			and case @indexType when 'CC' then 5 when 'NC' then 6 else ind.type end = ind.type
 			and rg.state <> case @showNonCompressedOnly when 0 then -1 else 3 end
 			and isnull(rg.deleted_rows,0) <> case @showFragmentedGroupsOnly when 1 then 0 else -1 end
-			and (@tableName is null or object_name (rg.object_id, db_id('tempdb')) like '%' + @tableName + '%')
-			and (@schemaName is null or object_schema_name(rg.object_id, db_id('tempdb')) = @schemaName)
-			and rg.object_id = isnull(@objectId, rg.object_id)
+			and (@preciseSearch = 0 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+					OR @preciseSearch = 1 AND (@tableName is null or object_name (ind.object_id,db_id('tempdb')) = @tableName) )
+			and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+					OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( ind.object_id,db_id('tempdb') ) = @schemaName))
+			AND (ISNULL(@objectId,ind.object_id) = ind.object_id)
 			and rg.partition_number = case @partitionNumber when 0 then rg.partition_number else @partitionNumber end
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) >= isnull(@minSizeInMB,0.)
 			and cast(isnull(rg.size_in_bytes,0) / 1024. / 1024  as Decimal(8,3)) <= isnull(@maxSizeInMB,999999999.)
@@ -1249,9 +1510,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1303,6 +1564,12 @@ Changes in 1.4.1
 
 Changes in 1.4.2
 	* Fixed missing information on the most recent SQL Server 2016 updates
+
+Changes in 1.5.0
+	+ Added information on the CU1, CU2, CU3, CU4 for SQL Server 2016 SP1 and CU3, CU4, CU5, CU6, CU7 for SQL Server 2016 RTM
+	+ Added displaying information on the date of each of the service releases (when using parameter @showNewerVersions)
+	+ Added information on the Trace Flag 6404
+	* Small changes for taking advantages of SQL Server 2016 syntax
 */
 
 --------------------------------------------------------------------------------------------------------------------
@@ -1332,7 +1599,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_GetSQLInfo(
 -- Params --
@@ -1346,12 +1613,9 @@ begin
 
 	declare @SQLServerBuild smallint  = substring(@SQLServerVersion,CHARINDEX('.',@SQLServerVersion,5)+1,CHARINDEX('.',@SQLServerVersion,8)-CHARINDEX('.',@SQLServerVersion,5)-1);
 
-	if OBJECT_ID('tempdb..#SQLColumnstoreImprovements', 'U') IS NOT NULL
-		drop table #SQLColumnstoreImprovements;
-	if OBJECT_ID('tempdb..#SQLBranches', 'U') IS NOT NULL
-		drop table #SQLBranches;
-	if OBJECT_ID('tempdb..#SQLVersions', 'U') IS NOT NULL
-		drop table #SQLVersions;
+	drop table IF EXISTS #SQLColumnstoreImprovements;
+	drop table IF EXISTS #SQLBranches;
+	drop table IF EXISTS #SQLVersions;
 
 	--  
 	create table #SQLColumnstoreImprovements(
@@ -1392,9 +1656,16 @@ begin
 		( 'RTM', 1601, convert(datetime,'01-06-2016',105), 'RTM for SQL Server 2016' ),
 		( 'RTM', 2149, convert(datetime,'25-07-2016',105), 'CU 1 for SQL Server 2016' ),
 		( 'RTM', 2164, convert(datetime,'22-09-2016',105), 'CU 2 for SQL Server 2016' ),
-		( 'RTM', 2170, convert(datetime,'26-10-2016',105), 'On-Demand fix for CU 2 for SQL Server 2016' ),
-		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' );
-
+		( 'RTM', 2186, convert(datetime,'17-11-2016',105), 'CU 3 for SQL Server 2016' ),
+		( 'RTM', 2193, convert(datetime,'18-01-2017',105), 'CU 4 for SQL Server 2016' ),
+		( 'RTM', 2197, convert(datetime,'21-03-2017',105), 'CU 5 for SQL Server 2016' ),
+		( 'RTM', 2204, convert(datetime,'15-05-2017',105), 'CU 6 for SQL Server 2016' ),
+		( 'RTM', 2210, convert(datetime,'08-08-2017',105), 'CU 7 for SQL Server 2016' ),
+		( 'SP1', 4001, convert(datetime,'16-11-2016',105), 'Service Pack 1 for SQL Server 2016' ),
+		( 'SP1', 4411, convert(datetime,'18-01-2017',105), 'CU 1 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4422, convert(datetime,'22-03-2017',105), 'CU 2 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4435, convert(datetime,'15-05-2017',105), 'CU 3 for SQL Server 2016 SP 1' ),
+		( 'SP1', 4446, convert(datetime,'08-08-2017',105), 'CU 4 for SQL Server 2016 SP 1' );
 
 	insert into #SQLColumnstoreImprovements (BuildVersion, SQLBranch, Description, URL )
 		values 
@@ -1415,19 +1686,59 @@ begin
 		( 2170, 'RTM', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
 		( 2170, 'RTM', 'FIX: Performance regression in the expression service during numeric arithmetic operations in SQL Server 2016', 'https://support.microsoft.com/en-us/kb/3197952' ),
 		( 2186, 'RTM', 'FIX: SQL Server 2016 crashes when a Tuple Mover task is terminated unexpectedly', 'https://support.microsoft.com/en-us/kb/3195901' ),
+		( 2193, 'RTM', 'FIX: "Non-yielding Scheduler" condition when you parallel-load data into a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205411/fix-non-yielding-scheduler-condition-when-you-parallel-load-data-into-a-columnstore-index-in-sql-server-2016' ),
+		( 2193, 'RTM', 'FIX: Cannot insert data into a table that uses a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211602/fix-cannot-insert-data-into-a-table-that-uses-a-clustered-columnstore-index-in-sql-server-2016' ),
+		( 2193, 'RTM', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' ),
+		( 2193, 'RTM', 'FIX: An assertion occurs when you bulk insert data into a table from multiple connections in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205964/fix-an-assertion-occurs-when-you-bulk-insert-data-into-a-table-from-multiple-connections-in-sql-server-2016' ),
+		( 2193, 'RTM', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server', 'https://support.microsoft.com/en-us/help/3201416/fix-out-of-memory-errors-when-you-execute-dbcc-checkdb-on-database-that-contains-columnstore-indexes-in-sql-server-2014' ),
+		( 2193, 'RTM', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
+		( 2197, 'RTM', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752/fix-wrong-number-of-rows-returned-in-sys-partitions-for-columnstore-in' ),
+		( 2197, 'RTM', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118/fix-the-sys-column-store-segments-catalog-view-displays-incorrect-valu' ),
+		( 2197, 'RTM', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3067968/fix-memory-is-paged-out-when-columnstore-index-query-consumes-lots-of' ),
+		( 2197, 'RTM', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3204769/fix-intra-query-deadlock-when-values-are-inserted-into-a-partitioned-c' ),
+		( 2204, 'RTM', 'FIX: Query against sys.dm_db_partition_stats DMV runs slow if the database contains large numbers of columnstore partitions in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019903/fix-query-against-sys-dm-db-partition-stats-dmv-runs-slow-if-the-datab' ),
+		( 2204, 'RTM', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
+		( 2204, 'RTM', 'Intra-query deadlock on communication buffer when you run a bulk load against a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4017154/intra-query-deadlock-on-communication-buffer-when-you-run-a-bulk-load' ),
 		( 4001, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/kb/3195825' ),
-		( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' );
+		( 4001, 'SP1', 'Batch sort and optimized nested loop may cause stability and performance issues.', 'https://support.microsoft.com/en-us/kb/3182545' ),
+		( 4411, 'SP1', 'FIX: The “sys.dm_db_column_store_row_group_physical_stats” query runs slowly on SQL Server 2016', 'https://support.microsoft.com/en-us/help/3210747/fix-the-sys.dm-db-column-store-row-group-physical-stats-query-runs-slowly-on-sql-server-2016' ),
+		( 4411, 'SP1', 'FIX: An assert error occurs when you insert data into a memory-optimized table that contains a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211338/fix-an-assert-error-occurs-when-you-insert-data-into-a-memory-optimized-table-that-contains-a-clustered-columnstore-index-in-sql-server-2016' ),
+		( 4411, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283/fix-error-3628-when-you-create-or-rebuild-a-columnstore-index-in-sql-server-2016' ),
+		( 4422, 'SP1', 'FIX: Cannot insert data into a table that uses a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3211602' ),
+		( 4422, 'SP1', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752' ),
+		( 4422, 'SP1', 'FIX: Deadlock when you execute a query plan with a nested loop join in batch mode in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3195825' ),
+		( 4422, 'SP1', 'FIX: Data type conversion error in a query that involves a column store index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013883' ),
+		( 4422, 'SP1', 'FIX: "Non-yielding Scheduler" condition when you parallel-load data into a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3205411' ),
+		( 4422, 'SP1', 'FIX: "Incorrect syntax for definition of the ''default'' constraint" error when you add an arbitrary columnstore column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/5852300' ),
+		( 4422, 'SP1', 'FIX: Error when you add a NOT NULL column with default values to a non-empty clustered columnstore index in SQL Server 2016 Standard and Express edition', 'https://support.microsoft.com/en-us/help/4013851' ),
+		( 4422, 'SP1', 'FIX: Intra-query deadlock when values are inserted into a partitioned clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3204769' ),
+		( 4422, 'SP1', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118' ),
+		( 4422, 'SP1', 'FIX: Memory is paged out when columnstore index query consumes lots of memory in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3067968' ),
+		( 4422, 'SP1', 'FIX: Out-of-memory errors when you execute DBCC CHECKDB on database that contains columnstore indexes in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/3201416' ),
+		( 4422, 'SP1', 'FIX: Error 3628 when you create or rebuild a columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3213283' ),
+		( 4435, 'SP1', 'FIX: Query against sys.dm_db_partition_stats DMV runs slow if the database contains large numbers of columnstore partitions in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019903/fix-query-against-sys-dm-db-partition-stats-dmv-runs-slow-if-the-datab' ),
+		( 4435, 'SP1', 'FIX: Access violation when you use SELECT TOP query to retrieve data from clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016902/fix-access-violation-when-you-use-select-top-query-to-retrieve-data-fr' ),
+		( 4435, 'SP1', 'FIX: SQL Server 2016 consumes more memory when you reorganize a columnstore index', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns' ),
+		( 4435, 'SP1', 'Intra-query deadlock on communication buffer when you run a bulk load against a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4017154/intra-query-deadlock-on-communication-buffer-when-you-run-a-bulk-load' ),
+		( 4435, 'SP1', 'FIX: Wrong number of rows returned in sys.partitions for Columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/3195752/fix-wrong-number-of-rows-returned-in-sys-partitions-for-columnstore-in' ),
+		( 4435, 'SP1', 'FIX: An assertion occurs when you run an UPDATE statement on a clustered columnstore index in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4015034/fix-an-assertion-occurs-when-you-run-an-update-statement-on-a-clustere' ),
+		( 4435, 'SP1', 'FIX: The sys.column_store_segments catalog view displays incorrect values in the column_id column in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4013118/fix-the-sys-column-store-segments-catalog-view-displays-incorrect-valu' ),
+		( 4435, 'SP1', 'FIX: Intra-query deadlock when you execute a parallel query that contains outer join operators in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4019718/fix-intra-query-deadlock-when-you-execute-a-parallel-query-that-contai' ),
+		( 4446, 'SP1', 'FIX: Deadlock when you use sys.column_store_row_groups and sys.dm_db_column_store_row_group_physical_stats DMV with large DDL operations in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4016946/fix-deadlock-when-you-use-sys-column-store-row-groups-and-sys-dm-db-co' ),
+		( 4446, 'SP1', 'FIX: Access violation with query to retrieve data from a clustered columnstore index in SQL Server 2014 or 2016', 'https://support.microsoft.com/en-us/help/4024184/fix-access-violation-with-query-to-retrieve-data-from-a-clustered-colu' ),
+		( 4446, 'SP1', 'FIX: Access violation occurs when you run a query in SQL Server 2016', 'https://support.microsoft.com/en-us/help/4034056/fix-access-violation-occurs-when-you-run-a-query-in-sql-server-2016' );
+
 
 	if @identifyCurrentVersion = 1
 	begin
-		if OBJECT_ID('tempdb..#TempVersionResults') IS NOT NULL
-			drop table #TempVersionResults;
+		drop table IF EXISTS #TempVersionResults;
 
 		create table #TempVersionResults(
 			MessageText nvarchar(512) NOT NULL,		
 			SQLVersionDescription nvarchar(200) NOT NULL,
 			SQLBranch char(3) not null,
-			SQLVersion smallint NULL );
+			SQLVersion smallint NULL,
+			ReleaseDate date NULL );
 
 		-- Identify the number of days that has passed since the installed release
 		declare @daysSinceLastRelease int = NULL;
@@ -1452,11 +1763,15 @@ begin
 		if @showNewerVersions = 1
 		begin 
 			insert into #TempVersionResults
-				select 'Available Newer Versions:' as MessageText, '' as SQLVersionDescription, 
-					'' as SQLBranch, NULL as BuildVersion
+				select 'Available Newer Versions:' as MessageText
+					, '' as SQLVersionDescription
+					, '' as SQLBranch, NULL as BuildVersion
+					, NULL as ReleaseDate
 				UNION ALL
-				select '' as MessageText, SQLVersionDescription as SQLVersionDescription, 
-						SQLBranch as SQLVersionDescription, SQLVersion as BuildVersion
+				select '' as MessageText, SQLVersionDescription as SQLVersionDescription
+						, SQLBranch as SQLVersionDescription
+						, SQLVersion as BuildVersion
+						, ReleaseDate as ReleaseDate
 						from #SQLVersions
 						where  @SQLServerBuild <  SQLVersion;
 
@@ -1513,6 +1828,7 @@ begin
 		(  834, 'Enable Large Pages', 'https://support.microsoft.com/en-us/kb/920093?wa=wsignin1.0', 0 ),
 		(  646, 'Gets text output messages that show what segments (row groups) were eliminated during query processing', 'http://social.technet.microsoft.com/wiki/contents/articles/5611.verifying-columnstore-segment-elimination.aspx', 1 ),
 		( 4199, 'The batch mode sort operations in a complex parallel query are also disabled when trace flag 4199 is enabled.', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
+		( 6404, 'Fixes the amount of memory for ALTER INDEX REORGANIZE on 4GB/16GB depending on the Server size.', 'https://support.microsoft.com/en-us/help/4019028/fix-sql-server-2016-consumes-more-memory-when-you-reorganize-a-columns', 1 ),
 		( 9347, 'FIX: Can''t disable batch mode sorted by session trace flag 9347 or the query hint QUERYTRACEON 9347 in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3172787', 1 ),
 		( 9349, 'Disables batch mode top sort operator.', 'https://msdn.microsoft.com/en-us/library/ms188396.aspx', 1 ),
 		( 9358, 'Disable batch mode sort operations in a complex parallel query in SQL Server 2016', 'https://support.microsoft.com/en-nz/kb/3171555', 1 ),
@@ -1538,9 +1854,9 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -1594,6 +1910,13 @@ Changes in 1.4.1
 Changes in 1.4.2
 	- Fixed bug on the size of the @minSizeToConsiderInGB parameter
 	+ Small Improvements for the @columnstoreIndexTypeForTSQL parameter with better quality generation for the complex objects with Primary Keys
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed bug with the partitioned table not showing the correct number of rows
+	+ Added new result column [Partitions] showing the total number of the partitions
 */
 
 declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
@@ -1623,7 +1946,7 @@ GO
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure dbo.cstore_SuggestedTables(
 -- Params --
@@ -1631,6 +1954,8 @@ alter procedure dbo.cstore_SuggestedTables(
 	@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 	@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+	@preciseSearch bit = 0,										-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+	@objectId INT = NULL,										-- Allows to show data filtered down to the specific object_id
 	@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 	@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 	@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
@@ -1661,6 +1986,7 @@ begin
 		[TableLocation] varchar(15) NOT NULL,
 		[TableName] nvarchar(1000) NOT NULL,
 		[ShortTableName] nvarchar(256) NOT NULL,
+		[Partitions] BIGINT NOT NULL,
 		[Row Count] bigint NOT NULL,
 		[Min RowGroups] smallint NOT NULL,
 		[Size in GB] decimal(16,3) NOT NULL,
@@ -1693,9 +2019,9 @@ begin
 		, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end 
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, isnull(max(p.rows),0) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
-		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 		, isnull(cast( sum(memory_allocated_for_table_kb) / 1024. / 1024 as decimal(16,3) ),0) + cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3))  as 'size in GB' 
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
 		, (select count(*) 
@@ -1779,8 +2105,11 @@ begin
 					from sys.indexes ind
 					where t.object_id = ind.object_id
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
-			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
+			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%') 
+				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id) = @tableName) )
+			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id ) like '%' + @schemaName + '%')
+				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id ) = @schemaName))
+			 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 			 and (( @showReadyTablesOnly = 1 
 					and  
 					(select count(*) 
@@ -1813,8 +2142,9 @@ begin
 		, 'Disk-Based'
 		, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 		, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-		, max(p.rows) as 'Row Count'
-		, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+		, COUNT(DISTINCT p.partition_number) as [Partitions]
+		, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+		, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 		
 		, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 		, (select count(*) from sys.columns as col
 			where t.object_id = col.object_id ) as 'Cols Count'
@@ -1897,8 +2227,11 @@ begin
 					from sys.indexes ind
 					where t.object_id = ind.object_id
 						and ind.type in (5,6) ) = 0    -- Filtering out tables with existing Columnstore Indexes
-			 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
-			 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
+			 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+				  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) = @tableName) )
+			 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+				  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName))
+			 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 		 			--and ind.data_space_id = isnull( case @indexLocation when 'In-Memory' then 0 when 'Disk-Based' then 1 else ind.data_space_id end, ind.data_space_id )
 		 	 and ind.data_space_id = case isnull(@indexLocation,'Null') 
 													when 'In-Memory' then 0
@@ -1950,7 +2283,7 @@ begin
 					  AND TableLocation = 'In-Memory' then 'Clustered Columnstore'  
 		   end as 'Compatible With'
 		, TableLocation		
-		, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
+		, [TableName], [Partitions], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 		, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 		, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [InMemoryOLTP], [Replication], [FileStream], [FileTable]
 		from #TablesToColumnstore tempRes
@@ -2083,9 +2416,9 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for SQL Server 2016: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2017 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -2113,6 +2446,13 @@ Changes in 1.4.0
 
 Changes in 1.4.1
 	+ Added support for the SP1 which allows support of Columnstore Indexes on any edition
+
+Changes in 1.5.0
+	+ Added support for the new cstore_GetAlignment funciton with partition level support
+	+ Added support for the schema parameter of the cstore_getRowGroups funciton
+	- Fixed bug with the Primary Key of the cstore_Clustering table covering only the table name and not the partition (Thanks to Thomas Frohlich)
+	+ Added @schemaName parameter for supporting schema filtering (Thanks to Thomas Frohlich)
+	- Fixed bugs for the case-sensitive instances where variables had wrong names (Thanks to Kendra Little)
 */
 
 declare @createLogTables bit = 1;
@@ -2226,14 +2566,32 @@ begin
 	);
 end 
 
-IF @createLogTables = 1 AND NOT EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Clustering' and schema_id = SCHEMA_ID('dbo') )
+IF @createLogTables = 1 
 begin
-	-- Configuration table for the Segment Clustering
-	create table dbo.cstore_Clustering(
-		TableName nvarchar(256)  constraint [PK_cstore_Clustering] primary key clustered,
-		Partition int,
-		ColumnName nvarchar(256)
-	);
+	IF NOT EXISTS (select * from sys.objects where type = 'u' and name = 'cstore_Clustering' and schema_id = SCHEMA_ID('dbo') )
+	BEGIN
+		-- Configuration table for the Segment Clustering
+		create table dbo.cstore_Clustering(
+			TableName nvarchar(256) NOT NULL,
+			Partition int NOT NULL,
+			ColumnName nvarchar(256),
+			CONSTRAINT PK_cstore_Clustering PRIMARY KEY CLUSTERED ([TableName], [Partition])
+		);
+	END
+	ELSE
+	BEGIN
+		ALTER TABLE dbo.cstore_Clustering
+			ALTER COLUMN TableName nvarchar(256) NOT NULL;
+		
+		ALTER TABLE dbo.cstore_Clustering
+			ALTER COLUMN Partition int NOT NULL;
+
+		ALTER TABLE dbo.cstore_Clustering
+			DROP CONSTRAINT PK_cstore_Clustering;
+
+		ALTER TABLE dbo.cstore_Clustering
+			ADD CONSTRAINT PK_cstore_Clustering PRIMARY KEY CLUSTERED ([TableName], [Partition]);
+	END
 
 	DROP TABLE IF EXISTS #ColumnstoreIndexes;
 
@@ -2266,11 +2624,12 @@ begin
 		exec dbo.cstore_GetRowGroups @showPartitionDetails = 1;
 
 	insert into dbo.cstore_Clustering( TableName, Partition, ColumnName )
-		select TableName, Partition, NULL 
+		select DISTINCT TableName, Partition, NULL 
 			from #ColumnstoreIndexes ci
-			where TableName not in (select clu.TableName from dbo.cstore_Clustering clu);
+			where NOT EXISTS (select clu.TableName from dbo.cstore_Clustering clu WHERE ci.TableName = clu.TableName AND ci.Partition = clu.Partition);
 end
 GO
+
 
 -- **************************************************************************************************************************
 IF NOT EXISTS (select * from sys.objects where type = 'p' and name = 'cstore_doMaintenance' and schema_id = SCHEMA_ID('dbo') )
@@ -2280,7 +2639,7 @@ GO
 /*
 	CSIL - Columnstore Indexes Scripts Library for Azure SQLDatabase: 
 	Columnstore Maintenance - Maintenance Solution for SQL Server Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.5.0, August 2017
 */
 alter procedure [dbo].[cstore_doMaintenance](
 -- Params --
@@ -2291,6 +2650,7 @@ alter procedure [dbo].[cstore_doMaintenance](
 	@forceRebuild bit = 0,							-- Allows to force rebuild operation on the tables
 	@usePartitionLevel bit = 1,						-- Controls if whole table is maintained or the maintenance is done on the partition level
 	@partition_number int = NULL,					-- Allows to specify a partition to execute maintenance on
+	@schemaName nvarchar(256) = NULL,				-- Allows to show data filtered down to the specified schema
 	@tableName nvarchar(max) = NULL,				-- Allows to filter out only a particular table 
 	@useRecommendations bit = 1,					-- Activates internal optimizations for a more correct maintenance proceedings
 	@maxdop tinyint = 0,							-- Allows to control the maximum degreee of parallelism
@@ -2461,7 +2821,7 @@ begin
 	
 	-- Obtain all Columnstore Indexes
 	insert into #ColumnstoreIndexes 
-		exec dbo.cstore_GetRowGroups @tableName = @tableName, @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
+		exec dbo.cstore_GetRowGroups @schemaName = @schemaName, @tableName = @tableName, @showPartitionDetails = @usePartitionLevel, @partitionId = @partition_number; 
 	
 	if( @debug = 1 )
 	begin
@@ -2552,7 +2912,8 @@ begin
 			ColumnId int,
 			ColumnName nvarchar(256),
 			ColumnType nvarchar(256),
-			SegmentElimination varchar(50),
+			SegmentElimination varchar(25),
+			PredicatePushdown varchar(25),
 			DealignedSegments int,
 			TotalSegments int,
 			SegmentAlignment Decimal(8,2)
@@ -2565,9 +2926,10 @@ begin
 			set @columnId = NULL;
 
 		-- Get Results from "cstore_GetAlignment" Stored Procedure
-		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, DealignedSegments, TotalSegments, SegmentAlignment )
+		insert into #ColumnstoreAlignment ( TableName, Location, Partition, ColumnId, ColumnName, ColumnType, SegmentElimination, PredicatePushdown, DealignedSegments, TotalSegments, SegmentAlignment )
 				exec dbo.cstore_GetAlignment @objectId = @objectId, 
 											@showPartitionStats = @usePartitionLevel, 
+											@showSegmentAnalysis = 0, @scanExecutionPlans = 0,  @countDistinctValues = 0, @partitionNumber = @partitionNumber,
 											@showUnsupportedSegments = 1, @columnName = @orderingColumnName, @columnId = @columnId;		
 
 		if( --@rebuildNeeded = 0 AND 
@@ -2774,9 +3136,9 @@ begin
 				-- For that use GetRowGroupsDetails
 				if( @currentOptimizableRGs > 0 AND @useRecommendations = 1 )
 				begin
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGsPerc >= @trimmedRGsPerc )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGsPerc >= @trimmedRGsPerc )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroup Percentage';
-					if( @rebuildNeeded = 0 AND @currenttrimmedRGs >= isnull(@trimmedRGs,2147483647) )
+					if( @rebuildNeeded = 0 AND @currentTrimmedRGs >= isnull(@trimmedRGs,2147483647) )
 						select @rebuildNeeded = 1, @rebuildReason = 'Trimmed RowGroups';
 
 					if( @rebuildNeeded = 0 AND @currentMinAverageRowsPerRG <= @minAverageRowsPerRG )

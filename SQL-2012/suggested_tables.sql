@@ -1,11 +1,11 @@
 /*
 	Columnstore Indexes Scripts Library for SQL Server 2012: 
 	Suggested Tables - Lists tables which potentially can be interesting for implementing Columnstore Indexes
-	Version: 1.4.2, December 2016
+	Version: 1.6.0, January 2018
 
-	Copyright 2015-2016 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
+	Copyright 2015-2018 Niko Neugebauer, OH22 IS (http://www.nikoport.com/columnstore/), (http://www.oh22.is/)
 
-	Licensed under the Apache License, Version: 1.4.2, December 2016 2.0 (the "License");
+	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
@@ -20,7 +20,7 @@
 
 /*
 Known Issues & Limitations: 
-	- @showTSQLCommandsBeta parameter is in alpha Version: 1.4.2, December 2016 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
+	- @showTSQLCommandsBeta parameter is in alpha Version: 1.6.0, January 2018 and not pretending to be complete any time soon. This output is provided as a basic help & guide convertion to Columnstore Indexes.
 	- CLR support is not included or tested
 	- Output [Min RowGroups] is not taking present partitions into calculations yet :)
 	- Data Precision is not being taken into account
@@ -44,7 +44,18 @@ Changes in 1.3.0
 Changes in 1.3.1
 	- Fixed a bug with filtering out the exact number of @minRows instead of including it
 	- Fixed a cast bug, that would filter out some of the indexes, based on the casting of the hidden numbers (3rd number behind the comma)
-	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.4.2, December 2016 'Disk-Based'.
+	+ Added new parameter for the index location (@indexLocation) with one actual usable parameter for this SQL Server Version: 1.6.0, January 2018 'Disk-Based'.
+
+Changes in 1.5.0
+	+ Added new parameter for the searching precise name of the object (@preciseSearch)
+	+ Added new parameter for the identifying the object by its object_id (@objectId)
+	+ Expanded search of the schema to include the pattern search with @preciseSearch = 0
+	- Fixed bug with the partitioned table not showing the correct number of rows
+	+ Added new result column [Partitions] showing the total number of the partitions
+
+Changes in 1.6.0
+	- Fixed the bug with the data type of the [Min RowGroups] column from SMALLINT to INT (Thanks to Thorsten)
+	- Fixed the bug with the total number of computed columns per database being shown instead of the number of computed columns per table
 */
 
 -- Params --
@@ -52,6 +63,8 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@minSizeToConsiderInGB Decimal(16,3) = 0.00,				-- Minimum size in GB for a table to be considered for the suggestion inclusion
 		@schemaName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified schema
 		@tableName nvarchar(256) = NULL,							-- Allows to show data filtered down to the specified table name pattern
+		@preciseSearch bit = 0,										-- Defines if the schema and data search with the parameters @schemaName & @tableName will be precise or pattern-like
+		@objectId INT = NULL,										-- Allows to show data filtered down to the specific object_id
 		@indexLocation varchar(15) = NULL,							-- Allows to filter tables based on their location: Disk-Based & In-Memory
 		@considerColumnsOver8K bit = 1,								-- Include in the results tables, which columns sum extends over 8000 bytes (and thus not supported in Columnstore)
 		@showReadyTablesOnly bit = 0,								-- Shows only those Rowstore tables that can already get Columnstore Index without any additional work
@@ -59,14 +72,14 @@ declare @minRowsToConsider bigint = 500000,							-- Minimum number of rows for 
 		@showTSQLCommandsBeta bit = 0;								-- Shows a list with Commands for dropping the objects that prevent Columnstore Index creation
 -- end of --
 
-declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion: 1.4.2, December 2016') as NVARCHAR(128)), 
+declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') as NVARCHAR(128)), 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2012
 if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'11'
 begin
-	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version: 1.4.2, December 2016 is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running a SQL Server 2012. Your SQL Server Version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -92,8 +105,9 @@ create table #TablesToColumnstore(
 	[TableLocation] varchar(15) NOT NULL,
 	[TableName] nvarchar(1000) NOT NULL,
 	[ShortTableName] nvarchar(256) NOT NULL,
+	[Partitions] BIGINT NOT NULL,
 	[Row Count] bigint NOT NULL,
-	[Min RowGroups] smallint NOT NULL,
+	[Min RowGroups] INT NOT NULL,
 	[Size in GB] decimal(16,3) NOT NULL,
 	[Cols Count] smallint NOT NULL,
 	[String Cols] smallint NOT NULL,
@@ -123,8 +137,9 @@ select t.object_id as [ObjectId]
 	, 'Disk-Based'
 	, quotename(object_schema_name(t.object_id)) + '.' + quotename(object_name(t.object_id)) as 'TableName'
 	, replace(object_name(t.object_id),' ', '') as 'ShortTableName'
-	, max(p.rows) as 'Row Count'
-	, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+	, COUNT(DISTINCT p.partition_number) as [Partitions]
+	, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+	, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 
 	, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 	, (select count(*) from sys.columns as col
 		where t.object_id = col.object_id ) as 'Cols Count'
@@ -159,7 +174,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
@@ -204,8 +219,11 @@ select t.object_id as [ObjectId]
 				from sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0
-		 and (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%')
-		 and (@schemaName is null or object_schema_name( t.object_id ) = @schemaName)
+		 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id) like '%' + @tableName + '%') 
+			  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id) = @tableName) )
+		 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id ) like '%' + @schemaName + '%')
+			  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id ) = @schemaName))
+		 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -256,8 +274,9 @@ select t.object_id as [ObjectId]
 	, 'Disk-Based'
 	, quotename(object_schema_name(t.object_id,db_id('tempdb'))) + '.' + quotename(object_name(t.object_id,db_id('tempdb'))) as 'TableName'
 	, replace(object_name(t.object_id,db_id('tempdb')),' ', '') as 'ShortTableName'
-	, max(p.rows) as 'Row Count'
-	, ceiling(max(p.rows)/1045678.) as 'Min RowGroups' 
+	, COUNT(DISTINCT p.partition_number) as [Partitions]
+	, isnull(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END),0) as 'Row Count'
+	, ceiling(SUM(CASE WHEN p.index_id < 2 THEN p.rows ELSE 0 END)/1045678.) as 'Min RowGroups' 
 	, cast( sum(a.total_pages) * 8.0 / 1024. / 1024 as decimal(16,3)) as 'size in GB'
 	, (select count(*) from tempdb.sys.columns as col
 		where t.object_id = col.object_id ) as 'Cols Count'
@@ -292,7 +311,7 @@ select t.object_id as [ObjectId]
 	   ) as 'LOBs'
     , (select count(*) 
 			from tempdb.sys.columns as col
-			where is_computed = 1 ) as 'Computed'
+			where is_computed = 1 AND col.object_id = t.object_id ) as 'Computed'
 	, (select count(*)
 			from tempdb.sys.indexes ind
 			where type = 1 AND ind.object_id = t.object_id ) as 'Clustered Index'
@@ -337,8 +356,11 @@ select t.object_id as [ObjectId]
 				from tempdb.sys.indexes ind
 				where t.object_id = ind.object_id
 					and ind.type in (5,6) ) = 0
-		 and (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%')
-		 and (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName)
+		 and (@preciseSearch = 0 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) like '%' + @tableName + '%') 
+			  OR @preciseSearch = 1 AND (@tableName is null or object_name (t.object_id,db_id('tempdb')) = @tableName) )
+		 and (@preciseSearch = 0 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) like '%' + @schemaName + '%')
+			  OR @preciseSearch = 1 AND (@schemaName is null or object_schema_name( t.object_id,db_id('tempdb') ) = @schemaName))
+		 AND (ISNULL(@objectId,t.object_id) = t.object_id)
 		 and (( @showReadyTablesOnly = 1 
 				and  
 				(select count(*) 
@@ -393,7 +415,7 @@ select case when ([Replication] + [FileStream] + [FileTable] + [Unsupported]
 					- ([LOBs] + [Computed])) > 0 then 'None' 
 		end as 'Compatible With'
 	, [TableLocation]
-	, [TableName], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
+	, [TableName], [Partitions], [Row Count], [Min RowGroups], [Size in GB], [Cols Count], [String Cols], [Sum Length], [Unsupported], [LOBs], [Computed]
 	, [Clustered Index], [Nonclustered Indexes], [XML Indexes], [Spatial Indexes], [Primary Key], [Foreign Keys], [Unique Constraints]
 	, [Triggers], [RCSI], [Snapshot], [CDC], [CT], [Replication], [FileStream], [FileTable]
 	from #TablesToColumnstore
