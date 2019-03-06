@@ -36,7 +36,7 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 declare @errorMessage nvarchar(512);
 
 -- Ensure that we are running SQL Server 2017
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'13'
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
 begin
 	set @errorMessage = (N'You are not running a SQL Server 2017. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
