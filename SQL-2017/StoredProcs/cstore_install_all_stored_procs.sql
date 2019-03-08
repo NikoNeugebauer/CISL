@@ -1527,8 +1527,8 @@ create or alter procedure dbo.cstore_GetRowGroupsDetails(
 	@maxSizeInMB Decimal(16,3) = NULL, 				-- Maximum size in MB for a table to be included
 	@minCreatedDateTime Datetime = NULL,			-- The earliest create datetime for Row Group to be included
 	@maxCreatedDateTime Datetime = NULL,			-- The lateste create datetime for Row Group to be included
-	@trimReason tinyint = NULL,						-- Row Groups Trimming Reason. The possible values are NULL - do not filter, 1 - NO_TRIM, 2 - BULKLOAD, 3 – REORG, 4 – DICTIONARY_SIZE, 5 – MEMORY_LIMITATION, 6 – RESIDUAL_ROW_GROUP, 7 - STATS_MISMATCH, 8 - SPILLOVER
-	@compressionOperation tinyint = NULL,			-- Allows filtering on the compression operation. The possible values are NULL - do not filter, 1- NOT_APPLICABLE, 2 – INDEX_BUILD, 3 – TUPLE_MOVER, 4 – REORG_NORMAL, 5 – REORG_FORCED, 6 - BULKLOAD, 7 - MERGE		
+	@trimReason tinyint = NULL,						-- Row Groups Trimming Reason. The possible values are NULL - do not filter, 1 - NO_TRIM, 2 - BULKLOAD, 3 ï¿½ REORG, 4 ï¿½ DICTIONARY_SIZE, 5 ï¿½ MEMORY_LIMITATION, 6 ï¿½ RESIDUAL_ROW_GROUP, 7 - STATS_MISMATCH, 8 - SPILLOVER
+	@compressionOperation tinyint = NULL,			-- Allows filtering on the compression operation. The possible values are NULL - do not filter, 1- NOT_APPLICABLE, 2 ï¿½ INDEX_BUILD, 3 ï¿½ TUPLE_MOVER, 4 ï¿½ REORG_NORMAL, 5 ï¿½ REORG_FORCED, 6 - BULKLOAD, 7 - MERGE		
 	@showNonOptimisedOnly bit = 0					-- Allows to filter out the Row Groups that were not optimized with Vertipaq compression
 -- end of --
 	) as
@@ -2146,7 +2146,7 @@ begin
 					and t.is_filetable = 0
 				  )
 				 or @showReadyTablesOnly = 0)
-		group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+		group by t.object_id, case ind.data_space_id when 0 then ''In-Memory'' else ''Disk-Based'' end, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
 		having sum(p.rows) >= @minRowsToConsider 
 				and
 				(((select sum(col.max_length) 
