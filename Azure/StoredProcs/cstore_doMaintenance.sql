@@ -319,9 +319,13 @@ begin
 	--select @effectiveDop = effective_max_dop 
 	--	from sys.dm_resource_governor_workload_groups
 	--	where group_id in (select group_id from sys.dm_exec_requests where session_id = @@spid)
-	select @effectiveDop = cast( value as int )
+
+	-- ELEVATE_ONLINE and ELEVATE_RESUMABLE configuration are in public preview which has 'OFF' value rather then zero, this will convert 'OFF' to zero.
+		select @effectiveDop = case when value = 'OFF' then 0
+							else cast( value as int ) end
 		from sys.database_scoped_configurations
-		where name = 'MAXDOP' and cast( value as int ) < @effectiveDop;
+		where name = 'MAXDOP' and case when value = 'OFF' then 0
+							else cast( value as int ) end  < @effectiveDop;
 	
 	if( @maxdop < 0 )
 		set @maxdop = 0;
