@@ -341,10 +341,12 @@ begin
 		from sys.dm_resource_governor_workload_groups
 		where group_id in (select group_id from sys.dm_exec_requests where session_id = @@spid)
 	-- Get the MAXDOP from the Database Scoped Configurations
-	select @effectiveDop = cast( value as int )
+		select @effectiveDop = case when value = 'OFF' then 0
+							else cast( value as int ) end
 		from sys.database_scoped_configurations
-		where name = 'MAXDOP' and cast( value as int ) < @effectiveDop;
-	
+		where name = 'MAXDOP' and case when value = 'OFF' then 0
+							else cast( value as int ) end  < @effectiveDop;
+
 	if( @maxdop < 0 )
 		set @maxdop = 0;
 	if( @maxdop > @coresDop )
