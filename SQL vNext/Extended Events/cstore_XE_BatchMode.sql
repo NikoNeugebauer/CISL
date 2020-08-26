@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2019: 
 	Extended Events Setup Script for Batch Execution Mode events 'batch_hash_join_separate_hash_column,'query_execution_batch_hash_join_spilled', 'query_execution_batch_hash_children_reversed','query_execution_batch_hash_aggregation_finished','batch_hash_table_build_bailout','query_execution_batch_filter'&'query_execution_batch_spill_started'
 	Version: 1.5.0, August 2017
 
@@ -22,12 +22,13 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'13'
+-- Ensure that we are running SQL Server 2019 or newer
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) < N'15'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running SQL Server 2019 or newer. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
+
 
 /* Stop Session if it already exists */
 IF EXISTS(SELECT *

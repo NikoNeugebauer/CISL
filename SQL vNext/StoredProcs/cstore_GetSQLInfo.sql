@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2019: 
 	SQL Server Instance Information - Provides with the list of the known SQL Server versions that have bugfixes or improvements over your current version + lists currently enabled trace flags on the instance & session
 	Version: 1.5.0, August 2017
 
@@ -36,10 +36,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
+-- Ensure that we are running SQL Server 2019 or newer
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) < N'15'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running SQL Server 2019 or newer. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 GO
@@ -88,19 +88,17 @@ begin
 		SQLVersionDescription nvarchar(100) );
 
 	insert into #SQLBranches (SQLBranch, MinVersion)
-		values ('CTP', 246 );
+		values ('CTP', 1900 ), ('RC', 2000 );
 
 	insert #SQLVersions( SQLBranch, SQLVersion, ReleaseDate, SQLVersionDescription )
 		values 
-			( 'CTP', 246, convert(datetime,'16-11-2016',105), 'CTP 1 for SQL Server vNext' ),
-			( 'CTP', 187, convert(datetime,'16-12-2016',105), 'CTP 1.1 for SQL Server vNext' ),
-			( 'CTP',  24, convert(datetime,'20-01-2017',105), 'CTP 1.2 for SQL Server vNext' ),
-			( 'CTP', 138, convert(datetime,'17-02-2017',105), 'CTP 1.3 for SQL Server vNext' ),
-			( 'CTP', 198, convert(datetime,'17-03-2017',105), 'CTP 1.4 for SQL Server vNext' ),
-			( 'CTP', 272, convert(datetime,'19-04-2017',105), 'CTP 2.0 for SQL Server vNext' ),
-			( 'CTP', 250, convert(datetime,'17-05-2017',105), 'CTP 2.1 for SQL Server vNext' ),
-			( 'RC', 800, convert(datetime,'17-07-2017',105), 'RC 1 for SQL Server vNext' ),
-			( 'RC', 900, convert(datetime,'05-08-2017',105), 'RC 2 for SQL Server vNext' );
+		( 'RTM', 2000, convert(datetime,'04-11-2019',105), 'RTM for SQL Server 2019' ),
+		( 'RTM', 4003, convert(datetime,'07-01-2020',105), 'CU 1 for SQL Server 2019' ),
+		( 'RTM', 4013, convert(datetime,'13-02-2020',105), 'CU 2 for SQL Server 2019' ),
+		( 'RTM', 4023, convert(datetime,'12-03-2020',105), 'CU 3 for SQL Server 2019' ),
+		( 'RTM', 4033, convert(datetime,'31-03-2020',105), 'CU 4 for SQL Server 2019' ),
+		( 'RTM', 4043, convert(datetime,'22-06-2020',105), 'CU 5 for SQL Server 2019' ),
+		( 'RTM', 4053, convert(datetime,'04-08-2020',105), 'CU 6 for SQL Server 2019' );
 		
 
 	if @identifyCurrentVersion = 1
