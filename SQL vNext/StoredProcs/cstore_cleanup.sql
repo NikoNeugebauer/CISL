@@ -1,5 +1,5 @@
 /*
-    Columnstore Indexes Scripts Library for SQL Server vNext: 
+    Columnstore Indexes Scripts Library for SQL Server 2019: 
     Cleanup - This script removes from the current database all CISL Stored Procedures that were previously installed there
     Version: 1.5.0, August 2017
 
