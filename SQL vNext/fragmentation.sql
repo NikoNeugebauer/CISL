@@ -1,5 +1,5 @@
 /*
-	Columnstore Indexes Scripts Library for SQL Server vNext: 
+	Columnstore Indexes Scripts Library for SQL Server 2019: 
 	Columnstore Fragmenttion - Shows the different types of Columnstore Indexes Fragmentation
 	Version: 1.5.0, August 2017
 
@@ -46,10 +46,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerBuild smallint = NULL;
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'14'
+-- Ensure that we are running SQL Server 2019 or newer
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) < N'15'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running SQL Server 2019 or newer. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 

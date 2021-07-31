@@ -1,5 +1,5 @@
 /*
-	CSIL - Columnstore Indexes Scripts Library for SQL Server vNext: 
+	CSIL - Columnstore Indexes Scripts Library for SQL Server 2019: 
 	Extended Events Setup Script for Index Creation events 'clustered_columnstore_index_rebuild', 'column_store_index_build_low_memory', 'column_store_index_build_throttle', 'column_store_index_build_process_segment'
 	Version: 1.5.0, August 2017
 
@@ -22,10 +22,10 @@ declare @SQLServerVersion nvarchar(128) = cast(SERVERPROPERTY('ProductVersion') 
 		@SQLServerEdition nvarchar(128) = cast(SERVERPROPERTY('Edition') as NVARCHAR(128));
 declare @errorMessage nvarchar(512);
 
--- Ensure that we are running SQL Server vNext
-if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) <> N'13'
+-- Ensure that we are running SQL Server 2019 or newer
+if substring(@SQLServerVersion,1,CHARINDEX('.',@SQLServerVersion)-1) < N'15'
 begin
-	set @errorMessage = (N'You are not running a SQL Server vNext. Your SQL Server version is ' + @SQLServerVersion);
+	set @errorMessage = (N'You are not running SQL Server 2019 or newer. Your SQL Server version is ' + @SQLServerVersion);
 	Throw 51000, @errorMessage, 1;
 end
 
@@ -54,7 +54,7 @@ END
 
 /* Create a new default session */
 CREATE EVENT SESSION [cstore_XE_IndexCreation] ON SERVER 
-	ADD EVENT sqlserver.clustered_columnstore_index_rebuild(
+	ADD EVENT sqlserver.columnstore_index_rebuild(
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.session_id,sqlserver.sql_text,sqlserver.username)),
 	ADD EVENT sqlserver.column_store_index_build_low_memory(
 		ACTION(sqlserver.database_name,sqlserver.query_plan_hash,sqlserver.session_id,sqlserver.sql_text,sqlserver.username)),
