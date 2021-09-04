@@ -228,7 +228,7 @@ select t.object_id as [ObjectId]
 				and t.is_filetable = 0
 			  )
 			 or @showReadyTablesOnly = 0)
-	group by t.object_id, ind.data_space_id, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
+	group by t.object_id, case ind.data_space_id when 0 then 'In-Memory' else 'Disk-Based' end, t.is_tracked_by_cdc, t.is_memory_optimized, t.is_filetable, t.is_replicated, t.filestream_data_space_id
 	having sum(p.rows) >= @minRowsToConsider 
 			and
 			(((select sum(col.max_length) 
